@@ -1,0 +1,17 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+.venv/
+
+# Ephemeral output
+reports/
+docs/
+
+# macOS
+.DS_Store
+
+
+# the genesis repo
+codebase/
