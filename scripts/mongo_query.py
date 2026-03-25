@@ -29,6 +29,10 @@ from pymongo import MongoClient
 from pymongo.uri_parser import parse_uri
 
 
+ALLOWED_DATABASE = "ota"
+ALLOWED_COLLECTIONS = ["debug_logs", "optimizer_logs"]
+
+
 def get_client() -> MongoClient:
     uri = os.environ.get("MONGODB_URI")
     if not uri:
@@ -39,18 +43,32 @@ def get_client() -> MongoClient:
 
 
 def get_database(client: MongoClient, database: str | None = None):
-    if database:
-        return client[database]
+    db_name = database
+    if not db_name:
+        parsed = parse_uri(os.environ["MONGODB_URI"])
+        db_name = parsed.get("database") or os.environ.get("MONGODB_DATABASE")
 
-    parsed = parse_uri(os.environ["MONGODB_URI"])
-    db_name = parsed.get("database") or os.environ.get("MONGODB_DATABASE")
     if not db_name:
         print(
             "Error: No database in connection URI and MONGODB_DATABASE is not set.",
             file=sys.stderr,
         )
         sys.exit(1)
+
+    if db_name.lower() != ALLOWED_DATABASE.lower():
+        print(f"Error: Exploration is limited to database '{ALLOWED_DATABASE}'.", file=sys.stderr)
+        sys.exit(1)
+
     return client[db_name]
+
+
+def validate_collection(collection: str):
+    if collection not in ALLOWED_COLLECTIONS:
+        print(
+            f"Error: Exploration is limited to collections: {', '.join(ALLOWED_COLLECTIONS)}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def print_table(headers: list[str], rows: list[dict[str, Any]]):
@@ -100,12 +118,22 @@ def cmd_collections(args):
         print(f"No collections in database '{db.name}'.")
         return
 
-    rows = [{"name": c["name"], "type": c.get("type", "")} for c in infos]
+    # Limit to allowed collections
+    rows = [
+        {"name": c["name"], "type": c.get("type", "")}
+        for c in infos
+        if c["name"] in ALLOWED_COLLECTIONS
+    ]
+    if not rows:
+        print(f"No allowed collections in database '{db.name}'.")
+        return
+
     print_table(["name", "type"], rows)
     print(f"({len(rows)} collections)")
 
 
 def cmd_describe(args):
+    validate_collection(args.collection)
     client = get_client()
     db = get_database(client, args.database)
     coll = db[args.collection]
@@ -153,6 +181,7 @@ def cmd_describe(args):
 
 
 def cmd_find(args):
+    validate_collection(args.collection)
     client = get_client()
     db = get_database(client, args.database)
     coll = db[args.collection]
@@ -198,6 +227,7 @@ def cmd_find(args):
 
 
 def cmd_aggregate(args):
+    validate_collection(args.collection)
     client = get_client()
     db = get_database(client, args.database)
     coll = db[args.collection]
@@ -246,6 +276,11 @@ def main():
         default=3,
         metavar="N",
         help="Number of random documents to sample (0 to skip; default: 3)",
+    )
+    p_desc.add_argument(
+        "--json",
+        action="store_true",
+        help="Print Extended JSON (ObjectId, BSON types)",
     )
     p_desc.set_defaults(func=cmd_describe)
 

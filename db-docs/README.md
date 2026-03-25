@@ -14,6 +14,8 @@ db-docs/
 The access tool determines the folder. Use `clickhouse/` for `clickhouse_query.py`, `mysql/` for
 `mysql_query.py`, and `mongodb/` for `mongo_query.py`.
 
+Note: MongoDB exploration is currently limited to the **`OTA`** database and the **`debug_logs`** and **`optimizer_logs`** collections.
+
 
 ## Adding Table Documentation
 
@@ -41,16 +43,12 @@ SELECT ... FROM table_name WHERE ...
 
 ## Documented Tables
 
-Currently documented: 11 tables total.
+Currently documented: 2 collections total.
 
-### ClickHouse
+### MongoDB
 
-| Table | Database | Purpose |
-|-------|----------|---------|
-
-
-### MySQL
-
-| Table | Database | Purpose |
-|-------|----------|---------|
+| Collection | Database | Purpose |
+|------------|----------|---------|
+| `debug_logs` | `ota` | General debug and error logs from OTA processes |
+| `optimizer_logs` | `ota` | Logs specifically related to the booking optimizer |
 
