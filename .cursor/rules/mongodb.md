@@ -9,22 +9,35 @@ This rule provides guidance on how to query the MongoDB collections `debug_logs`
 
 **Note:** Exploration of other databases or collections is prohibited.
 
-## Collection Structure
+## Collection structure and when to use which
 
-### debug_logs
-Stores general debug and error logs from OTA processes. Key fields:
-- `transaction_id`: Use this for tracking a user transaction across logs.
-- `date_added`: Use this for time-based filtering.
-- `level`: Log severity (info, error, debug).
-- `context`: Identifies the component or process that logged the message.
+### `debug_logs` — full process (start here for investigations)
 
-### optimizer_logs
-Stores logs specifically related to the booking optimizer. Key fields:
-- `fares`: Contains details about the fares being optimized.
-- `transaction_id`: Cross-reference with `debug_logs`.
-- `date_added`: Optimization timestamp.
+`debug_logs` records the **entire** OTA flow for a transaction: search, storefront, checkout, booking, ticketing, supplier API calls, and related steps. It **excludes** repricing calls made by the optimizer — those live only in `optimizer_logs`.
+
+**Investigation rule:** When debugging or analyzing a problem, **query `debug_logs` first**. It is the right place to understand end-to-end behavior outside of repricing.
+
+### `optimizer_logs` — repricing only
+
+`optimizer_logs` contains **only** repricing-related activity from the optimizer (e.g. repricing attempts against different GDS/content sources). It does **not** include checkout, booking, ticketing, or other post-search flows — those appear in `debug_logs`.
+
+### Multiple contestants and content sources
+
+Both collections can contain entries for **many different contestants** (e.g. Amadeus vs Sabre paths) for the same `transaction_id`. When investigating a **specific** issue (e.g. “what happened on Sabre?”), **narrow by content source** — filter or read log payloads for the relevant GDS/supplier (e.g. `sabre`, `amadeus`) so you do not mix unrelated paths.
+
+### Shared fields (both collections)
+
+- `transaction_id`: Correlates with MySQL `search_hash` / storefront transaction id; use it to join MySQL bookability rows with Mongo.
+- `date_added`: Time-based filtering and recency.
+- `level`: Severity (e.g. info, error, debug).
+- `context`: Component or step that emitted the log (read together with payload fields).
 
 ## Querying Guidelines
+
+### Investigation order
+
+1. **`debug_logs`** — transaction-wide flow (checkout, booking, supplier calls outside repricing, errors).
+2. **`optimizer_logs`** — only if the issue is repricing / fare mismatch after optimization; same `transaction_id`, filter mentally or in output by content source.
 
 ### Performance
 1. **Use Indexes:** Both collections are indexed by `transaction_id` and `date_added`. Always include one of these in your filter for performance.
@@ -43,10 +56,12 @@ python3 scripts/mongo_query.py collections ota
 python3 scripts/mongo_query.py find debug_logs ota --sort '{"date_added": -1}' --limit 10
 ```
 
-#### Filter by Transaction ID
+#### Filter by transaction ID (prefer `debug_logs` first)
 ```bash
-python3 scripts/mongo_query.py find optimizer_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}'
+python3 scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
+python3 scripts/mongo_query.py find optimizer_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
 ```
+Use repricing logs only when the question is about optimizer/reprice; restrict interpretation to the relevant content source (e.g. Sabre vs Amadeus) when both appear.
 
 #### Aggregate for Specific Contexts
 ```bash

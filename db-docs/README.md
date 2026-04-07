@@ -45,6 +45,16 @@ SELECT ... FROM table_name WHERE ...
 
 Currently documented: 2 collections total.
 
+### MySQL
+
+| Table | Database | Purpose |
+|-------|----------|---------|
+| `bookability_customer_attempts` | `ota` | Core operational metadata for booking attempts |
+| `booking_contestants` | `ota` | Fare contestants generated during booking flows |
+| `bookability_built_contestant` | `ota` | Junction between attempts and contestants |
+| `bookability_contestant_attempts` | `ota` | GDS errors and exceptions for built contestants |
+| `bookings` | `ota` | Finalized bookings with pricing, status, and test flags |
+
 ### MongoDB
 
 | Collection | Database | Purpose |
