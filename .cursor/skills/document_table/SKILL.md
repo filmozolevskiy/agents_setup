@@ -132,7 +132,13 @@ Add `--filter '{"field": "value"}'` when you need a subset. For ad hoc analytics
 python3 scripts/mongo_query.py aggregate <collection> '[{"$match": {...}}, {"$limit": 20}]' [database]
 ```
 
-In the saved doc, mention which column you sorted by so readers know what “sample” means.
+`aggregate` filters are JSON-only (no `ISODate` in the shell string); for date-bounded pipelines on
+large collections, use mongosh, Compass, or Python with pymongo.
+
+In the saved doc, mention which column you sorted by so readers know what “sample” means. For
+**large append-only logs**, list **`date_added`** (or the recency field you used) under **Recommended
+constraints**, and note which top-level fields hold **supplier payloads** vs **app exceptions** when
+you observe them (e.g. `Response` vs `message`).
 
 Pay attention to: value patterns, NULLs, **how recent** the data looks, status/flag columns, and
 business logic hints.

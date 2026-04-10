@@ -14,6 +14,10 @@ Credentials are read from environment variables:
 
 The find subcommand defaults to --limit 100 unless you pass a different --limit.
 Use --json for Extended-JSON-friendly output (ObjectId, dates, etc.).
+
+Aggregate/find --filter JSON cannot embed BSON Date (no ISODate in JSON). For date-bounded
+aggregations on large collections (e.g. ota.debug_logs), use mongosh, Compass, or a short pymongo
+script. See .cursor/skills/bookability_analysis/SKILL.md (Effective queries on debug_logs).
 """
 
 from __future__ import annotations

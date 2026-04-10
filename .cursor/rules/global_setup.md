@@ -24,6 +24,12 @@ set -a && source .env && set +a && python3 scripts/mongo_query.py collections [d
 set -a && source .env && set +a && python3 scripts/mongo_query.py find <collection> [database] --sort '{"created_at": -1}' --limit 50
 ```
 
+The CLI accepts **JSON only**—no BSON dates in pipeline strings. For time-bounded aggregations on large
+collections (e.g. `ota.debug_logs`), use **mongosh**, **Compass**, or **Python + pymongo** with
+`datetime` after sourcing `.env`. Prefer **`date_added` bounds**, **exact `context`** when known, and
+match supplier text on the right field (often **`Response`** for Downtowntravel book logs)—details in
+`.cursor/skills/bookability_analysis/SKILL.md` (section *Effective queries on debug_logs*).
+
 Do not invent connection strings; use these scripts unless the user explicitly points elsewhere.
 
 
@@ -52,6 +58,7 @@ When you add a skill folder or change behavior, update **this table** and the sk
 |-------|---------|--------------|
 | **`document_table`** | “Document” a table or collection; “what does this table do”; add something to **db-docs/**; user names a table/collection and wants purpose, structure, or docs (even without saying “document”). | Inspect ClickHouse / MySQL / MongoDB via `scripts/clickhouse_query.py`, `scripts/mysql_query.py`, `scripts/mongo_query.py`; infer purpose; write docs under **`db-docs/clickhouse/`**, **`db-docs/mysql/`**, or **`db-docs/mongodb/`** (see **`db-docs/README.md`**). Folder: **`.cursor/skills/document_table/`**. |
 | **`explore_tables`** | “Which table has…”, “find table”, “explore tables”, “check database”, “search database”, “what table stores…”; need data but **db-docs/** does not cover the right object. (Hosts may also invoke this when generic analysis cannot match a documented table.) | Search ClickHouse, MySQL, and MongoDB schemas; present candidates; document chosen tables/collections into **db-docs/** for reuse; then continue analysis. Folder: **`.cursor/skills/explore_tables/`**. |
+| **`trello_content_integration`** | Creating or updating Trello on **Content Integration**; backlog tickets for GDS/content sources, bookability, optimizer, payhub; user says “Trello”, “CI board”, or “file a card”. | Use **user-trello** MCP; **before create**: scan open lists for duplicate/similar cards (`get_lists` + `get_cards_by_list_id`, then `get_card` on candidates); avoid duplicate tickets, link similar ones in the description; **Backlog** only for new cards; titles `SOURCE: summary`; ⊙ bug vs ⊙ need templates; mandatory fields + AI footer. Folder: **`.cursor/skills/trello_content_integration/`**. |
 
 ### Skills — layout, use, and changes
 
