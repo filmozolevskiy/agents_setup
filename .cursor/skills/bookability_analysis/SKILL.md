@@ -310,6 +310,8 @@ For **prevalence + shareable links** in one shot, use an aggregation on **`ota.d
 
 Run in **mongosh**, **Compass**, or **Python + pymongo** with real `datetime` values. `scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` inside JSON pipelines—use those tools for date-bounded harvests.
 
+**When pasting into Trello (Content Integration) or similar tickets:** use the same layout as **`trello_content_integration`** — for **each** distinct error signature, a block with: title line `**CODE — label — example: debug log**`, then **`some examples`** and **one permalink per line**, then **`mongo_query:`** and a **full** copy of the harvest pipeline below (swap only **`$match`**). Reference: [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Single-signature investigations still use **`some examples`** + **`mongo_query:`** after optional **Scale**.
+
 **Full harvest (all matching log lines → one array of links)** — adjust the **`$match`** regex and calendar window:
 
 ```javascript
@@ -452,18 +454,16 @@ For **each** claim you make from MongoDB, **include a permalink** so others can 
 
 **Lead with supplier evidence:** when you assert what the content source did (rejection reason, error code, policy), **link first** to the **request/response** (or raw traffic) document. Link **local exception** documents **additionally** when they clarify where in our stack the failure surfaced.
 
-**Examples**
+**Example layout (chat, docs, or Trello `Numbers/ Examples`):** mirror the CI board style — **`some examples`** on its own line, then **full permalinks** (one per line), then **`mongo_query:`** and the [permalink-harvest aggregation](#aggregation-harvest-debug-log-permalinks-mongosh--compass) with the right **`$match`**. For **multiple** `Response` patterns, repeat the block per signature (see [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors)).
 
-```
+**some examples**
+
 https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021877
-```
 
 - `95769b38d7b00fc0522d49494fbe94cc` — `search_hash` / transaction key  
 - `69d55ccec06bf5c3bd021877` — MongoDB `ObjectId` for the **supplier-side** log (preferred anchor for conclusions)  
 
-```
 https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021878
-```
 
 - `69d55ccec06bf5c3bd021878` — MongoDB `ObjectId` for a **local exception** log (supporting; use for patterns and stack context)
 
