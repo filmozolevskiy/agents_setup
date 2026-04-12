@@ -74,7 +74,9 @@ We get this error NDC-1348 INVALID_AGE_FOR_PAX_TYPE in BookFlight. It looks like
 
 ### `⊙ **Numbers/ quantity/ Examples:**`
 
-Default to a **lean** layout readers can scan in seconds. Put **heavy** detail (collection names, `context`, regex rationale, MySQL/Mongo correlation essays, histograms, “count only” mongosh tips, long **Related** notes) here **only when the user requests it**—otherwise the **query + a few links** are enough.
+Default to a **lean** layout readers can scan in seconds. Put **heavy** detail (collection names, `context`, regex rationale, MySQL/Mongo correlation essays, histograms, long **Related** notes) here **only when the user requests it**—otherwise the **query + a few links** are enough.
+
+**Prevalence / counts:** put totals in the **Scale** line only (e.g. log-line count and distinct `transaction_id` for the stated window). **Do not** add a separate prose runbook after **`mongo_query:`** explaining how to derive counts—no lines like “Scope (counts): reuse the same `$match`…”, “append `{ $count: … }`”, or “move the `date_added` window as needed.” Those instructions live in **`bookability_analysis`** and agent context, not on the card.
 
 **Preferred order — card-level (optional one line, then one or more example blocks):**
 
@@ -93,7 +95,7 @@ Default to a **lean** layout readers can scan in seconds. Put **heavy** detail (
 
 **Single-signature cards** (e.g. [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc)): use **one** such block after **Scale**; **`some examples`** + **`mongo_query:`** is still the preferred labeling (you may omit the long `**… — example: debug log**` title if the card title already names the error—otherwise keep it for scanability).
 
-**Counts / deduped permalinks:** same **`bookability_analysis`** section — append `{ $count: "n" }` or use the **one row per `transaction_id`** variant when retries inflate line count.
+**Counts / deduped permalinks:** agents use **`bookability_analysis`** (or DB tools) to compute prevalence, then **write the result in Scale**—do not paste “how to count” steps onto the card. For harvest pipelines, see the same skill’s permalink variants when retries inflate line count.
 
 **Optional extras** (add only if useful; keep each to **one line**):
 
@@ -209,5 +211,6 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 - Do not omit `⊙ **Summary**` or replace it with only the card title.
 - Do not write a **jargon-heavy Summary** (long technical sentences, stacked acronyms, supplier payload walkthroughs)—put that under **Numbers/ Examples** with permalinks and queries.
 - Do not **pad Numbers/ Examples** with long **Scale** preambles, correlation essays, histograms, or extra mongosh tips when **Scale + some examples + mongo_query:** already reproduces the issue—add those only when they change decisions.
+- Do not add **post-query runbook prose** after **`mongo_query:`** (e.g. “Scope (counts):”, “reuse the same `$match`”, “append `{ $count: … }`”, “distinct transactions”, “adjust `date_added`”)—put measured numbers in **Scale** instead; counting mechanics stay in skills, not on Trello.
 - Do not **edit an existing card** the user pointed to as a **reference-only** example—unless they explicitly ask to update that card; create **new** content using the same style instead.
 - Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts, etc.)—fold everything into the two allowed sections.
