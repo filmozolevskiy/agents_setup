@@ -1,7 +1,111 @@
 # debug_logs
 
 **Database:** `ota`
+
 **Purpose:** General debug and error logs from various OTA (Online Travel Agency) processes, capturing transaction context, fare families, and server metadata.
+
+This document also holds **investigation context** for this collection: where else to look, glossary terms, and **verified** per–content-source log hints. Append stable facts here when you confirm them; **query behavior and filters** are in `.cursor/rules/mongodb.md`.
+
+---
+
+## When to read the sections below
+
+- Before non-trivial work that uses `debug_logs`: bookability deep dives, payments/charges, supplier-specific behavior, or “where are the debug logs for …”.
+
+## When to update (glossary & hints)
+
+- After you confirm something **reusable** and **stable**: log filters, service names, glossary entries, per–content-source rows in the hints table.
+- Do **not** use this file as a scratchpad for one-off hypotheses. Prefer short factual bullets.
+- If a fact belongs in **`db-docs/`** for another table/collection, **link there** instead of pasting schema detail.
+- **How to edit:** append or small patches; correct wrong lines with a brief date in the changelog if useful.
+
+---
+
+## Glossary (internal & common terms)
+
+| Term | Meaning | Notes |
+|------|---------|--------|
+| Payhub | Internal payment processor | Use when investigating **charges on our merchant**, internal payment flow, or Flighthub-side payment handling (not only external card gateways). **Extend this row** when you confirm log sources or dashboards. |
+
+_Add rows as you confirm definitions._
+
+---
+
+## Observability by workflow
+
+### Bookability / content sources
+
+- MySQL `ota` bookability tables are the **first** stop for rates and attempts; see **`.cursor/skills/bookability_analysis/SKILL.md`** for queries.
+- **`debug_logs`** often holds supplier-side detail after SQL; the bookability skill describes when to go there. **Add per–content-source log hints** in the table below when verified.
+
+**Content source hints** (log filters, services, caveats — verified entries only):
+
+| Content source / area | Where to look | Hint |
+|----------------------|---------------|------|
+| _Example: add rows_ | | |
+
+### Payments / charges (Payhub)
+
+- See **Glossary → Payhub**. **Add** index names, log service names, or query patterns here once confirmed.
+
+---
+
+## Related data & tools
+
+| Need | Where |
+|------|--------|
+| Table/collection purpose & columns (other stores) | `db-docs/` and `scripts/mysql_query.py`, `scripts/mongo_query.py`, `scripts/clickhouse_query.py` |
+| Bookability SQL workflow | `.cursor/skills/bookability_analysis/SKILL.md` |
+| MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/rules/mongodb.md` |
+| Optimizer-only repricing logs | `db-docs/mongodb/optimizer_logs.md` |
+
+---
+
+## Changelog (optional)
+
+| Date | Change |
+|------|--------|
+| _YYYY-MM-DD_ | _Initial stub._ |
+
+---
+
+## Log flow & key contexts
+
+`debug_logs` records the end-to-end journey of a transaction. Below are the most important `context` values and markers to look for during an investigation:
+
+### 1. Checkout & Pre-booking
+- **`checkout-deeplink`**: Triggered when a user clicks through from a meta-search site (e.g. Google Flights, Kayak) to our checkout page.
+- **`pre-checkout`**: Initial validation and setup of the checkout session, including fare verification.
+- **`Check Availability`** (marker in `_scopes`): Calls to the supplier/GDS to confirm the fare is still available and hasn't changed price before the user enters details.
+
+### 2. Booker & Pre-processing
+- **`pre-air-booker`**: Final checks before the actual booking attempt. This is where **Optimization** and **Loss Limit** logic typically runs.
+- **`Optimization`** (marker in `_scopes` or `context`): Logs from the booking optimizer attempting to find a better fare or alternative GDS path to maximize margin or bookability.
+- **`loss-limit-fare-increase`**: Logged if the fare has increased beyond the allowed threshold (loss limit), potentially stopping the booking.
+- **`booker-discount-option`**: Details on any discounts applied by the booker logic (e.g. member discounts, promo codes).
+
+### 3. Payment (Payhub)
+- **`payhub_api_request_...`** / **`payhub_api_response_...`**: Communication with **Payhub** (our internal payment processor).
+    - `Verify`: Card validation/authorization.
+    - `ThreeDs` / `UpdateThreeDs`: 3D Secure authentication flow.
+    - `IssueCard`: Generation of a virtual credit card (VCC) to pay the supplier.
+    - `Sale`: The actual charge to the customer's card.
+    - `CancelCard`: Voiding a VCC if the booking fails.
+
+### 4. Booking & Post-processing
+- **`Booking flow`** (marker in `_scopes`): The core logic that sends the `Book` request to the supplier/GDS.
+- **`post-air-booker`**: Tasks that run after the booking attempt, such as sending confirmation emails, updating internal databases, or triggering ticketing.
+- **`CancelProcessor`** (marker in `_scopes`): Triggered if a booking fails or is cancelled, handling the cleanup (voiding payments, notifying the user).
+
+### 5. Ticketing (Ticketer)
+- **`Ticketer`** (marker in `_scopes`): The main ticketing process.
+- **`AirTicketRQ`** (operation in payload): The actual request sent to the GDS (e.g. Sabre) to issue the tickets.
+- **`pending-statement-transaction`** / **`current-statement-item`**: Logs related to finalizing the financial records (statement items) for the booking during ticketing.
+- **`SessionCloseRQ`** (operation in payload): Closing the GDS session after ticketing is complete.
+
+---
+
+## Field reference
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -12,7 +116,7 @@
 | `base_fare_family` | `String` | The base fare family used |
 | `package` | `Object` | Package information if applicable |
 | `context` | `String` | Description of where the log was triggered |
-| `level` | `String` | Log level (e.g., info, error, debug) |
+| `level` | `String` | Log level (e.g. info, error, debug) |
 | `source` | `String` | Source component or service name |
 | `transaction_id` | `String` | Unique ID for the user transaction |
 | `ip` | `String` | Client IP address |

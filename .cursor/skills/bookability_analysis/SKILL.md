@@ -6,13 +6,50 @@ description: >-
   and price changes for a specific content source, carrier, or office.
   Use for deep bookability analysis: MySQL search_hash → MongoDB debug_logs, payment vs supplier
   attribution, and similar-errors reports.
+  Use for single-booking investigation: trace the full flow (checkout, availability, booking, ticketing)
+  for a given booking_id or search_hash to understand what went wrong.
 ---
 
 # Bookability Analysis
 
 You help the Flighthub team diagnose why specific fares or bookings cannot be finalized. The investigation follows a two-stage process: first, a mandatory SQL-based overview, and then an optional MongoDB deep dive based on SQL findings.
 
-**System context:** Before heavy log or cross-service digging, read **`.cursor/rules/system-map.md`** (see **MongoDB rule** for maintenance). Use it for glossary, Payhub/payment boundaries, and **verified** per–content-source log hints; update that file when you confirm durable observability facts.
+**System context:** Before heavy log or cross-service digging, read **`db-docs/mongodb/debug_logs.md`** (investigation sections + glossary + content-source hints; see **MongoDB rule** for query filters). Update that doc when you confirm durable observability facts.
+
+### Single-booking flow investigation (explicit request)
+
+When the user provides a **`booking_id`** or **`search_hash`** and asks to "understand the flow" or "what went wrong for this booking", perform a comprehensive trace across MongoDB `debug_logs`.
+
+**Goal:** Provide a chronological narrative of the booking's lifecycle, identifying the exact point and reason for failure.
+
+**Workflow**
+
+1. **Resolve IDs:** If only `booking_id` is provided, query MySQL to find the corresponding `search_hash` (used as `transaction_id` in Mongo).
+   ```sql
+   SELECT search_hash FROM ota.bookability_contestant_attempts WHERE booking_id = 'YOUR_BOOKING_ID' LIMIT 1;
+   -- OR if not found there, check bookings table
+   SELECT debug_transaction_id FROM ota.bookings WHERE id = 'YOUR_BOOKING_ID';
+   ```
+2. **Fetch Full Timeline:** Query `ota.debug_logs` for the `transaction_id`. Do **not** filter by `context` initially to see the full picture.
+   ```bash
+   python3 scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_HASH"}' --sort '{"date_added": 1}' --limit 2000 --json
+   ```
+3. **Identify Key Stages:** Use the markers in `db-docs/mongodb/debug_logs.md` to segment the logs:
+   - **Checkout**: `checkout-deeplink`, `pre-checkout`.
+   - **Availability**: `Check Availability` scope.
+   - **Optimization**: `Optimization` scope.
+   - **Payment**: `payhub_api_request_...`, `Verify`, `ThreeDs`, `Sale`.
+   - **Booking**: `Booking flow` scope, `pre-air-booker`, `post-air-booker`.
+   - **Ticketing**: `Ticketer` scope, `AirTicketRQ`.
+   - **Failure/Cleanup**: `CancelProcessor` scope, `CancelCard`.
+4. **Analyze Failures:**
+   - Look for `level: "error"` or `level: "critical"`.
+   - Inspect `Response` payloads from suppliers/GDS for raw error messages.
+   - Check Payhub responses for payment declines or 3DS issues.
+5. **Report Findings:**
+   - **Summary**: One-sentence verdict (e.g., "Failed at booking stage due to GDS price increase").
+   - **Timeline**: Bulleted list of key events with timestamps and `context`.
+   - **Root Cause**: Detailed explanation of the failure, including the raw supplier/processor message and a permalink to the log document.
 
 ### Deep bookability analysis (explicit request)
 
@@ -77,7 +114,7 @@ python3 scripts/mongo_query.py find debug_logs ota \
   --json
 ```
 
-Replace `SupplierName` with the integration substring for `{content_source}`; use **exact `context`** when documented in `system-map.md` or prior art.
+Replace `SupplierName` with the integration substring for `{content_source}`; use **exact `context`** when documented in `db-docs/mongodb/debug_logs.md` (content hints) or prior art.
 
 Single-transaction spot-check (same as before):
 
