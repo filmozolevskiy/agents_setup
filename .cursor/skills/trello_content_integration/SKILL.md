@@ -22,14 +22,20 @@ Use the **user-trello** MCP server. **Before each tool call**, read that tool’
 
 **Updates:** use `update_card_details`, `move_card`, checklists, labels, and comments as needed. When updating, keep the card on its current list unless the user asks to move it.
 
+**Archiving:** Use the `archive_card` tool to close or archive cards. Always add a descriptive comment (e.g., "Project stopped", "Duplicate of X") before archiving.
+
 ## Deduplication and related cards (before creating)
 
 **Do not add a new card** until you have checked the board for work that already tracks the **same change or fix**.
 
 1. `set_active_board` (this board), then `get_lists`.
 2. Fetch cards from every **active-work** list: **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, and **Archive**. Skip **INFORMATION** (dashboard/meta). Use `get_cards_by_list_id` per list.
-3. **Match using:** same or obvious alias **title prefix** (e.g. `AMADEUS`, `RESPRO`), core keywords, carrier/office/GDS named in the request, booking ID, hash, or error text—compare both **card names** and, for candidates, `get_card` **descriptions** (`includeMarkdown`: true when useful).
-4. **Outcomes:**
+3. **Robust searching and filtering:** For large boards, JSON outputs from `get_cards_by_list_id` can be huge. Use the provided Python script for reliable filtering instead of complex shell pipelines.
+   - Run: `python3 .cursor/skills/trello_content_integration/scripts/filter_cards.py --terms "keyword1" "keyword2" --exclude "listID1" "listID2"`
+   - This script correctly associates `name`, `idList`, and `url` even in multi-line JSON.
+   - **Prefer `url` over `shortUrl`:** The `url` field contains the card slug, ensuring links are valid and user-friendly.
+4. **Match using:** same or obvious alias **title prefix** (e.g. `AMADEUS`, `RESPRO`), core keywords, carrier/office/GDS named in the request, booking ID, hash, or error text—compare both **card names** and, for candidates, `get_card` **descriptions** (`includeMarkdown`: true when useful).
+5. **Outcomes:**
    - **Same change / duplicate:** Do **not** create a new card. Tell the user which card(s) already cover it (use each card’s `shortUrl` / `url`). Offer to **add** the user’s new examples, queries, or links via **`add_comment`** on that card or **`update_card_details`** on the description, instead of opening a duplicate.
    - **No duplicate but similar / overlapping:** Create the card (still Backlog) **and** note overlaps as **one or two bullets** under `⊙ **Numbers/ quantity/ Examples:**` (e.g. `Related: [title](shortUrl) — same office, different error`). Do **not** add a large standalone “Related cards” section unless the user asks.
    - **No related cards found:** Proceed with creation; omit a “none found” line unless it helps the team.
