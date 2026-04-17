@@ -24,11 +24,10 @@ set -a && source .env && set +a && python3 scripts/mongo_query.py collections [d
 set -a && source .env && set +a && python3 scripts/mongo_query.py find <collection> [database] --sort '{"created_at": -1}' --limit 50
 ```
 
-The CLI accepts **JSON only**—no BSON dates in pipeline strings. For time-bounded aggregations on large
-collections (e.g. `ota.debug_logs`), use **mongosh**, **Compass**, or **Python + pymongo** with
-`datetime` after sourcing `.env`. Prefer **`date_added` bounds**, **exact `context`** when known, and
-match supplier text on the right field (often **`Response`** for Downtowntravel book logs)—details in
-`.cursor/skills/bookability_analysis/SKILL.md` (section *Effective queries on debug_logs*).
+For **query hygiene** on `ota.debug_logs` / `ota.optimizer_logs` (collection choice, `transaction_id` /
+`context` / `Response` filtering, why the CLI rejects `ISODate(...)`, when to switch to mongosh /
+Compass / `pymongo`), load **`.cursor/rules/mongodb.md`**. For **bookability-specific** Mongo patterns
+(supplier evidence hierarchy, permalink harvest), see **`.cursor/skills/bookability_analysis/`**.
 
 Do not invent connection strings; use these scripts unless the user explicitly points elsewhere.
 

@@ -63,21 +63,24 @@ Use the appropriate script based on the database. ClickHouse and MySQL share `ta
 / `query`. MongoDB uses **`collections`**, **`describe`**, **`find`**, and **`aggregate`** (see
 `scripts/mongo_query.py`).
 
+Load credentials once at the start of the session: `set -a && source .env && set +a`
+(canonical pattern in `.cursor/rules/global_setup.md`). Subsequent commands assume that env.
+
 ```bash
 # ClickHouse
-set -a && source .env && set +a && python3 scripts/clickhouse_query.py tables [database]
-set -a && source .env && set +a && python3 scripts/clickhouse_query.py describe <table> [database]
-set -a && source .env && set +a && python3 scripts/clickhouse_query.py query "SELECT ... LIMIT 20"
+python3 scripts/clickhouse_query.py tables [database]
+python3 scripts/clickhouse_query.py describe <table> [database]
+python3 scripts/clickhouse_query.py query "SELECT ... LIMIT 20"
 
 # MySQL
-set -a && source .env && set +a && python3 scripts/mysql_query.py tables [database]
-set -a && source .env && set +a && python3 scripts/mysql_query.py describe <table> [database]
-set -a && source .env && set +a && python3 scripts/mysql_query.py query "SELECT ... LIMIT 20"
+python3 scripts/mysql_query.py tables [database]
+python3 scripts/mysql_query.py describe <table> [database]
+python3 scripts/mysql_query.py query "SELECT ... LIMIT 20"
 
 # MongoDB (collections = equivalent of listing tables)
-set -a && source .env && set +a && python3 scripts/mongo_query.py collections [database]
-set -a && source .env && set +a && python3 scripts/mongo_query.py describe <collection> [database] --sample 3
-set -a && source .env && set +a && python3 scripts/mongo_query.py find <collection> [database] --limit 20
+python3 scripts/mongo_query.py collections [database]
+python3 scripts/mongo_query.py describe <collection> [database] --sample 3
+python3 scripts/mongo_query.py find <collection> [database] --limit 20
 ```
 
 #### 4a. List all tables or collections

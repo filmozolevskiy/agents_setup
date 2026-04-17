@@ -40,7 +40,6 @@ output.
 Optional discovery:
 
 ```bash
-set -a && source .env && set +a
 python3 scripts/clickhouse_query.py tables [database]
 python3 scripts/mysql_query.py tables [database]
 python3 scripts/mongo_query.py collections [database]
@@ -54,11 +53,8 @@ for MongoDB the database in `MONGODB_URI` / `MONGODB_DATABASE`).
 
 ## Steps
 
-Always load credentials first:
-
-```bash
-set -a && source .env && set +a
-```
+Load credentials once at the start of the session: `set -a && source .env && set +a`
+(canonical pattern in `.cursor/rules/global_setup.md`). All bash blocks below assume that env.
 
 ### 1. Describe the table
 

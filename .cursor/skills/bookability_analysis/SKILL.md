@@ -103,10 +103,10 @@ WHERE bcusta.date_created >= '{start_datetime}'
 ORDER BY bcusta.date_created DESC;
 ```
 
-**MongoDB: batch `transaction_id` (`$in`)**
+**MongoDB: batch `transaction_id` (`$in`)** — load credentials once per session
+(`set -a && source .env && set +a`, see `.cursor/rules/global_setup.md`), then:
 
 ```bash
-set -a && source .env && set +a
 python3 scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id": {"$in": ["HASH1", "HASH2"]}, "context": {"$regex": "SupplierName", "$options": "i"}}' \
   --sort '{"date_added": -1}' \
@@ -381,8 +381,9 @@ For specific transactions identified and requested in Step 3, query **`debug_log
 
 For **many failures** (deep bookability analysis), use **`$in`** on `transaction_id` with content-source **`context`** narrowing—see [Deep bookability analysis](#deep-bookability-analysis-explicit-request).
 
+Load credentials once per session (`set -a && source .env && set +a`, see `.cursor/rules/global_setup.md`), then:
+
 ```bash
-set -a && source .env && set +a
 python3 scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' \
   --sort '{"date_added": -1}' \
@@ -400,127 +401,31 @@ Use patterns that stay **index-friendly** and match **where the text actually li
 5. **Counts:** reuse the same filter as a single `$match` (or `countDocuments`) and add `{ "$count": "n" }` in aggregation.
 6. **Tools:** `scripts/mongo_query.py` takes **JSON only**—no `ISODate(...)` in the pipeline string. For date-bounded aggregations, use **mongosh**, **MongoDB Compass**, or a **small Python** script with `pymongo` + `datetime` after `source .env` (same env vars as the CLI).
 
-**Example shape (Downtowntravel book response message — adjust dates and regex):**
-
-```javascript
-[
-  {
-    $match: {
-      context: "Downtowntravel::BookFlight",
-      Response: {
-        $regex: "Passenger names must be unique\\. Please add middle names or titles\\.",
-        $options: "i"
-      },
-      date_added: {
-        $gte: ISODate("2026-04-01T00:00:00.000Z"),
-        $lte: ISODate("2026-05-01T00:00:00.000Z")
-      }
-    }
-  },
-  { $count: "n" }
-]
-```
-
-Use the same `$match` for `find`/`aggregate` pipelines that **`$project`** permalinks (`transaction_id`, `$toString` of `_id`) for sharing.
+For **shape and variants** (counts-only, full harvest, one-per-`transaction_id`) see
+[`references/harvest_permalinks.md`](references/harvest_permalinks.md) — it holds a canonical
+`$match` pattern (exact `context` + `Response` `$regex` + `date_added` bounds) and the three
+aggregation templates. Use the same `$match` for `find`/`aggregate` pipelines that `$project`
+permalinks (`transaction_id`, `$toString` of `_id`) for sharing.
 
 #### Aggregation: harvest debug log permalinks (mongosh / Compass)
 
-For **prevalence + shareable links** in one shot, use an aggregation on **`ota.debug_logs`** with:
+For **prevalence + shareable links** in one shot, run an aggregation on **`ota.debug_logs`** with
+`$match` (exact `context`, `date_added` bounds, `Response` `$regex`) → `$project` (`transaction_id`,
+`log_id` via `$toString`, `link` built from the permalink URL shape) → optional `$group`.
 
-1. **`$match`:** exact **`context`** where possible, **`date_added`** bounds (`$gte` / `$lte` or `$lt`), and supplier text on **`Response`** via **`$regex`** (not on `context`).
-2. **`$project`:** `transaction_id`, `log_id` = `$toString` of `$_id`, and **`link`** = `https://reservations.voyagesalacarte.ca/debug-logs/log-group/` + `transaction_id` + `#` + `$toString` of `$_id`.
+**Canonical pipelines live in [`references/harvest_permalinks.md`](references/harvest_permalinks.md):**
 
-Run in **mongosh**, **Compass**, or **Python + pymongo** with real `datetime` values. `scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` inside JSON pipelines—use those tools for date-bounded harvests.
+- **Variant A — Full harvest:** every matching log line, one array of links. Use for enumeration before dedup.
+- **Variant B — One row per `transaction_id`:** use when retries inflate the line count (common for Trello cards).
+- **Variant C — Counts only:** use for the **Scale** line on Trello cards (total + distinct transactions).
 
-**When pasting into Trello (Content Integration) or similar tickets:** use the same layout as **`trello_content_integration`** — for **each** distinct error signature, a block with: title line `**CODE — label — example: debug log**`, then **`some examples`** and **one permalink per line**, then **`mongo_query:`** and a **full** copy of the harvest pipeline below (swap only **`$match`**). Reference: [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Single-signature investigations still use **`some examples`** + **`mongo_query:`** after optional **Scale**. Put measured prevalence in **Scale** only; **do not** add post-query runbook lines after **`mongo_query:`** (e.g. how to `$count` or dedupe by `transaction_id`)—that is disallowed on CI cards per **`trello_content_integration`**.
+Run in **mongosh**, **Compass**, or **Python + pymongo** with real `datetime` values.
+`scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` in JSON pipelines.
 
-**Full harvest (all matching log lines → one array of links)** — adjust the **`$match`** regex and calendar window:
-
-```javascript
-[
-  {
-    $match: {
-      context: "Downtowntravel::BookFlight",
-      Response: {
-        $regex: "INVALID_AGE_FOR_PAX_TYPE",
-        $options: "i"
-      },
-      date_added: {
-        $gte: ISODate("2026-04-01T00:00:00.000Z"),
-        $lte: ISODate("2026-05-01T00:00:00.000Z")
-      }
-    }
-  },
-  {
-    $project: {
-      _id: 0,
-      transaction_id: 1,
-      date_added: 1,
-      log_id: { $toString: "$_id" },
-      link: {
-        $concat: [
-          "https://reservations.voyagesalacarte.ca/debug-logs/log-group/",
-          "$transaction_id",
-          "#",
-          { $toString: "$_id" }
-        ]
-      }
-    }
-  },
-  { $sort: { date_added: -1 } },
-  {
-    $group: {
-      _id: null,
-      links: { $push: "$link" }
-    }
-  },
-  { $project: { _id: 0, links: 1 } }
-]
-```
-
-**Tighter supplier signature** (e.g. NDC-1348 + age/PTC): set `Response.$regex` to something like `NDC-1348.*INVALID_AGE_FOR_PAX_TYPE` (escape dots in literal phrases when needed).
-
-**One row per `transaction_id`** (better for Trello / email when retries inflate line count): reuse the same `$match`, then sort, project `link`, group:
-
-```javascript
-[
-  {
-    $match: {
-      context: "Downtowntravel::BookFlight",
-      Response: { $regex: "INVALID_AGE_FOR_PAX_TYPE", $options: "i" },
-      date_added: {
-        $gte: ISODate("2026-04-01T00:00:00.000Z"),
-        $lte: ISODate("2026-05-01T00:00:00.000Z")
-      }
-    }
-  },
-  { $sort: { date_added: -1 } },
-  {
-    $project: {
-      transaction_id: 1,
-      date_added: 1,
-      link: {
-        $concat: [
-          "https://reservations.voyagesalacarte.ca/debug-logs/log-group/",
-          "$transaction_id",
-          "#",
-          { $toString: "$_id" }
-        ]
-      }
-    }
-  },
-  {
-    $group: {
-      _id: "$transaction_id",
-      link: { $first: "$link" },
-      last_seen: { $max: "$date_added" }
-    }
-  },
-  { $sort: { last_seen: -1 } }
-]
-```
-
-**Counts only:** same initial `$match`, then `{ $count: "n" }` instead of `$project` / `$group`.
+**Pasting into Trello (Content Integration):** follow the card layout in
+[`trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md) — `some examples`
+permalink lines, then `mongo_query:` with the pipeline (Variant A or B). Put measured prevalence in
+**Scale** only; no post-query runbook prose on cards.
 
 #### Source of truth: supplier traffic vs local exceptions
 Documents are not equal. **Prioritize entries that store raw request/response (or equivalent wire payload) with the external content source**—that is what the GDS or supplier actually saw and returned.
@@ -568,25 +473,22 @@ Map those fields to the real document paths in Mongo, then search for sibling do
 **Querying:** Prefer an **aggregation** with `$match` on **`date_added`** + **exact `context`** (when known) + **signature field** (e.g. `Response` regex)—then `$count` or `$group`. See [Effective queries on debug_logs](#effective-queries-on-debug_logs). Plain `scripts/mongo_query.py` takes JSON without BSON dates; use **mongosh**, **Compass**, or **Python + pymongo** for `ISODate`-bounded pipelines.
 
 #### Reporting MongoDB findings
-For **each** claim you make from MongoDB, **include a permalink** so others can open the exact document:
-
-- **URL pattern:** `https://reservations.voyagesalacarte.ca/debug-logs/log-group/{search_hash}#{object_id}`
-- **`search_hash`:** same value you used as `transaction_id` for that investigation when it aligns with the storefront/search transaction (as in MySQL).
-- **`object_id`:** the document’s `_id` as a **24-character hex string** (from `--json` output, without `$oid` wrappers in the final link).
+For **each** claim you make from MongoDB, **include a permalink** so others can open the exact document.
+URL shape and the `search_hash` / `object_id` components are documented in
+[`references/harvest_permalinks.md`](references/harvest_permalinks.md#permalink-url-shape).
 
 **Lead with supplier evidence:** when you assert what the content source did (rejection reason, error code, policy), **link first** to the **request/response** (or raw traffic) document. Link **local exception** documents **additionally** when they clarify where in our stack the failure surfaced.
 
-**Example layout (chat, docs, or Trello `Numbers/ Examples`):** mirror the CI board style — **`some examples`** on its own line, then **full permalinks** (one per line), then **`mongo_query:`** and the [permalink-harvest aggregation](#aggregation-harvest-debug-log-permalinks-mongosh--compass) with the right **`$match`**. For **multiple** `Response` patterns, repeat the block per signature (see [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors)).
+**Chat / docs / Trello layout:** for Trello `⊙ Numbers/ Examples` formatting (title lines, `some
+examples`, `mongo_query:`, multi-signature blocks), the single source of truth is
+[`trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md). Do not restate
+those conventions here.
 
-**some examples**
+**Example permalink pair** (same `search_hash`, two `_id`s — supplier-side + local exception):
 
-https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021877
-
-- `95769b38d7b00fc0522d49494fbe94cc` — `search_hash` / transaction key  
-- `69d55ccec06bf5c3bd021877` — MongoDB `ObjectId` for the **supplier-side** log (preferred anchor for conclusions)  
-
-https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021878
-
-- `69d55ccec06bf5c3bd021878` — MongoDB `ObjectId` for a **local exception** log (supporting; use for patterns and stack context)
+- `https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021877`
+  — **supplier-side** log (preferred anchor for conclusions)
+- `https://reservations.voyagesalacarte.ca/debug-logs/log-group/95769b38d7b00fc0522d49494fbe94cc#69d55ccec06bf5c3bd021878`
+  — **local exception** log (supporting; patterns and stack context)
 
 Refer to Step 3 and 4 in the base workflow for detailed log analysis (price mismatches, availability loss, etc.).
