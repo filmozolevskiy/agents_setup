@@ -177,6 +177,12 @@ mongo_query:
 2. `⊙ **Numbers/ quantity/ Examples:**` — **lean by default:** optional **Scale** + **one or more** blocks each with **`some examples`** (permalink lines) + **`mongo_query:`** fenced pipeline (or **MySQL:**); optional one-line extras only when needed; related-card line only when dedup requires it.
 3. **AI attribution footer** — exact block at the end (see below).
 
+## Team roles
+
+See [`roles.md`](./roles.md) for the current mapping of team members to roles (developers, QA, analysts, ancillaries, post-ticketing, manual agent team). Consult it when suggesting an owner, reviewer, or `@mention` for a card. **Do not auto-assign members**—propose a person based on the role mapping and let the user confirm.
+
+**Mandatory member — Filipp (delivery manager):** every card the agent **creates or updates must include Filipp as a member**. No exceptions. When creating a card, pass Filipp's member ID in `idMembers` on `add_card_to_list`; when updating, if he is not already on the card, add him via `update_card_details` (or the member-add tool). If Filipp's Trello member ID is not known yet, fetch the board members first (e.g. via `get_board_members` or the equivalent Trello MCP tool) and cache the ID for the session.
+
 ## Labels
 
 After `get_board_labels` for this board, map the user’s intent to existing names, for example:
@@ -210,6 +216,7 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 
 - Do not create new cards outside **Backlog** unless the user explicitly asks.
 - Do not skip the **deduplication** pass before creating a card.
+- Do not ship a card (new or updated) **without Filipp** (delivery manager) as a member—no exceptions.
 - Do not invent booking IDs, hashes, or log URLs.
 - Do not **trim** real `IN (...)` hash lists, SQL filters, or Mongo bounds **inside Numbers/ Examples** just to shorten the card—those lists are often the reproducible slice.
 - Do not omit `⊙ **Numbers/ quantity/ Examples:**` when there are examples, queries, or patterns—put them there (compact).
