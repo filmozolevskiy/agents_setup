@@ -1,3 +1,8 @@
+---
+description: "How to query MongoDB `ota.debug_logs` and `ota.optimizer_logs` safely via `scripts/mongo_query.py` — collection choice, `transaction_id` / `context` / `Response` filtering, and aggregation guidance. Load whenever the task touches MongoDB, debug logs, optimizer logs, or `transaction_id` correlation."
+alwaysApply: false
+---
+
 # MongoDB Query Rules
 
 Query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** using `scripts/mongo_query.py`.

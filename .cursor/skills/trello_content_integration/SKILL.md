@@ -31,9 +31,19 @@ Use the **user-trello** MCP server. **Before each tool call**, read that tool’
 1. `set_active_board` (this board), then `get_lists`.
 2. Fetch cards from every **active-work** list: **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, and **Archive**. Skip **INFORMATION** (dashboard/meta). Use `get_cards_by_list_id` per list.
 3. **Robust searching and filtering:** For large boards, JSON outputs from `get_cards_by_list_id` can be huge. Use the provided Python script for reliable filtering instead of complex shell pipelines.
-   - Run: `python3 .cursor/skills/trello_content_integration/scripts/filter_cards.py --terms "keyword1" "keyword2" --exclude "listID1" "listID2"`
-   - This script correctly associates `name`, `idList`, and `url` even in multi-line JSON.
-   - **Prefer `url` over `shortUrl`:** The `url` field contains the card slug, ensuring links are valid and user-friendly.
+   - Script: `.cursor/skills/trello_content_integration/scripts/filter_cards.py`
+   - It parses real JSON (via `json.load`) — pass the MCP output files explicitly, or pipe via stdin.
+   - **Invocation (explicit files, preferred):**
+     ```bash
+     python3 .cursor/skills/trello_content_integration/scripts/filter_cards.py \
+       --terms "keyword1" "keyword2" \
+       --exclude "listID1" "listID2" \
+       -- path/to/cards_backlog.json path/to/cards_ready_for_dev.json
+     ```
+   - **Invocation (stdin):** `... filter_cards.py --terms "keyword" < cards.json`
+   - It accepts a top-level array or an object wrapping the array (handles minor MCP shape variations).
+   - Output is one line per card: `name | url`, deduplicated, sorted by name.
+   - **Prefer `url` over `shortUrl`:** the script already prefers `url` (slug-bearing) and falls back to `shortUrl` only when `url` is absent.
 4. **Match using:** same or obvious alias **title prefix** (e.g. `AMADEUS`, `RESPRO`), core keywords, carrier/office/GDS named in the request, booking ID, hash, or error text—compare both **card names** and, for candidates, `get_card` **descriptions** (`includeMarkdown`: true when useful).
 5. **Outcomes:**
    - **Same change / duplicate:** Do **not** create a new card. Tell the user which card(s) already cover it (use each card’s `shortUrl` / `url`). Offer to **add** the user’s new examples, queries, or links via **`add_comment`** on that card or **`update_card_details`** on the description, instead of opening a duplicate.

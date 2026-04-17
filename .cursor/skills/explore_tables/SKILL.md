@@ -1,12 +1,12 @@
 ---
-name: meta-analyst:explore-tables
+name: explore-tables
 description: >
   Explore ClickHouse, MySQL, and MongoDB schemas to find tables or collections that contain
   specific information. Use when you need data from the database but db-docs/ doesn't cover
   the right table or collection, or when the user asks "which table has", "find table", "explore
   tables", "check database", "search database", "what table stores", or any question about where
-  specific data lives. Also triggered automatically by meta-analyst:analyze when no documented table
-  matches the query.
+  specific data lives. Other skills (e.g. `bookability-analysis`) may invoke this when no
+  documented table matches the question.
 ---
 
 # Explore Tables Skill
@@ -167,14 +167,15 @@ Ask: **"Which table(s) should I document for future use?"**
 
 For each table the user selects:
 
-1. **Invoke `meta-analyst:document-table`** — this creates proper documentation in `db-docs/`
+1. **Invoke the `document-table` skill** (`.cursor/skills/document_table/SKILL.md`) — it creates
+   proper documentation in `db-docs/`.
 2. **Summarize findings** for the next step in the workflow:
    - Which table to use and why
    - Key columns relevant to the original question
    - Recommended query patterns
    - Any joins needed with other tables
 
-This summary allows the calling skill (e.g., `meta-analyst:analyze`) to pick up where
+This summary allows the calling skill (e.g. `bookability-analysis`) or the user to pick up where
 exploration left off and continue with the actual analysis.
 
 ## Important Notes
