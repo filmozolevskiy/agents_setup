@@ -30,9 +30,9 @@ def filter_cards(search_terms, excluded_lists, agent_tools_dir):
         line_num = int(parts[1])
         
         # Read a chunk of lines around the match to find idList and url
-        # 100 lines before and after is usually enough for a Trello card object
-        start = max(1, line_num - 100)
-        end = line_num + 100
+        # 200 lines before and after to ensure we capture the full object
+        start = max(1, line_num - 200)
+        end = line_num + 200
         
         try:
             chunk_cmd = f"sed -n '{start},{end}p' \"{filename}\""
@@ -44,7 +44,12 @@ def filter_cards(search_terms, excluded_lists, agent_tools_dir):
             name = name_match.group(1)
             
             # Find all idList and url/shortUrl occurrences in the chunk
-            list_matches = list(re.finditer(r'"idList": "([^"]+)"', chunk))
+            # idList is usually at the card level, but can also appear in labels or other nested objects
+            # We want the idList that is at the same indentation level as the card's name
+            list_matches = list(re.finditer(r'^\s+"idList": "([^"]+)"', chunk, re.MULTILINE))
+            if not list_matches:
+                list_matches = list(re.finditer(r'"idList": "([^"]+)"', chunk))
+                
             url_matches = list(re.finditer(r'"url": "(https://trello.com/c/[^"]+)"', chunk))
             if not url_matches:
                 url_matches = list(re.finditer(r'"shortUrl": "(https://trello.com/c/[^"]+)"', chunk))
@@ -52,24 +57,33 @@ def filter_cards(search_terms, excluded_lists, agent_tools_dir):
             if not list_matches or not url_matches: continue
             
             # Find the name's position in the chunk to associate the closest fields
-            name_pos = chunk.find(f'"name": "{name}"')
+            # Use re.search on the chunk to find the exact position of the name field
+            # We look for the name field at the card level (indented by 4 spaces)
+            name_field_match = re.search(fr'^\s+"name":\s*"{re.escape(name)}"', chunk, re.MULTILINE)
+            if not name_field_match:
+                name_field_match = re.search(fr'"name":\s*"{re.escape(name)}"', chunk)
             
-            # Closest idList before name
+            if not name_field_match: continue
+            name_pos = name_field_match.start()
+            
+            # Closest idList to name (usually before)
+            # We prefer idList that is BEFORE the name in the same object
             best_id_list = None
-            for m in list_matches:
+            for m in reversed(list_matches):
                 if m.start() < name_pos:
                     best_id_list = m.group(1)
-                else:
                     break
-            if not best_id_list: best_id_list = list_matches[0].group(1)
+            if not best_id_list:
+                best_id_list = min(list_matches, key=lambda m: abs(m.start() - name_pos)).group(1)
             
-            # Closest url after name
+            # Closest url to name (usually after)
             best_url = None
             for m in url_matches:
                 if m.start() > name_pos:
                     best_url = m.group(1)
                     break
-            if not best_url: best_url = url_matches[-1].group(1)
+            if not best_url:
+                best_url = min(url_matches, key=lambda m: abs(m.start() - name_pos)).group(1)
             
             if best_url and best_id_list:
                 # Use the shortUrl (without slug) as key to avoid duplicates
