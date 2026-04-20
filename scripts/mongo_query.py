@@ -17,7 +17,7 @@ Use --json for Extended-JSON-friendly output (ObjectId, dates, etc.).
 
 Aggregate/find --filter JSON cannot embed BSON Date (no ISODate in JSON). For date-bounded
 aggregations on large collections (e.g. ota.debug_logs), use mongosh, Compass, or a short pymongo
-script. See .cursor/skills/bookability_analysis/SKILL.md (Effective queries on debug_logs).
+script. See .cursor/skills/bookability_analysis/references/debug_logs_query_patterns.md.
 """
 
 from __future__ import annotations

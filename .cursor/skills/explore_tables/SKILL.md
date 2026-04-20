@@ -119,7 +119,7 @@ recency field) whenever the collection is large. Prefer **equality** on stable d
 (`context`, `transaction_id`) instead of **`$regex` on `context`** when you already know the exact
 string. After sampling one document, query the **field that actually holds the text** (e.g. supplier
 **`Response`**) rather than searching stringified `meta` or stitching many fields—see
-`.cursor/skills/bookability_analysis/SKILL.md` (Effective queries on debug_logs).
+`.cursor/skills/bookability_analysis/references/debug_logs_query_patterns.md`.
 
 #### 4c. Sample candidates in parallel
 

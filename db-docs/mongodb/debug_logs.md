@@ -35,7 +35,7 @@ _Add rows as you confirm definitions._
 
 ### Bookability / content sources
 
-- MySQL `ota` bookability tables are the **first** stop for rates and attempts; see **`.cursor/skills/bookability_analysis/SKILL.md`** for queries.
+- MySQL `ota` bookability tables are the **first** stop for rates and attempts; see **`.cursor/skills/bookability_analysis/references/standard_bookability_report.md`** for the SQL template.
 - **`debug_logs`** often holds supplier-side detail after SQL; the bookability skill describes when to go there. **Add per–content-source log hints** in the table below when verified.
 
 **Content source hints** (log filters, services, caveats — verified entries only):
@@ -55,7 +55,7 @@ _Add rows as you confirm definitions._
 | Need | Where |
 |------|--------|
 | Table/collection purpose & columns (other stores) | `db-docs/` and `scripts/mysql_query.py`, `scripts/mongo_query.py`, `scripts/clickhouse_query.py` |
-| Bookability SQL workflow | `.cursor/skills/bookability_analysis/SKILL.md` |
+| Bookability SQL workflow | `.cursor/skills/bookability_analysis/references/standard_bookability_report.md` |
 | MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/rules/mongodb.md` |
 | Optimizer-only repricing logs | `db-docs/mongodb/optimizer_logs.md` |
 
