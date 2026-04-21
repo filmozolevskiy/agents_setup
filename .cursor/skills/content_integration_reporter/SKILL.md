@@ -79,3 +79,25 @@ Output structure, summary table, per-signature blocks, and follow-up section:
 - **Do not skip the Mongo deep-dive** for buckets with ≥ 5 failures — the whole point of this skill is automated correlation. The ClickHouse `error_message` is a good starting point but Mongo reveals whether the failure is in supplier response or our code.
 - **Supplier evidence wins** for classification when ClickHouse and Mongo disagree — flag the mismatch explicitly.
 - **Amadeus uses lowercase `response` field** in debug_logs (not `Response`) — always check both when querying Amadeus transactions.
+
+## Post-run learning (mandatory)
+
+At the end of every run, before presenting the report, update **`db-docs/mongodb/debug_logs.md`** (content-source hints table) with anything newly confirmed. This keeps future runs faster and more accurate.
+
+**Add a row when you confirm:**
+- A new `context` string that contains supplier request/response data for a GDS (e.g. `flightroutes24-api[ACCOUNT] pricing.do`)
+- A `context` that looks promising but has **no** response data — note the caveat so future runs skip it
+- A field name that differs from the standard (`Response`) — e.g. Amadeus uses lowercase `response`
+- A stable error code or message pattern for a content source that is worth matching directly in future
+
+**Remove or correct a row when you find:**
+- A previously noted context no longer exists or has changed shape
+- A previously noted field is absent or renamed in recent logs
+- A hint turns out to be wrong or misleading after spot-checking
+
+**Do not add rows for:**
+- One-off errors unlikely to recur
+- Anything that duplicates what is already in the hints table
+- Availability/pricing errors (those are filtered at Phase 2)
+
+After updating `db-docs/mongodb/debug_logs.md`, commit the change with a short message referencing the run date and what was learned. Do this even if only one row changed.
