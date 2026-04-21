@@ -107,7 +107,9 @@ Default to a **lean** layout readers can scan in seconds. Put **heavy** detail (
 2. Blank line, then **`some examples`** on its own line.
 3. Blank line, then **full permalinks** — one URL per line (`https://…/debug-logs/log-group/<transaction_id>#<log_id>`). Bullets are OK; plain lines match board style. Add more rows until the slice is representative; use **`mongo_query`** to harvest more when the card would get too long.
 4. Blank line, then **`mongo_query:`** on its own line (this label; not “MongoDB Query” or a prose runbook).
-5. **Fenced `javascript`** block: **full** aggregation — **`$match`** (`context`, `date_added` bounds, `Response` `$regex`) then **`$project`** (`transaction_id`, `log_id`, **`link`** via `$concat` with the same base URL as the examples) then **`$group`** into **`links`**. Pipeline is the **Variant A / Variant B** template from [`bookability_analysis/references/harvest_permalinks.md`](../bookability_analysis/references/harvest_permalinks.md) — swap only the **`$match`** for each signature.
+5. **Fenced `javascript`** block: **full** aggregation that pastes directly into **MongoDB Compass's Aggregation tab** — `ISODate("…")` for date bounds, **unquoted** field names, always starts with **`$match`** (`context`, `date_added` bounds, and a regex on the collection's payload text field — `Response` on `debug_logs`, `errors` on `optimizer_logs`, etc.). Then pick one of the two canonical output shapes below; swap only the **`$match`** for each signature.
+   - **Shape B — flat links array (default for cards).** `$sort: { date_added: -1 }` (optional — for chronological order), then `$project` returns just `link` built via `$concat` with the base URL, then `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }`, final `$project: { _id: 0, count: 1, links: 1 }`. Compass returns **one** result doc with `count` and a flat `links[]` array of URL strings — a single scroll of pasteable permalinks, no per-row sub-objects to expand. Use this by default on cards; matches the harvest templates in [`bookability_analysis/references/harvest_permalinks.md`](../bookability_analysis/references/harvest_permalinks.md).
+   - **Shape A — per-row.** `$project` returns one document per match with `booking_id`, `transaction_id`, `date_added`, `log_id`, and the `link`; end with `$sort: { date_added: -1 }`. Compass returns N separate result docs. Use when you need per-row context columns next to each link (small slice, per-row filtering in Compass, or a `.forEach(...)` loop in mongosh).
 
 **Single-signature cards** (e.g. [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc)): use **one** such block after **Scale**; **`some examples`** + **`mongo_query:`** is still the preferred labeling (you may omit the long `**… — example: debug log**` title if the card title already names the error—otherwise keep it for scanability).
 
@@ -125,6 +127,8 @@ If there are no examples yet, say so and still give **`mongo_query:`** (or **MyS
 
 **Where to pull queries from:** **`bookability_analysis`** (MySQL + **Mongo permalink harvest**); **`explore_tables`** / **`document_table`**; repo scripts (`scripts/mysql_query.py`, `scripts/clickhouse_query.py`, `scripts/mongo_query.py`). Keep runnable text **inside** this section.
 
+**Query structure — always debuggable (mandatory):** every MySQL / ClickHouse aggregation **or** example query must be written with a **CTE** that defines the slice (filters, window, joins) once, and an outer statement that is either an aggregate (`COUNT(...)`, `SUM(...)`) **or** an example `SELECT ... LIMIT N`. Include the counterpart as a **commented-out** outer `SELECT` from the same CTE, so reviewers can swap count ↔ examples without re-validating the filter. For Mongo, the leading `$match` stage of the pipeline plays the same role — name the slice there, then branch between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two permalink output shapes in the rest of the pipeline: **Shape B** (default — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }`, single doc with a flat links array) or **Shape A** (`$project` with context columns → `$sort: { date_added: -1 }`, N separate docs — one per match). Either shape is card-safe. **The Mongo pipeline must paste directly into MongoDB Compass's Aggregation tab:** `ISODate("…")` for date bounds, **unquoted** field names, and the same permalink base URL as the examples. This keeps queries reproducible, debuggable, runnable in Compass, and consistent between the aggregate numbers quoted on the card and the example rows it links.
+
 ````markdown
 ⊙ **Numbers/ quantity/ Examples:**
 
@@ -137,44 +141,59 @@ some examples
 https://reservations.voyagesalacarte.ca/debug-logs/log-group/…#…
 https://reservations.voyagesalacarte.ca/debug-logs/log-group/…#…
 
-mongo_query:
+mongo_query (Shape B — flat links array, default for cards):
 
 ```javascript
 [
-  {
-    $match: {
+  { $match: {
       context: "Downtowntravel::BookFlight",
       Response: { $regex: "INVALID_AGE_FOR_PAX_TYPE", $options: "i" },
       date_added: {
         $gte: ISODate("2026-04-01T00:00:00.000Z"),
         $lte: ISODate("2026-05-01T00:00:00.000Z")
       }
-    }
-  },
-  {
-    $project: {
+  }},
+  { $sort: { date_added: -1 } },
+  { $project: {
       _id: 0,
-      transaction_id: 1,
-      log_id: { $toString: "$_id" },
-      link: {
-        $concat: [
-          "https://reservations.voyagesalacarte.ca/debug-logs/log-group/",
-          "$transaction_id",
-          "#",
-          { $toString: "$_id" }
-        ]
-      }
-    }
-  },
-  {
-    $group: {
-      _id: null,
-      links: { $push: "$link" }
-    }
-  },
-  { $project: { _id: 0, links: 1 } }
+      link: { $concat: [
+        "https://reservations.voyagesalacarte.ca/debug-logs/log-group/",
+        "$transaction_id", "#", { $toString: "$_id" }
+      ]}
+  }},
+  { $group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } } },
+  { $project: { _id: 0, count: 1, links: 1 } }
 ]
 ```
+
+mongo_query (Shape A — per-row; same slice, no `$group`):
+
+```javascript
+[
+  { $match: {
+      context: "Downtowntravel::BookFlight",
+      Response: { $regex: "INVALID_AGE_FOR_PAX_TYPE", $options: "i" },
+      date_added: {
+        $gte: ISODate("2026-04-01T00:00:00.000Z"),
+        $lte: ISODate("2026-05-01T00:00:00.000Z")
+      }
+  }},
+  { $project: {
+      _id: 0,
+      booking_id: 1,
+      transaction_id: 1,
+      date_added: 1,
+      log_id: { $toString: "$_id" },
+      link: { $concat: [
+        "https://reservations.voyagesalacarte.ca/debug-logs/log-group/",
+        "$transaction_id", "#", { $toString: "$_id" }
+      ]}
+  }},
+  { $sort: { date_added: -1 } }
+]
+```
+
+Pick **one** shape per `mongo_query:` block — not both. Use the same label (`mongo_query:`) without the `(Shape …)` suffix on the card; the suffix here is only for this reference template. For **optimizer_logs** swap `Response` for `errors` (and adjust the permalink base URL if the target tool is different); everything else is identical.
 ````
 
 (For **SQL**, use a clear one-line label such as **MySQL:** instead of **`mongo_query:`**.)
@@ -212,6 +231,22 @@ Use label **names** consistently with board practice; pass the correct label **I
 3. **Structure reference:** field layout—[#2676](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error); **Summary + lean Numbers**—[#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc); **multi-signature `some examples` + `mongo_query:`**—[#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Optionally `get_card` (`includeMarkdown`: true) for layout—**do not copy private or unrelated content verbatim**.
 4. **Edits:** `update_card_details` / `move_card` / checklist tools as needed. If the description gains substantial new scope, refresh `⊙ **Summary**` so it still matches the card.
 
+## Responding to TODOs / direct requests on an existing card
+
+When the card description or the user leaves a **TODO** (e.g. `TODO: Write a query to verify this`) or asks for a specific artefact on an existing card, deliver **exactly that** — no more:
+
+- If the ask is "write a query", the reply is the **query**. Paste query output only when the TODO explicitly asks for verification numbers or examples.
+- **Do not** expand the reply into a verification essay. Skip multi-section narratives, runbook prose, dev-work notes, code-path pointers, affiliate / content-source provenance, multi-week trend tables, architectural clarifications, glossary reminders, etc. — **unless the TODO explicitly requests them**.
+- One short lead sentence naming the slice (window, filter) is fine; the rest of the reply should be the artefact the TODO asked for (and, when requested, a small result sample).
+- If you notice something important that falls outside the ask, mention it in **one line** at the end (`Side note: …`) — never grow it into another section.
+- These rules apply to **comments** on the card the same way they apply to description updates: match the scope of the ask, not the breadth of your investigation.
+
+**Aggregation / example queries on a card are CTEs (mandatory).** Apply the same rule as **Query structure — always debuggable** above. Concretely:
+
+- MySQL / ClickHouse: write `WITH <slice_name> AS (SELECT … WHERE …) SELECT …`. The outer `SELECT` is either the aggregate *or* an example row listing (`ORDER BY … LIMIT N`); put the counterpart as a **commented-out** `SELECT` from the same CTE so readers can swap it in.
+- Mongo: the pipeline starts with an explicit `$match` stage that encodes the slice once (context, date bounds, and the payload regex — `Response` on `debug_logs`, `errors` on `optimizer_logs`, etc.). The rest branches between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two canonical permalink output shapes: **Shape B** — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }` (single doc with a flat `links[]` array of URL strings, **default for cards** — one scroll of pasteable permalinks, no per-row sub-objects to expand in Compass); or **Shape A** — `$project` with context columns → `$sort: { date_added: -1 }` (N separate docs, one per match; useful when you need per-row context columns, per-row filtering/sorting in Compass, or a `.forEach` loop in mongosh). Either shape is card-safe; pick one per block. It must paste directly into MongoDB Compass's Aggregation tab — `ISODate("…")` for date bounds, **unquoted** field names.
+- Never ship two separately-filtered queries (one for counts, one for examples) on a card — reviewers can't trust they describe the same slice.
+
 ## AI agent footer (required)
 
 Append this as the **last lines** of every **description** the agent writes (new or updated), with no text after it:
@@ -237,3 +272,5 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 - Do not add **post-query runbook prose** after **`mongo_query:`** (e.g. “Scope (counts):”, “reuse the same `$match`”, “append `{ $count: … }`”, “distinct transactions”, “adjust `date_added`”)—put measured numbers in **Scale** instead; counting mechanics stay in skills, not on Trello.
 - Do not **edit an existing card** the user pointed to as a **reference-only** example—unless they explicitly ask to update that card; create **new** content using the same style instead.
 - Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts, etc.)—fold everything into the two allowed sections.
+- Do not **expand a narrow TODO or direct request** (e.g. *"write a query"*, *"add the hashes"*, *"paste the permalink"*) into a multi-section verification essay. Deliver the artefact the user asked for; runbooks, trend tables, dev-work notes, and architectural clarifications only appear when the user explicitly requests them. See [`Responding to TODOs / direct requests on an existing card`](#responding-to-todos--direct-requests-on-an-existing-card).
+- Do not write aggregation or example queries **without a CTE** (MySQL / ClickHouse) or **without a leading `$match` stage** (Mongo). The slice must live in one named place so the query is debuggable and the outer statement can be swapped between count and examples without re-validating the filter.
