@@ -42,7 +42,9 @@ _Add rows as you confirm definitions._
 
 | Content source / area | Where to look | Hint |
 |----------------------|---------------|------|
-| _Example: add rows_ | | |
+| **Flightroutes24** — verify step | `context: "flightroutes24-api[ACCOUNT] pricing.do"` | Supplier JSON response in `Response` field. Error shape: `{"code":"XXXXXXXX","message":"[Verify Failed]:..."}`. Known codes: `20901231` (GDS/airline issue, CRITICAL), `20703204` (GDS/airline issue, retry from search), `10701298` (offerId already used — our retry reusing stale offer). Do **not** rely on `Flightroutes24-booker-unknown-error` context — that context has no response data. |
+| **Flightroutes24** — booking step | `context: "flightroutes24-api[ACCOUNT] booking.do"` | Supplier JSON in `Response`. Error shape: `{"code":"XXXXXXXX","message":"[AIRLINE ERROR]:Booking failed"}`. Known codes: `20901219`, `20901220`, `20901221` — FR24 maps multiple airline rejections to these codes; request underlying detail from FR24. Verify step (`pricing.do`) is often `code: 000000 / "ok"` on the same transaction. |
+| **Amadeus** — all booking/pricing steps | `context: "amadeus-sh4-api[OFFICE] OperationName"` or `"amadeus-redux-api[OFFICE] OperationName"` | Supplier SOAP XML is in lowercase **`response`** field (not `Response`). Key operations: `PNR_AddMultiElements_*` (booking), `Fare_PriceUpsellWithoutPNR` (fare pricing). Always query both `Response` and `response` when filtering Amadeus logs. |
 
 ### Payments / charges (Payhub)
 
@@ -65,7 +67,7 @@ _Add rows as you confirm definitions._
 
 | Date | Change |
 |------|--------|
-| _YYYY-MM-DD_ | _Initial stub._ |
+| 2026-04-20 | Added FR24 and Amadeus content-source hints (verified during content_integration_reporter test run). |
 
 ---
 
