@@ -76,6 +76,58 @@ Full SQL templates live in
 [`references/standard_bookability_report.md`](references/standard_bookability_report.md) and
 [`references/deep_bookability_analysis.md`](references/deep_bookability_analysis.md).
 
+## Multi-ticket pair audits
+
+Use when the ask is "find the combination of CARRIER_A + CARRIER_B (often the
+same carrier twice) in multi-ticket bookings" — e.g. *"F8 + F8 across all
+content sources except Intelysis"*, or any carrier-pair / content-source-pair
+rule the product wants to introduce or audit. The grain is
+**`ota.bookability_contestant_attempts`** (customer booking attempts), **not**
+`ota.optimizer_candidates` — several low-cost carriers (notably Flair / F8)
+do not surface in `optimizer_candidates` the same way as in the booking
+pipeline, so optimizer-side queries silently return zero for carriers that
+are plainly present in production. A card titled `OPTIMIZER: …` does not
+change this; confirm the grain from the TODO itself.
+
+Each multi-ticket customer attempt has two `bookability_contestant_attempts`
+rows sharing one `search_hash`, one per `multiticket_part` (`master` /
+`slave`). **Self-join on `search_hash`** so both halves' own
+`validating_carrier`, `gds`, and `status` are directly comparable — do not
+pivot via `GROUP BY customer_attempt_id` + `CASE WHEN multiticket_part =
+'master' …`; the self-join is easier to read and debuggable in isolation.
+
+```sql
+-- F8 + F8 multi-ticket pairs by day and content-source pair (last 7d).
+-- Swap carriers / window / grouping as needed. The content-source pair
+-- (master_gds, slave_gds) keeps existing exceptions (e.g. `intelisys +
+-- intelisys`) visible next to the cross-content-source combinations a new
+-- rule would start affecting.
+with mt_parts as (
+    select
+        master.date_created,
+        master.booking_id,
+        master.gds as master_gds,
+        slave.gds  as slave_gds
+    from ota.bookability_contestant_attempts master
+    join ota.bookability_contestant_attempts slave
+      on master.search_hash = slave.search_hash
+    where master.multiticket_part    = 'master'
+      and slave.multiticket_part     = 'slave'
+      and master.validating_carrier  = 'F8'
+      and slave.validating_carrier   = 'F8'
+      and master.date_created > now() - interval 1 week
+)
+select DATE(date_created) dd, master_gds, slave_gds, count(*) bookings
+from mt_parts
+group by 1, 2, 3
+order by 1 desc, bookings desc;
+```
+
+For Trello cards that carry a TODO like *"write a query to find the
+combination of X + Y"*, adapt this template directly and post the query (and
+a short output sample) via the Trello comment flow in
+[`../trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md#responding-to-todos--direct-requests-on-an-existing-card).
+
 ## Non-bookability errors (`contestant_error`)
 
 Used by the **bookability success-rate denominator** — these codes are excluded from both

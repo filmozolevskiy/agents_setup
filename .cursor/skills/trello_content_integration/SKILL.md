@@ -241,6 +241,8 @@ When the card description or the user leaves a **TODO** (e.g. `TODO: Write a que
 - If you notice something important that falls outside the ask, mention it in **one line** at the end (`Side note: …`) — never grow it into another section.
 - These rules apply to **comments** on the card the same way they apply to description updates: match the scope of the ask, not the breadth of your investigation.
 
+**Confirm the data grain before querying.** The card title prefix (`OPTIMIZER:`, `BOOKABILITY:`, `PAYHUB:` …) reflects product area, **not** data grain — don't let it steer the choice of table. For multi-ticket "find the combination of CARRIER_A + CARRIER_B" TODOs the grain is `ota.bookability_contestant_attempts` (master/slave self-joined on `search_hash`) even on `OPTIMIZER:`-titled cards, because several low-cost carriers (e.g. Flair / F8) do not surface in `optimizer_candidates` the same way and optimizer-side queries will silently return zero. See [`../bookability_analysis/SKILL.md#multi-ticket-pair-audits`](../bookability_analysis/SKILL.md#multi-ticket-pair-audits) for the template; treat it as the default starting point for these TODOs.
+
 **Aggregation / example queries on a card are CTEs (mandatory).** Apply the same rule as **Query structure — always debuggable** above. Concretely:
 
 - MySQL / ClickHouse: write `WITH <slice_name> AS (SELECT … WHERE …) SELECT …`. The outer `SELECT` is either the aggregate *or* an example row listing (`ORDER BY … LIMIT N`); put the counterpart as a **commented-out** `SELECT` from the same CTE so readers can swap it in.
