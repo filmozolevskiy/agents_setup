@@ -1,49 +1,42 @@
 ## optimizer_attempt_bookings
 
 **Database:** `ota`
-**Purpose:** Junction table that links a successful `optimizer_candidates`
-row (the "winning" contestant) to the `bookings` row it produced.
-
-**Status:** **Stub** — created to support the `optimizer-analysis` skill.
-Column types and row counts were not verified during creation (DB access
-unavailable). Fill in and expand during the first optimizer investigation
-that touches this table; follow the template in
-[`db-docs/README.md`](../README.md).
+**Engine:** `InnoDB`  |  **Rows:** `~573K`  |  **Size:** `~25.5 MB`
+**Purpose:** Junction table linking a winning `optimizer_candidates` row (the candidate that actually got booked) to the resulting `bookings` row. One row per successful candidate → booking outcome.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `candidate_id` | `bigint` (to verify) | FK to `optimizer_candidates.id` |
-| `booking_id` | `bigint` (to verify) | FK to `bookings.id` |
-| `created_at` | `timestamp` (to verify) | When the link was recorded |
+| `id` | `int` PK | Junction row id. |
+| `attempt_id` | `bigint` | FK to `optimizer_attempts.id`. Denormalised alongside `candidate_id` so you can go attempt → booking without joining through candidates. |
+| `candidate_id` | `bigint` | FK to `optimizer_candidates.id`. The winning contestant. |
+| `booking_id` | `int` | FK to `bookings.id`. The booking the candidate produced. |
+
+**Indexes:** `attempt_id`, `candidate_id`, `booking_id` (all MUL).
 
 **Key relationships:**
-- Joins to `optimizer_candidates` on `candidate_id`
-- Joins to `bookings` on `booking_id`
+- `oab.candidate_id = optimizer_candidates.id` — winning candidate.
+- `oab.attempt_id  = optimizer_attempts.id`   — owning attempt (shortcut; equivalent to `oc.attempt_id`).
+- `oab.booking_id  = bookings.id`             — the booking itself.
 
 **Common queries:**
 ```sql
--- Find the attempt and candidate behind a booking
-SELECT oa.id AS attempt_id, oab.candidate_id, oa.search_id, oa.created_at
+-- Reverse-resolve a booking to its attempt + winning candidate
+SELECT oab.attempt_id, oab.candidate_id, oa.search_id, oa.checkout_id, oa.created_at
 FROM ota.optimizer_attempt_bookings oab
-JOIN ota.optimizer_candidates       oc ON oc.id = oab.candidate_id
-JOIN ota.optimizer_attempts         oa ON oa.id = oc.attempt_id
-WHERE oab.booking_id = {booking_id};
+JOIN ota.optimizer_attempts oa ON oa.id = oab.attempt_id
+WHERE oab.booking_id = :booking_id;
 
--- List bookings produced by a specific attempt
+-- List the winning candidates for a specific attempt
 SELECT oab.candidate_id, oab.booking_id
 FROM ota.optimizer_attempt_bookings oab
-JOIN ota.optimizer_candidates oc ON oc.id = oab.candidate_id
-WHERE oc.attempt_id = {attempt_id};
+WHERE oab.attempt_id = :attempt_id;
 ```
 
 **Query guidance:**
-- Use this table to reverse-resolve `booking_id` → `attempt_id` for the
-  `optimizer-analysis` `by_booking` SQL template.
-- Always pair with a date bound on `optimizer_candidates.created_at` when
-  joining, since the candidates table is large.
+- **Size class:** small — ~573K rows, ~25 MB. Any of `booking_id`, `candidate_id`, or `attempt_id` is indexed and cheap.
+- No `created_at` column — use the linked `optimizer_attempts.created_at` or `optimizer_candidates.created_at` when a date bound is needed, especially on candidate-side joins (the candidates table is large).
 
 **Notes:**
-- Used by the `optimizer-analysis` skill
-  ([`.cursor/skills/optimizer_analysis/SKILL.md`](../../.cursor/skills/optimizer_analysis/SKILL.md)).
-- Columns and types need verification — expand this doc when you next
-  query the table with live DB access.
+- Used by the `optimizer_analysis` skill (`.cursor/skills/optimizer_analysis/`) to wire `booking_id` back to `attempt_id` in the `by_booking` drill-down.
+- Not every attempt has a row here — only attempts whose winning candidate was actually booked.
+- When joining on `candidate_id`, use a `LEFT JOIN` so you keep non-winning / not-yet-booked candidates too (this is what the canonical join pattern does).

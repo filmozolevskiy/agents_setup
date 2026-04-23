@@ -59,6 +59,7 @@ Currently documented: 2 collections total.
 | `optimizer_candidate_tags` | `ota` | Key-value tags attached to optimizer candidates |
 | `optimizer_tags` | `ota` | Reference table of tag names used by the Optimizer |
 | `optimizer_attempt_bookings` | `ota` | Junction linking the winning candidate to its booking |
+| `optimizer_join_pattern` *(reference)* | `ota` | Canonical 5-table Optimizer join — attempts ↔ candidates ↔ bookings + tag roll-up |
 
 ### MongoDB
 
