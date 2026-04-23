@@ -55,7 +55,7 @@ For a "standard" ask, run the standard report and offer the deep dive at the end
 - **Debug-log query patterns** (effective `$match` shape, evidence hierarchy, prevalence): [`references/debug_logs_query_patterns.md`](references/debug_logs_query_patterns.md).
 - **Permalink harvest pipelines** (Variants A/B/C + URL shape): [`references/harvest_permalinks.md`](references/harvest_permalinks.md).
 - **Trello formatting** (posting findings to the Content Integration board): [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
-- **Exploring undocumented tables** (table / collection not in `db-docs/`): [`../explore_tables/SKILL.md`](../explore_tables/SKILL.md).
+- **Exploring or documenting tables** (table / collection not in `db-docs/`, or needs fresh docs): [`../table_analysis/SKILL.md`](../table_analysis/SKILL.md).
 
 ## Key data points (MySQL `ota`)
 

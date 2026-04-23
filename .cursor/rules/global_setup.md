@@ -61,7 +61,7 @@ Check `db-docs/` before using a table:
 - `db-docs/mysql/` — MySQL tables
 - `db-docs/mongodb/` — MongoDB collections
 
-If a table is not documented, say so. Offer to add docs using the `document_table` skill (`.cursor/skills/document_table/`) and the template in `db-docs/README.md`.
+If a table is not documented, say so. Offer to add docs using the `table_analysis` skill (`.cursor/skills/table_analysis/`) and the template in `db-docs/README.md`.
 
 
 ### Skill routing
@@ -71,8 +71,7 @@ Pick the skill that matches the task. Full rules live in each `SKILL.md`. When y
 | Skill | Pick when |
 |-------|-----------|
 | [`bookability_analysis`](../skills/bookability_analysis/SKILL.md) | Bookability questions: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
-| [`document_table`](../skills/document_table/SKILL.md) | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`. |
-| [`explore_tables`](../skills/explore_tables/SKILL.md) | User needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
+| [`table_analysis`](../skills/table_analysis/SKILL.md) | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`, **or** needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
 | [`trello_content_integration`](../skills/trello_content_integration/SKILL.md) | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
 
 ### Skills layout

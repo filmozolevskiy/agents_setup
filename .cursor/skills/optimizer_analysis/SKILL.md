@@ -61,8 +61,7 @@ If the user gives a single ID but also asks "and then see if this is widespread"
 - **Mongo query patterns for `optimizer_logs`** (`transaction_id` ↔ `search_id`, `fares[]` extraction, permalinks): [`references/optimizer_logs_patterns.md`](references/optimizer_logs_patterns.md).
 - **Mistake classification** (missed / wrong-tag / price-rank-candidacy mismatch, tolerances, SQL-vs-Mongo flag): [`references/mistake_classification.md`](references/mistake_classification.md).
 - **Mongo safety / `scripts/mongo_query.py` rules:** [`../../rules/mongodb.md`](../../rules/mongodb.md).
-- **Exploring undocumented tables / collections:** [`../explore_tables/SKILL.md`](../explore_tables/SKILL.md).
-- **Documenting a newly understood table or collection:** [`../document_table/SKILL.md`](../document_table/SKILL.md).
+- **Exploring or documenting tables / collections** (find the right one, or write up a newly understood one): [`../table_analysis/SKILL.md`](../table_analysis/SKILL.md).
 - **Trello card formatting for follow-up tickets:** [`../trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md).
 
 ## Key data points (MySQL `ota`)

@@ -17,8 +17,7 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 - **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
 - **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
 - **`/content_integration_reporter`** — proactive scan of all content sources for recent issues, with provider-side / our-side classification and log permalinks.
-- **`/document_table`** — inspect a table or collection and save its purpose, schema, and gotchas under `db-docs/`.
-- **`/explore_tables`** — find which table or collection holds the data you need when `db-docs/` does not cover it.
+- **`/table_analysis`** — find which table or collection holds the data you need (when `db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `db-docs/`.
 - **`/trello_content_integration`** — create or update cards on the Content Integration Trello board.
 
 Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.

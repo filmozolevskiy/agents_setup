@@ -45,7 +45,7 @@ Check `db-docs/` before using a table:
 - `db-docs/mysql/` — MySQL tables
 - `db-docs/mongodb/` — MongoDB collections
 
-If a table is not documented, say so. Offer to add docs using the `/document_table` skill and the template in `db-docs/README.md`.
+If a table is not documented, say so. Offer to add docs using the `/table_analysis` skill and the template in `db-docs/README.md`.
 
 
 ### Skill routing
@@ -56,8 +56,7 @@ Slash commands load each skill (e.g. `/bookability_analysis`). Full rules live i
 |-------|-----------|
 | `/bookability_analysis` | Bookability: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
 | `/optimizer_analysis` | Optimizer: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, matching audit across a content source (MySQL `optimizer_candidates` + `optimizer_attempts` ↔ MongoDB `optimizer_logs.fares`). |
-| `/document_table` | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`. |
-| `/explore_tables` | User needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
+| `/table_analysis` | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`, **or** needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
 | `/trello_content_integration` | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
 
 

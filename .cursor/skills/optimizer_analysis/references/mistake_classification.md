@@ -358,9 +358,9 @@ for the full list and the override phrase.
   itself an anomaly — record it as `NO_ANCHOR` under MISSED rather than
   trying to reconcile reprice variants in isolation.
 
-## When to escalate to `explore_tables`
+## When to escalate to `table_analysis`
 
 If the supplier payload (when readable) exposes a field whose semantics
 are unclear (e.g. a supplier-specific score), stop the reconciliation and
-hand off to [`../../explore_tables/SKILL.md`](../../explore_tables/SKILL.md) —
+hand off to [`../../table_analysis/SKILL.md`](../../table_analysis/SKILL.md) —
 do not invent a mapping.

@@ -19,7 +19,7 @@ Note: MongoDB exploration is currently limited to the **`OTA`** database and the
 
 ## Adding Table Documentation
 
-Use the **document-table** skill (`.cursor/skills/document_table/SKILL.md`), or follow this template:
+Use the **table-analysis** skill (`.cursor/skills/table_analysis/SKILL.md`), or follow this template:
 
 **Database:** `database_name`
 **Purpose:** One-line description of what this table stores.
