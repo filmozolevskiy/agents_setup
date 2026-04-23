@@ -2,7 +2,7 @@
 
 Single source of truth for the MongoDB aggregations used to produce shareable
 `debug_logs` permalinks for bookability investigations and Trello `mongo_query:`
-blocks. Both `bookability_analysis/SKILL.md` and `trello_content_integration/SKILL.md`
+blocks. Both `bookability_analysis/SKILL.md` and `trello_assistant/SKILL.md`
 link here.
 
 Run these in **mongosh**, **MongoDB Compass**, or **Python + pymongo** — the repo's

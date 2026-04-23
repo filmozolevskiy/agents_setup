@@ -25,7 +25,7 @@ responsible.
         permalinks for each bucket
 - [ ] 7. Emit the audit report with rescue-able count and ticket wording
 - [ ] 8. Post-run learning: extend db-docs and context hints as needed
-- [ ] 9. Offer Trello follow-ups (hand off to trello_content_integration)
+- [ ] 9. Offer Trello follow-ups (hand off to trello_assistant)
 ```
 
 ## Scope defaults
@@ -405,7 +405,7 @@ Update `db-docs/mysql/optimizer_candidates.md` if new `candidacy` values or
 ## Step 9 — Trello follow-up
 
 Offer to open a Trello card with the ticket wording above via
-[`../../trello_content_integration/SKILL.md`](../../trello_content_integration/SKILL.md).
+[`../../trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md).
 Include ≥3 permalinks and the rescue-able count so the content integration
 team can act without re-running the scan.
 

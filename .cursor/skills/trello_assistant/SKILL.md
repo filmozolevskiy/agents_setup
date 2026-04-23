@@ -31,11 +31,11 @@ Do not add a new card until the board has been checked for existing work coverin
 1. `set_active_board` (this board), then `get_lists`.
 2. Fetch cards from every active-work list: **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, **Archive**. Skip **INFORMATION** (dashboard / meta). Use `get_cards_by_list_id` per list.
 3. **Filter reliably.** Large boards produce huge JSON. Use the repo script instead of shell pipelines.
-   - Script: `.cursor/skills/trello_content_integration/scripts/filter_cards.py`
+   - Script: `.cursor/skills/trello_assistant/scripts/filter_cards.py`
    - Parses real JSON (`json.load`). Pass MCP output files or pipe via stdin.
    - **Explicit files (preferred):**
      ```bash
-     python3 .cursor/skills/trello_content_integration/scripts/filter_cards.py \
+     python3 .cursor/skills/trello_assistant/scripts/filter_cards.py \
        --terms "keyword1" "keyword2" \
        --exclude "listID1" "listID2" \
        -- path/to/cards_backlog.json path/to/cards_ready_for_dev.json

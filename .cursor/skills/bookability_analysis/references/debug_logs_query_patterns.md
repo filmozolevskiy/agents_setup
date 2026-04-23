@@ -125,7 +125,7 @@ surfaced.
 
 For Trello `⊙ Numbers/ Examples` formatting (title lines, `some examples`, `mongo_query:`,
 multi-signature blocks), the single source of truth is
-[`trello_content_integration/SKILL.md`](../../trello_content_integration/SKILL.md). Do not restate
+[`trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md). Do not restate
 those conventions here.
 
 **Example permalink pair** (same `search_hash`, two `_id`s — supplier-side + local exception):

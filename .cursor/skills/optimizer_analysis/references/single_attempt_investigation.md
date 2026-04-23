@@ -143,7 +143,7 @@ explicitly.
 ## Follow-up
 
 - [ ] File Trello card on Content Integration board (hand off to
-  `trello_content_integration` skill)
+  `trello_assistant` skill)
 - [ ] Run Workflow B scan for {gds} over last 7d to check prevalence
 - [ ] Update `db-docs/` with any new stable facts (see SKILL.md post-run)
 ```
@@ -157,7 +157,7 @@ Commit the change with a short message (no editor attribution trailer).
 ## Step 8 — Follow-ups
 
 If the verdicts reveal a pattern worth a ticket, hand off to
-[`../../trello_content_integration/SKILL.md`](../../trello_content_integration/SKILL.md)
+[`../../trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md)
 with the `⊙ Summary` / `⊙ Numbers/ quantity/ Examples:` format. Include the
 per-fare verdict table and at least one supplier-side permalink per
 signature.

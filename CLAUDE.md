@@ -57,7 +57,7 @@ Slash commands load each skill (e.g. `/bookability_analysis`). Full rules live i
 | `/bookability_analysis` | Bookability: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
 | `/optimizer_analysis` | Optimizer: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, matching audit across a content source (MySQL `optimizer_candidates` + `optimizer_attempts` ↔ MongoDB `optimizer_logs.fares`). |
 | `/table_analysis` | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`, **or** needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
-| `/trello_content_integration` | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
+| `/trello_assistant` | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
 
 
 ### Skills layout

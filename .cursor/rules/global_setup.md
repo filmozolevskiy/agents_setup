@@ -72,7 +72,7 @@ Pick the skill that matches the task. Full rules live in each `SKILL.md`. When y
 |-------|-----------|
 | [`bookability_analysis`](../skills/bookability_analysis/SKILL.md) | Bookability questions: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
 | [`table_analysis`](../skills/table_analysis/SKILL.md) | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`, **or** needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
-| [`trello_content_integration`](../skills/trello_content_integration/SKILL.md) | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
+| [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
 
 ### Skills layout
 

@@ -185,7 +185,7 @@ snippet in [`optimizer_logs_patterns.md`](optimizer_logs_patterns.md#date-bounde
 ## Follow-up
 
 - [ ] Trello cards (one per signature worth a ticket) — hand off to
-  `trello_content_integration`.
+  `trello_assistant`.
 - [ ] Re-run on {gds} in 7d to check regression.
 - [ ] Update `db-docs/mongodb/optimizer_logs.md` with newly confirmed
   `context` strings and `fares[]` paths (post-run learning).
@@ -202,6 +202,6 @@ editor attribution trailer).
 ## Step 10 — Follow-ups
 
 Offer Trello card creation (one per signature worth a ticket) via
-[`../../trello_content_integration/SKILL.md`](../../trello_content_integration/SKILL.md).
+[`../../trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md).
 Include supplier-side permalinks and 7d / 30d counts in each card so the
 integration team can act without re-running the scan.

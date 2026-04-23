@@ -195,6 +195,6 @@ Thanks
 ```
 
 **If the user asks to create a Trello card:**
-- Read `.cursor/skills/trello_content_integration/SKILL.md` and follow it.
+- Read `.cursor/skills/trello_assistant/SKILL.md` and follow it.
 - Pre-fill: title from the source + error label, `⊙ Summary` from the report's evidence line,
   `⊙ Numbers/Examples` with Scale + example permalinks + `mongo_query:` block from Phase 4.

@@ -21,7 +21,7 @@ Automates the full scan loop for GDS / content source integration problems: surf
 | "Scan integrations", "content integration report", "check all sources" | Full scan across all sources for the window (default: last 7 days) |
 | User names a single source + "reporter" | Scan only that source |
 | After report: "message {source}" or "draft message to {source}" | Draft a plain-text / Slack message for provider-side issues |
-| After report: "create trello card for {source}" / "file ticket for {issue}" | Hand off to `trello_content_integration` |
+| After report: "create trello card for {source}" / "file ticket for {issue}" | Hand off to `trello_assistant` |
 
 ## Workflow
 
@@ -57,7 +57,7 @@ Structure, summary table, per-signature blocks, follow-up section: [`references/
 - **Evidence hierarchy (supplier > local exception):** [`../bookability_analysis/references/debug_logs_query_patterns.md`](../bookability_analysis/references/debug_logs_query_patterns.md).
 - **Permalink harvest pipelines (Variants A/B/C):** [`../bookability_analysis/references/harvest_permalinks.md`](../bookability_analysis/references/harvest_permalinks.md).
 - **MongoDB query safety rules:** [`../../rules/mongodb.md`](../../rules/mongodb.md).
-- **Trello card format for follow-up:** [`../trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md).
+- **Trello card format for follow-up:** [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
 
 ## Key data points (`jupiter.jupiter_booking_errors_v2`)
 

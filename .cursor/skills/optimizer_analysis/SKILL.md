@@ -62,7 +62,7 @@ If the user gives a single ID but also asks "and then see if this is widespread"
 - **Mistake classification** (missed / wrong-tag / price-rank-candidacy mismatch, tolerances, SQL-vs-Mongo flag): [`references/mistake_classification.md`](references/mistake_classification.md).
 - **Mongo safety / `scripts/mongo_query.py` rules:** [`../../rules/mongodb.md`](../../rules/mongodb.md).
 - **Exploring or documenting tables / collections** (find the right one, or write up a newly understood one): [`../table_analysis/SKILL.md`](../table_analysis/SKILL.md).
-- **Trello card formatting for follow-up tickets:** [`../trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md).
+- **Trello card formatting for follow-up tickets:** [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
 
 ## Key data points (MySQL `ota`)
 
@@ -115,7 +115,7 @@ SQL templates take this default via a `{include_supplier_rules}` sentinel — se
 
 ## Read-only
 
-This skill never writes to production data. All MySQL statements are `SELECT`. All Mongo operations are `find` / `aggregate`. Trello follow-up goes through [`../trello_content_integration/SKILL.md`](../trello_content_integration/SKILL.md).
+This skill never writes to production data. All MySQL statements are `SELECT`. All Mongo operations are `find` / `aggregate`. Trello follow-up goes through [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
 
 ## Post-run learning (mandatory)
 

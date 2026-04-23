@@ -11,7 +11,7 @@ Usage:
 The script reads each JSON dump (as produced by the MCP tool) and groups
 cards updated inside the [since, until] window (based on
 ``dateLastActivity``) by developer, using a hard-coded mapping derived
-from ``.cursor/skills/trello_content_integration/roles.md``.
+from ``.cursor/skills/trello_assistant/roles.md``.
 """
 from __future__ import annotations
 
