@@ -13,7 +13,7 @@
 | `reprice_type` | `varchar(32)` | Type of re-pricing (e.g., `new_package`, `original`) |
 | `reprice_index` | `varchar(32)` | Index identifying the re-price strategy |
 | `rank` | `int` | Rank of the candidate within the attempt |
-| `candidacy` | `enum` | Eligibility status (e.g., `Eligible`, `Saver`, `Unbookable`) |
+| `candidacy` | `enum` | Eligibility status. Observed values: `Eligible`, `Saver`, `Inadmissible`, `Incalculable`, `Unprofitable`, `Unsalable`, `Unbookable`, `Unmatchable` (observed 2026-04-21 in DTT traffic). `Unmatchable` pairs with the `No matching fares found` Exception tag and indicates the Optimizer received a supplier response but could not reconcile it to the target itinerary. |
 | `gds` | `varchar(30)` | GDS source (e.g., `amadeus`, `dida`) |
 | `total` | `decimal(10,2)` | Total price of the fare |
 | `revenue` | `decimal(10,2)` | Estimated revenue for this candidate |

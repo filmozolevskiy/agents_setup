@@ -11,60 +11,52 @@ description: >
 
 # Explore Tables Skill
 
-You help the Flighthub team discover which database tables contain specific information.
-This is the go-to skill when `db-docs/` doesn't have what you need — it systematically searches
-ClickHouse, MySQL, and MongoDB schemas, presents candidates, and documents the best matches for
-future use.
+Find which table or collection holds a given piece of data. Use when `db-docs/` does not already answer it. The goal: shortlist candidates, pick the best one, and document it for reuse.
 
 ## Inputs
 
-The user provides a **data concept** they're looking for — e.g., "booking block reasons", 
-"payment statuses", "bookability_failures".
+A data concept — e.g. "booking block reasons", "payment statuses", "bookability_failures".
 
 ## Steps
 
-### 1. Understand the data need
+### 1. Parse the data need
 
-Parse the question to extract the core data concept. Identify:
-- **What information** is being sought (e.g., "why bookings get blocked")
-- **Keywords** to search for in table/column names (e.g., "block", "booking", "status", "reason")
-- **Data nature** — is this analytical/aggregated (likely ClickHouse) or operational/transactional (likely MySQL)
+Extract:
+- What information is being sought (e.g. "why bookings get blocked")
+- Keywords for name search (e.g. "block", "booking", "status", "reason")
+- Data nature — analytical/aggregated (ClickHouse) vs operational/transactional (MySQL)
 
-If the concept is ambiguous, ask a clarifying question before proceeding.
+If the concept is ambiguous, ask one clarifying question before searching.
 
-### 2. Check existing `db-docs/`
+### 2. Check `db-docs/` first
 
-Read all files in `db-docs/clickhouse/`, `db-docs/mysql/`, and `db-docs/mongodb/` to see if any
-documented table or collection already covers the concept.
+Read files under `db-docs/clickhouse/`, `db-docs/mysql/`, `db-docs/mongodb/`.
 
-- **Full match found** → Report the table and stop. No exploration needed.
-- **Partial match** → Note it (e.g., "revenue table has booking IDs but not block reasons") and continue exploring for better candidates.
-- **No match** → Continue to Step 3.
+- **Full match** → report the table, stop.
+- **Partial match** → note it (e.g. "revenue table has booking IDs but not block reasons") and keep looking.
+- **No match** → go to Step 3.
 
-### 3. Determine database scope
+### 3. Pick the engine
 
-Ask the user: **"Do you know which database this might be in?"**
+Ask: "Do you know which database this might be in?"
 
-Present the options:
+Options:
 - **ClickHouse** — analytics warehouse (searches, clicks, revenue, competitiveness)
-- **MySQL / OTA** — operational database (bookings, payments, users, fare rules, blocks)
-- **MongoDB** — document / log / application data (varies by deployment; use when the user names Mongo or a known Mongo database)
+- **MySQL / OTA** — operational data (bookings, payments, users, fare rules, blocks)
+- **MongoDB** — document / log / app data (use when the user names Mongo or a known Mongo database)
 - **Not sure** — explore the engines that fit the concept
 
-If the user isn't sure, use your judgment based on the data concept:
-- Analytics/aggregation concepts → start with ClickHouse
-- Operational/transactional concepts → start with MySQL
-- Document logs, flexible-schema events, or app-owned stores → consider MongoDB when applicable
-- Explore other engines if the first yields no good candidates
+If the user is unsure:
+- Analytics / aggregation → start ClickHouse
+- Operational / transactional → start MySQL
+- Document logs, flexible-schema events, app-owned stores → MongoDB
+- Move to other engines if the first has no good candidates.
 
 ### 4. Explore the schema
 
-Use the appropriate script based on the database. ClickHouse and MySQL share `tables` / `describe`
-/ `query`. MongoDB uses **`collections`**, **`describe`**, **`find`**, and **`aggregate`** (see
-`scripts/mongo_query.py`).
+ClickHouse and MySQL share `tables` / `describe` / `query`. MongoDB uses `collections`, `describe`, `find`, `aggregate` (see `scripts/mongo_query.py`).
 
-Load credentials once at the start of the session: `set -a && source .env && set +a`
-(canonical pattern in `.cursor/rules/global_setup.md`). Subsequent commands assume that env.
+Load credentials once: `set -a && source .env && set +a`. All commands below assume that env.
 
 ```bash
 # ClickHouse
@@ -77,7 +69,7 @@ python3 scripts/mysql_query.py tables [database]
 python3 scripts/mysql_query.py describe <table> [database]
 python3 scripts/mysql_query.py query "SELECT ... LIMIT 20"
 
-# MongoDB (collections = equivalent of listing tables)
+# MongoDB (collections = listing tables)
 python3 scripts/mongo_query.py collections [database]
 python3 scripts/mongo_query.py describe <collection> [database] --sample 3
 python3 scripts/mongo_query.py find <collection> [database] --limit 20
@@ -85,11 +77,9 @@ python3 scripts/mongo_query.py find <collection> [database] --limit 20
 
 #### 4a. List all tables or collections
 
-Run `tables` (ClickHouse / MySQL) or **`collections`** (MongoDB). Scan names for keyword matches.
+Run `tables` (ClickHouse / MySQL) or `collections` (MongoDB). Scan names for keyword matches.
 
-#### 4b. Search columns (if table names aren't obvious)
-
-Search for column names matching your keywords:
+#### 4b. Search columns (if names are not obvious)
 
 **ClickHouse:**
 ```sql
@@ -107,34 +97,24 @@ WHERE COLUMN_NAME LIKE '%keyword%'
 ORDER BY TABLE_SCHEMA, TABLE_NAME
 ```
 
-Try multiple keyword variations (e.g., "block", "blocked", "block_reason", "status").
+Try keyword variations (e.g. "block", "blocked", "block_reason", "status").
 
-**MongoDB** — there is no `information_schema`. After shortlisting collections by name, use
-`describe` and `find` / `aggregate` with small limits to inspect field names and values. For a quick
-scan across keys, you can use an aggregation with `$objectToArray` on a small `$sample` when
-appropriate.
+**MongoDB** — no `information_schema`. Shortlist collections by name, then use `describe` and `find` / `aggregate` with small limits to inspect fields. For a cross-key scan, use an aggregation with `$objectToArray` on a small `$sample`.
 
-**Efficiency (especially logs such as `debug_logs`):** constrain **`date_added`** (or the collection’s
-recency field) whenever the collection is large. Prefer **equality** on stable dimensions
-(`context`, `transaction_id`) instead of **`$regex` on `context`** when you already know the exact
-string. After sampling one document, query the **field that actually holds the text** (e.g. supplier
-**`Response`**) rather than searching stringified `meta` or stitching many fields—see
-`.cursor/skills/bookability_analysis/references/debug_logs_query_patterns.md`.
+**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.cursor/skills/bookability_analysis/references/debug_logs_query_patterns.md`.
 
 #### 4c. Sample candidates in parallel
 
-For the top 3-5 candidate tables or collections, run `describe` and sample queries (`query` with
-`LIMIT 20` for SQL; `find --limit 20` for Mongo) **in parallel** using multiple Bash tool calls in a
-single message. This dramatically speeds up exploration.
+For the top 3–5 candidates, run `describe` and sample queries (`query` with `LIMIT 20` for SQL, `find --limit 20` for Mongo) in parallel, in a single message.
 
 For each candidate, check:
-- Do the columns make sense for the concept?
-- Does the sample data actually contain the information sought?
-- What's the row count and freshness (date ranges)?
+- Do the columns fit the concept?
+- Does the sample data actually contain what was asked for?
+- Row count and freshness (date ranges).
 
-### 5. Present candidates to the user
+### 5. Present candidates
 
-Show a ranked list of candidate tables:
+Ranked list:
 
 ```
 ### Candidate Tables
@@ -145,46 +125,42 @@ Show a ranked list of candidate tables:
 | 2 | order_status_log | MySQL | 15M | 2.1 GB | Medium |
 | 3 | booking_events | ClickHouse | 500M | 12 GB | Low |
 
-**1. booking_blocks** (High confidence)
+**1. booking_blocks** (High)
 - Columns: `booking_id`, `block_reason`, `blocked_at`, `unblocked_at`, `blocked_by`
-- Sample shows block reasons like "fraud_check", "payment_hold", "manual_review"
-- Direct match for what you're looking for
+- Sample: block reasons "fraud_check", "payment_hold", "manual_review"
+- Direct match.
 
-**2. order_status_log** (Medium confidence)
-- Has `status` column with values including "blocked", but also many other statuses
-- Larger table, would need filtering
+**2. order_status_log** (Medium)
+- `status` column has "blocked" among many others; needs filtering.
 
-**3. booking_events** (Low confidence)
-- Event-sourced table with booking lifecycle events
-- Block events exist but mixed with all other events
+**3. booking_events** (Low)
+- Event-sourced lifecycle events; block events mixed with everything else.
 ```
 
-For each candidate, explain:
-- **Why** it's a candidate (which columns/values matched)
-- **How** it could be used (what queries would answer the question)
-- **Caveats** (size, filtering needed, data gaps)
+For each:
+- Why it is a candidate (matching columns / values)
+- How it could answer the question
+- Caveats (size, filtering, gaps)
 
-Ask: **"Which table(s) should I document for future use?"**
+Ask: "Which table(s) should I document for future use?"
 
 ### 6. Document and hand off
 
-For each table the user selects:
+For each selected table:
 
-1. **Invoke the `document-table` skill** (`.cursor/skills/document_table/SKILL.md`) — it creates
-   proper documentation in `db-docs/`.
-2. **Summarize findings** for the next step in the workflow:
+1. Invoke the `document-table` skill (`.cursor/skills/document_table/SKILL.md`) to add proper docs under `db-docs/`.
+2. Summarize for the next step:
    - Which table to use and why
    - Key columns relevant to the original question
    - Recommended query patterns
-   - Any joins needed with other tables
+   - Joins needed with other tables
 
-This summary allows the calling skill (e.g. `bookability-analysis`) or the user to pick up where
-exploration left off and continue with the actual analysis.
+The summary lets the calling skill (e.g. `bookability-analysis`) or the user continue the analysis.
 
-## Important Notes
+## Rules
 
-- **Always check `db-docs/` first** — don't waste time exploring if the answer is already documented.
-- **Parallel is key** — when sampling multiple tables, always run queries in parallel.
-- **Don't over-explore** — if a high-confidence candidate is found early, present it. Don't keep searching for the sake of completeness.
-- **Column search is powerful** — table names can be misleading. Searching `system.columns` / `information_schema.COLUMNS` by column name often finds tables that name matching misses.
-- **Ask before documenting** — always get user confirmation on which tables to document.
+- Check `db-docs/` first. Do not re-explore documented territory.
+- Sample candidates in parallel.
+- Do not over-explore. If a high-confidence candidate shows up early, present it.
+- Column search beats name search. Table names mislead; `system.columns` / `information_schema.COLUMNS` finds what names miss.
+- Get user confirmation before documenting.

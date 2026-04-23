@@ -9,7 +9,7 @@ description: >-
 
 # Trello: Content Integration board
 
-Use the **user-trello** MCP server. **Before each tool call**, read that tool’s JSON schema under `mcps/user-trello/tools/`. Prefer `set_active_board` once per session, then omit `boardId` where the API allows.
+Use the **user-trello** MCP server. Before each tool call, read that tool's JSON schema under `mcps/user-trello/tools/`. Prefer `set_active_board` once per session, then omit `boardId` where the API allows.
 
 ## Board and list (fixed)
 
@@ -20,65 +20,65 @@ Use the **user-trello** MCP server. **Before each tool call**, read that tool’
 
 **New cards:** always create with `add_card_to_list` on list `6509c593087340dfdd332b0a` (Backlog). Do not place new agent-created cards in Ready for Dev, In Progress, or other lists unless the user explicitly overrides.
 
-**Updates:** use `update_card_details`, `move_card`, checklists, labels, and comments as needed. When updating, keep the card on its current list unless the user asks to move it.
+**Updates:** use `update_card_details`, `move_card`, checklists, labels, and comments as needed. Keep the card on its current list unless the user asks to move it.
 
-**Archiving:** Use the `archive_card` tool to close or archive cards. Always add a descriptive comment (e.g., "Project stopped", "Duplicate of X") before archiving.
+**Archiving:** use `archive_card`. Add a descriptive comment first (e.g. "Project stopped", "Duplicate of X") before archiving.
 
 ## Deduplication and related cards (before creating)
 
-**Do not add a new card** until you have checked the board for work that already tracks the **same change or fix**.
+Do not add a new card until the board has been checked for existing work covering the same change or fix.
 
 1. `set_active_board` (this board), then `get_lists`.
-2. Fetch cards from every **active-work** list: **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, and **Archive**. Skip **INFORMATION** (dashboard/meta). Use `get_cards_by_list_id` per list.
-3. **Robust searching and filtering:** For large boards, JSON outputs from `get_cards_by_list_id` can be huge. Use the provided Python script for reliable filtering instead of complex shell pipelines.
+2. Fetch cards from every active-work list: **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, **Archive**. Skip **INFORMATION** (dashboard / meta). Use `get_cards_by_list_id` per list.
+3. **Filter reliably.** Large boards produce huge JSON. Use the repo script instead of shell pipelines.
    - Script: `.cursor/skills/trello_content_integration/scripts/filter_cards.py`
-   - It parses real JSON (via `json.load`) — pass the MCP output files explicitly, or pipe via stdin.
-   - **Invocation (explicit files, preferred):**
+   - Parses real JSON (`json.load`). Pass MCP output files or pipe via stdin.
+   - **Explicit files (preferred):**
      ```bash
      python3 .cursor/skills/trello_content_integration/scripts/filter_cards.py \
        --terms "keyword1" "keyword2" \
        --exclude "listID1" "listID2" \
        -- path/to/cards_backlog.json path/to/cards_ready_for_dev.json
      ```
-   - **Invocation (stdin):** `... filter_cards.py --terms "keyword" < cards.json`
-   - It accepts a top-level array or an object wrapping the array (handles minor MCP shape variations).
-   - Output is one line per card: `name | url`, deduplicated, sorted by name.
-   - **Prefer `url` over `shortUrl`:** the script already prefers `url` (slug-bearing) and falls back to `shortUrl` only when `url` is absent.
-4. **Match using:** same or obvious alias **title prefix** (e.g. `AMADEUS`, `RESPRO`), core keywords, carrier/office/GDS named in the request, booking ID, hash, or error text—compare both **card names** and, for candidates, `get_card` **descriptions** (`includeMarkdown`: true when useful).
+   - **Stdin:** `... filter_cards.py --terms "keyword" < cards.json`
+   - Accepts a top-level array or an object wrapping it.
+   - Output: one line per card, `name | url`, deduped, sorted by name.
+   - Prefers `url` (slug-bearing) over `shortUrl`; falls back to `shortUrl` only if `url` is absent.
+4. **Match using:** title prefix (e.g. `AMADEUS`, `RESPRO`), core keywords, carrier / office / GDS named in the request, booking ID, hash, error text. Compare card names and — for candidates — `get_card` descriptions (`includeMarkdown`: true when useful).
 5. **Outcomes:**
-   - **Same change / duplicate:** Do **not** create a new card. Tell the user which card(s) already cover it (use each card’s `shortUrl` / `url`). Offer to **add** the user’s new examples, queries, or links via **`add_comment`** on that card or **`update_card_details`** on the description, instead of opening a duplicate.
-   - **No duplicate but similar / overlapping:** Create the card (still Backlog) **and** note overlaps as **one or two bullets** under `⊙ **Numbers/ quantity/ Examples:**` (e.g. `Related: [title](shortUrl) — same office, different error`). Do **not** add a large standalone “Related cards” section unless the user asks.
-   - **No related cards found:** Proceed with creation; omit a “none found” line unless it helps the team.
+   - **Duplicate:** do not create a new card. Tell the user which card(s) already cover it (use `shortUrl` / `url`). Offer to add new examples, queries, or links via `add_comment` or `update_card_details` on that card.
+   - **Similar / overlapping but not duplicate:** create the card (Backlog) and note overlaps as one or two bullets under `⊙ **Numbers/ quantity/ Examples:**` (e.g. `Related: [title](shortUrl) — same office, different error`). Do not add a separate "Related cards" section unless the user asks.
+   - **Nothing related:** create. Omit a "none found" line unless it helps the team.
 
-When the user explicitly wants a **new** card even though a close duplicate exists (e.g. split scope), note the duplicate **under Numbers/ Examples** and explain the split in one short bullet.
+When the user explicitly wants a new card even though a close duplicate exists (e.g. split scope), note the duplicate under Numbers/ Examples and explain the split in one short bullet.
 
 ## Card title (naming)
 
 Match titles already used on this board:
 
-- **`SOURCE_OR_AREA: Short concrete summary`** — `SOURCE` is usually the GDS / integration / product prefix in **ALL CAPS** (e.g. `AMADEUS`, `RESPRO`, `TRAVELFUSION`, `FLXNDC`, `PAYHUB`, `BOOKABILITY`, `WORDSPAN`, `DIDA`, `OPTIMIZATION`, `MULTI TICKETS`).
-- Use a **colon and space** after the prefix.
-- For investigations without a fix yet, mirror existing patterns: `(Investigation Pending) SOURCE: …`
-- Keep the part after the colon specific (symptom or desired outcome), not vague.
+- **`SOURCE_OR_AREA: Short concrete summary`** — `SOURCE` is the GDS / integration / product prefix in **ALL CAPS** (e.g. `AMADEUS`, `RESPRO`, `TRAVELFUSION`, `FLXNDC`, `PAYHUB`, `BOOKABILITY`, `WORDSPAN`, `DIDA`, `OPTIMIZATION`, `MULTI TICKETS`).
+- Colon and space after the prefix.
+- Investigations without a fix yet: `(Investigation Pending) SOURCE: …`.
+- The part after the colon: concrete symptom or outcome, not vague.
 
-Before finalizing a title, use the **Deduplication and related cards** pass above; among non-duplicates, align wording with existing titles on the same **source or topic**.
+Run the deduplication pass first. Among non-duplicates, align wording with existing titles on the same source or topic.
 
 ## Description templates (copy structure)
 
-**Always keep the description body short.** The **entire** description (before the AI footer) must use **only these two sections**, in this order—**no** extra `⊙` headings, **no** multi-section “investigation” layouts, **no** exceptions:
+Keep the description body short. The entire description (before the AI footer) uses **only these two sections**, in this order. No extra `⊙` headings, no multi-section "investigation" layouts, no exceptions:
 
 1. `⊙ **Summary**`
 2. `⊙ **Numbers/ quantity/ Examples:**`
 
-Target shape (which **fields** to use, not how long the text must be): [#2676 DTT: Passenger type or count…](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error). For **tone and lean Numbers**, prefer [#2679 DTT: NDC-1348…](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc): **short Summary**, then **Scale** + **some examples** + **mongo_query:** (see below). For **several distinct error signatures on the same flow** (e.g. multiple `Response` patterns), prefer [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors): repeat one **example block per signature**—do not mash unrelated regexes into a single list without separating them.
+Field-shape reference: [#2676 DTT: Passenger type or count…](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error). For tone and lean Numbers: [#2679 DTT: NDC-1348…](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) — short Summary, then Scale + some examples + mongo_query. For several distinct error signatures on the same flow: [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors) — one example block per signature; do not mash unrelated regexes into a single list.
 
-Put anything that would have been “Describe the situation”, investigation narrative, repro steps, QA notes, or proposed solutions **inside** `⊙ **Numbers/ quantity/ Examples:**` as **compact bullets**—do **not** add separate `⊙` blocks for those topics.
+Anything that would have been "Describe the situation", investigation narrative, repro steps, QA notes, or proposed solutions goes inside `⊙ **Numbers/ quantity/ Examples:**` as compact bullets. Do not add separate `⊙` blocks for those topics.
 
 ### `⊙ **Summary**`
 
-- **Tone:** **human-readable and calm**—write like you are explaining the ticket to a teammate in one breath. Prefer **short sentences** and **everyday verbs** (*we get*, *it looks like*, *booking fails*) over dense stack-speak. **Do not** pack the Summary with acronyms (**PTC**, **NDC** field names, **HTTP** minutiae, “dated marketing segment”, long supplier quotes, or multi-clause technical one-liners). Name the **integration or flow** in plain words when it helps (e.g. “in **BookFlight**”, “on **Downtowntravel**”). One **error code or short phrase** is fine if it anchors the card.
-- **Length:** often **1–3 sentences** (~**25–80 words**); use up to **2–5 sentences** (~**40–120 words**) only when the *what / where* truly needs it. No multi-line logs here.
-- **Content:** answer *what fails*, *where* (which flow or integration), and *why we are tracking it* in plain language—**hypothesis-level** (“looks like we map X wrong on our side”) is OK; **proof** (permalink, query, histogram) stays in **Numbers/ Examples**.
+- **Tone:** plain, calm, like explaining the ticket to a teammate in one breath. Short sentences. Everyday verbs (*we get*, *it looks like*, *booking fails*). Do not pack the Summary with acronyms (PTC, NDC field names, HTTP minutiae, "dated marketing segment", long supplier quotes, or multi-clause technical one-liners). Name the integration or flow in plain words (e.g. "in **BookFlight**", "on **Downtowntravel**"). One error code or short phrase is fine if it anchors the card.
+- **Length:** usually 1–3 sentences (~25–80 words). Up to 2–5 sentences (~40–120 words) only if the *what / where* needs it. No multi-line logs.
+- **Content:** *what fails*, *where* (flow or integration), *why we are tracking it*. Plain language. Hypothesis ("looks like we map X wrong on our side") is OK. Proof (permalink, query, histogram) goes in Numbers/ Examples.
 
 ```markdown
 ⊙ **Summary**
@@ -86,48 +86,48 @@ Put anything that would have been “Describe the situation”, investigation na
 We get this error NDC-1348 INVALID_AGE_FOR_PAX_TYPE in BookFlight. It looks like we map the passenger age incorrectly on our side.
 ```
 
-(Adjust names/codes to the actual card; keep this **density** unless the user asks for a more formal runbook style.)
+(Adjust names / codes to the actual card. Keep this density unless the user asks for a more formal runbook style.)
 
 ### `⊙ **Numbers/ quantity/ Examples:**`
 
-Default to a **lean** layout readers can scan in seconds. Put **heavy** detail (collection names, `context`, regex rationale, MySQL/Mongo correlation essays, histograms, long **Related** notes) here **only when the user requests it**—otherwise the **query + a few links** are enough.
+Lean by default — readers scan in seconds. Add heavy detail (collection names, `context`, regex rationale, MySQL / Mongo correlation essays, histograms, long Related notes) only when the user asks. The query plus a few links is usually enough.
 
-**Prevalence / counts:** put totals in the **Scale** line only (e.g. log-line count and distinct `transaction_id` for the stated window). **Do not** add a separate prose runbook after **`mongo_query:`** explaining how to derive counts—no lines like “Scope (counts): reuse the same `$match`…”, “append `{ $count: … }`”, or “move the `date_added` window as needed.” Those instructions live in **`bookability_analysis`** and agent context, not on the card.
+**Prevalence / counts:** put totals in the **Scale** line only (e.g. log-line count and distinct `transaction_id` for the stated window). Do not add a prose runbook after `mongo_query:` explaining how to derive counts. No "Scope (counts): reuse the same `$match`…", "append `{ $count: … }`", or "move the `date_added` window as needed." Those instructions live in `bookability_analysis` and agent context, not on the card.
 
-**Preferred order — card-level (optional one line, then one or more example blocks):**
+**Order — card-level (optional one line, then example blocks):**
 
-1. **Scale** — **one short line**, plain language (optional if not measured yet). State **how often** and the **window** (and **distinct `transaction_id`** when you have it).  
-   - Good: `Scale - 93 times in 30d; 39 distinct transaction_id in 30d`  
-   - Avoid by default: long preambles in the Scale line—the **mongo_query** block encodes filters.
-2. **Setup** (only when useful, one line): e.g. database **`ota`**, collection **`debug_logs`**, **`context`:** `…`; run pipelines in **mongosh** or **Compass** (`ISODate`).
+1. **Scale** — one short line, plain language (optional if not measured yet). How often and the window (and distinct `transaction_id` when known).
+   - Good: `Scale - 93 times in 30d; 39 distinct transaction_id in 30d`
+   - Avoid: long preambles — the `mongo_query` block encodes filters.
+2. **Setup** (only when useful, one line): e.g. database `ota`, collection `debug_logs`, `context:` `…`; run pipelines in mongosh or Compass (`ISODate`).
 
-**Per error signature (repeat this whole block for each distinct pattern — match [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors)):**
+**Per error signature (one block per distinct pattern — see [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors)):**
 
 1. **Title line:** `**SOURCE_OR_CODE — Short label — example: debug log**` (e.g. `**325 — No available solution — example: debug log**`).
-2. Blank line, then **`some examples`** on its own line.
-3. Blank line, then **full permalinks** — one URL per line (`https://…/debug-logs/log-group/<transaction_id>#<log_id>`). Bullets are OK; plain lines match board style. Add more rows until the slice is representative; use **`mongo_query`** to harvest more when the card would get too long.
-4. Blank line, then **`mongo_query:`** on its own line (this label; not “MongoDB Query” or a prose runbook).
-5. **Fenced `javascript`** block: **full** aggregation that pastes directly into **MongoDB Compass's Aggregation tab** — `ISODate("…")` for date bounds, **unquoted** field names, always starts with **`$match`** (`context`, `date_added` bounds, and a regex on the collection's payload text field — `Response` on `debug_logs`, `errors` on `optimizer_logs`, etc.). Then pick one of the two canonical output shapes below; swap only the **`$match`** for each signature.
-   - **Shape B — flat links array (default for cards).** `$sort: { date_added: -1 }` (optional — for chronological order), then `$project` returns just `link` built via `$concat` with the base URL, then `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }`, final `$project: { _id: 0, count: 1, links: 1 }`. Compass returns **one** result doc with `count` and a flat `links[]` array of URL strings — a single scroll of pasteable permalinks, no per-row sub-objects to expand. Use this by default on cards; matches the harvest templates in [`bookability_analysis/references/harvest_permalinks.md`](../bookability_analysis/references/harvest_permalinks.md).
-   - **Shape A — per-row.** `$project` returns one document per match with `booking_id`, `transaction_id`, `date_added`, `log_id`, and the `link`; end with `$sort: { date_added: -1 }`. Compass returns N separate result docs. Use when you need per-row context columns next to each link (small slice, per-row filtering in Compass, or a `.forEach(...)` loop in mongosh).
+2. Blank line, then `some examples` on its own line.
+3. Blank line, then full permalinks — one URL per line (`https://…/debug-logs/log-group/<transaction_id>#<log_id>`). Bullets are OK. Plain lines match board style. Add rows until the slice is representative. Use `mongo_query` to harvest more when the card would get too long.
+4. Blank line, then `mongo_query:` on its own line (this label, not "MongoDB Query" or a prose runbook).
+5. **Fenced `javascript`** block: full aggregation that pastes directly into MongoDB Compass's Aggregation tab — `ISODate("…")` for date bounds, unquoted field names, always starts with `$match` (`context`, `date_added` bounds, regex on the collection's payload text field — `Response` on `debug_logs`, `errors` on `optimizer_logs`). Pick one of the two canonical output shapes below. Swap only the `$match` for each signature.
+   - **Shape B — flat links array (default for cards).** `$sort: { date_added: -1 }` (optional — chronological), `$project` returns just `link` via `$concat` with the base URL, `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }`, final `$project: { _id: 0, count: 1, links: 1 }`. One result doc with `count` and a flat `links[]` — one scroll of pasteable permalinks, no per-row sub-objects to expand. Default for cards. Matches harvest templates in [`bookability_analysis/references/harvest_permalinks.md`](../bookability_analysis/references/harvest_permalinks.md).
+   - **Shape A — per-row.** `$project` returns one document per match with `booking_id`, `transaction_id`, `date_added`, `log_id`, and the `link`; end with `$sort: { date_added: -1 }`. N separate result docs. Use when per-row context columns or per-row filtering in Compass matters, or for a `.forEach(...)` loop in mongosh.
 
-**Single-signature cards** (e.g. [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc)): use **one** such block after **Scale**; **`some examples`** + **`mongo_query:`** is still the preferred labeling (you may omit the long `**… — example: debug log**` title if the card title already names the error—otherwise keep it for scanability).
+**Single-signature cards** (e.g. [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc)): one block after Scale. `some examples` + `mongo_query:` labels still preferred. The long `**… — example: debug log**` title is optional if the card title already names the error; keep it for scanability otherwise.
 
-**Counts / deduped permalinks:** agents use **`bookability_analysis`** (or DB tools) to compute prevalence, then **write the result in Scale**—do not paste “how to count” steps onto the card. For harvest pipelines, see the same skill’s permalink variants when retries inflate line count.
+**Counts / deduped permalinks:** agents use `bookability_analysis` (or DB tools) to compute prevalence, then write the result in Scale. Do not paste "how to count" steps on the card. For harvest pipelines, see the same skill's permalink variants when retries inflate line count.
 
-**Optional extras** (add only if useful; keep each to **one line**):
+**Optional extras** (add only if useful; keep each to one line):
 
-- **Breakdown** — e.g. parsed counts from `Response` (age vs PTC buckets).
-- **Correlation** — e.g. `transaction_id` ↔ MySQL `search_hash` / `bookability_*`.
+- **Breakdown** — parsed counts from `Response` (e.g. age vs PTC buckets).
+- **Correlation** — `transaction_id` ↔ MySQL `search_hash` / `bookability_*`.
 - **Related:** `[title](shortUrl)` — one line when dedup or scope needs it.
-- **Second query** — e.g. MySQL or a second **`mongo_query:`** block; **at most two** fenced blocks per signature unless the user asks for more (multi-signature cards have **one pipeline per block**—that is OK).
-- **`IN (...)` hash lists** — keep **verbatim** when they are evidence; do not trim.
+- **Second query** — MySQL or a second `mongo_query:` block. At most two fenced blocks per signature unless the user asks; multi-signature cards have one pipeline per block.
+- **`IN (...)` hash lists** — keep verbatim when they are evidence. Do not trim.
 
-If there are no examples yet, say so and still give **`mongo_query:`** (or **MySQL**) that finds cases.
+If there are no examples yet, say so and still give `mongo_query:` (or MySQL) that finds cases.
 
-**Where to pull queries from:** **`bookability_analysis`** (MySQL + **Mongo permalink harvest**); **`explore_tables`** / **`document_table`**; repo scripts (`scripts/mysql_query.py`, `scripts/clickhouse_query.py`, `scripts/mongo_query.py`). Keep runnable text **inside** this section.
+**Where to pull queries from:** `bookability_analysis` (MySQL + Mongo permalink harvest); `explore_tables` / `document_table`; repo scripts (`scripts/mysql_query.py`, `scripts/clickhouse_query.py`, `scripts/mongo_query.py`). Keep runnable text inside this section.
 
-**Query structure — always debuggable (mandatory):** every MySQL / ClickHouse aggregation **or** example query must be written with a **CTE** that defines the slice (filters, window, joins) once, and an outer statement that is either an aggregate (`COUNT(...)`, `SUM(...)`) **or** an example `SELECT ... LIMIT N`. Include the counterpart as a **commented-out** outer `SELECT` from the same CTE, so reviewers can swap count ↔ examples without re-validating the filter. For Mongo, the leading `$match` stage of the pipeline plays the same role — name the slice there, then branch between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two permalink output shapes in the rest of the pipeline: **Shape B** (default — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }`, single doc with a flat links array) or **Shape A** (`$project` with context columns → `$sort: { date_added: -1 }`, N separate docs — one per match). Either shape is card-safe. **The Mongo pipeline must paste directly into MongoDB Compass's Aggregation tab:** `ISODate("…")` for date bounds, **unquoted** field names, and the same permalink base URL as the examples. This keeps queries reproducible, debuggable, runnable in Compass, and consistent between the aggregate numbers quoted on the card and the example rows it links.
+**Query structure — always debuggable (mandatory):** every MySQL / ClickHouse aggregation or example query uses a CTE that defines the slice (filters, window, joins) once, and an outer statement that is either an aggregate (`COUNT(...)`, `SUM(...)`) or an example `SELECT ... LIMIT N`. Include the counterpart as a commented-out outer `SELECT` from the same CTE so reviewers can swap count ↔ examples without re-validating the filter. For Mongo, the leading `$match` stage plays the same role — name the slice there, then branch between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two permalink output shapes: **Shape B** (default — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }`, single doc with a flat links array) or **Shape A** (`$project` with context columns → `$sort: { date_added: -1 }`, N separate docs). Either shape is card-safe. The Mongo pipeline must paste directly into Compass's Aggregation tab — `ISODate("…")` for date bounds, unquoted field names, same permalink base URL as the examples.
 
 ````markdown
 ⊙ **Numbers/ quantity/ Examples:**
@@ -193,65 +193,65 @@ mongo_query (Shape A — per-row; same slice, no `$group`):
 ]
 ```
 
-Pick **one** shape per `mongo_query:` block — not both. Use the same label (`mongo_query:`) without the `(Shape …)` suffix on the card; the suffix here is only for this reference template. For **optimizer_logs** swap `Response` for `errors` (and adjust the permalink base URL if the target tool is different); everything else is identical.
+Pick one shape per `mongo_query:` block, not both. Use the same label (`mongo_query:`) without the `(Shape …)` suffix on the card; the suffix here is only for this template. For `optimizer_logs`, swap `Response` for `errors` (and adjust the permalink base URL if the target tool differs); everything else is identical.
 ````
 
-(For **SQL**, use a clear one-line label such as **MySQL:** instead of **`mongo_query:`**.)
+(For SQL, use a clear one-line label such as **MySQL:** instead of `mongo_query:`.)
 
-**Regex in `Response`:** prefer a short distinctive substring; escape `.` when literal. For **exact JSON tail** matches (e.g. `"message":"Failed to reprice"}` only), a **single-quoted** `$regex` in mongosh avoids brittle escaping, e.g. `$regex: '"message":"Failed to reprice"}'`.
+**Regex in `Response`:** prefer a short distinctive substring. Escape `.` when literal. For exact JSON tail matches (e.g. `"message":"Failed to reprice"}` only), a single-quoted `$regex` in mongosh avoids brittle escaping: `$regex: '"message":"Failed to reprice"}'`.
 
 ## Mandatory fields (do not ship the card without these)
 
-1. `⊙ **Summary**` — short paragraph as above: **plain language first** (always this heading, not `## Summary`).
-2. `⊙ **Numbers/ quantity/ Examples:**` — **lean by default:** optional **Scale** + **one or more** blocks each with **`some examples`** (permalink lines) + **`mongo_query:`** fenced pipeline (or **MySQL:**); optional one-line extras only when needed; related-card line only when dedup requires it.
+1. `⊙ **Summary**` — short paragraph, plain language first (always this heading, not `## Summary`).
+2. `⊙ **Numbers/ quantity/ Examples:**` — lean by default: optional **Scale** + one or more blocks each with `some examples` (permalink lines) + `mongo_query:` fenced pipeline (or **MySQL:**); optional one-line extras only when needed; related-card line only when dedup requires it.
 3. **AI attribution footer** — exact block at the end (see below).
 
 ## Team roles
 
-See [`roles.md`](./roles.md) for the current mapping of team members to roles (developers, QA, analysts, ancillaries, post-ticketing, manual agent team). Consult it when suggesting an owner, reviewer, or `@mention` for a card. **Do not auto-assign members**—propose a person based on the role mapping and let the user confirm.
+See [`roles.md`](./roles.md) for the current mapping of team members to roles (developers, QA, analysts, ancillaries, post-ticketing, manual agent team). Consult it when suggesting an owner, reviewer, or `@mention` for a card. Do not auto-assign. Propose a person based on the role mapping and let the user confirm.
 
-**Mandatory member — Filipp (delivery manager):** every card the agent **creates or updates must include Filipp as a member**. No exceptions. When creating a card, pass Filipp's member ID in `idMembers` on `add_card_to_list`; when updating, if he is not already on the card, add him via `update_card_details` (or the member-add tool). If Filipp's Trello member ID is not known yet, fetch the board members first (e.g. via `get_board_members` or the equivalent Trello MCP tool) and cache the ID for the session.
+**Mandatory member — Filipp (delivery manager):** every card the agent creates or updates must include Filipp as a member. No exceptions. When creating a card, pass Filipp's member ID in `idMembers` on `add_card_to_list`. When updating, if he is not already on the card, add him via `update_card_details` (or the member-add tool). If Filipp's Trello member ID is unknown, fetch board members first (e.g. `get_board_members`) and cache the ID for the session.
 
 ## Labels
 
-After `get_board_labels` for this board, map the user’s intent to existing names, for example:
+After `get_board_labels` for this board, map the user's intent to existing names, e.g.:
 
 - **Bugs & Fixes** — defects, regressions, wrong fees, errors.
-- **Optimization** — optimizer, routing, contestant eligibility, performance of flows.
+- **Optimization** — optimizer, routing, contestant eligibility, flow performance.
 - **New Integration** — new source or major integration slice.
 - **Injection** — injection-related work.
 - **Investigation / Assesment** — unclear root cause, assessment-first.
 
-Use label **names** consistently with board practice; pass the correct label **IDs** to `add_card_to_list` / `update_card_details`.
+Use label names consistent with board practice. Pass the correct label IDs to `add_card_to_list` / `update_card_details`.
 
 ## MCP workflow (minimal)
 
 1. `set_active_board` with board `61d5cf784c6396541499e7ce`.
-2. **New card:** run **Deduplication and related cards** fully. Only if not duplicate: `add_card_to_list` on **Backlog** (`6509c593087340dfdd332b0a`) with `name` per **Card title**, `description` = `⊙ **Summary**` + `⊙ **Numbers/ quantity/ Examples:**` + **AI footer**, optional `labels`.
-3. **Structure reference:** field layout—[#2676](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error); **Summary + lean Numbers**—[#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc); **multi-signature `some examples` + `mongo_query:`**—[#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Optionally `get_card` (`includeMarkdown`: true) for layout—**do not copy private or unrelated content verbatim**.
+2. **New card:** run the deduplication pass. Only if not duplicate: `add_card_to_list` on **Backlog** (`6509c593087340dfdd332b0a`) with `name` per **Card title**, `description` = `⊙ **Summary**` + `⊙ **Numbers/ quantity/ Examples:**` + AI footer, optional `labels`.
+3. **Structure reference:** field layout — [#2676](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error); Summary + lean Numbers — [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc); multi-signature `some examples` + `mongo_query:` — [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Optionally `get_card` (`includeMarkdown`: true) for layout. Do not copy private or unrelated content verbatim.
 4. **Edits:** `update_card_details` / `move_card` / checklist tools as needed. If the description gains substantial new scope, refresh `⊙ **Summary**` so it still matches the card.
 
 ## Responding to TODOs / direct requests on an existing card
 
-When the card description or the user leaves a **TODO** (e.g. `TODO: Write a query to verify this`) or asks for a specific artefact on an existing card, deliver **exactly that** — no more:
+When the card description or user leaves a TODO (e.g. `TODO: Write a query to verify this`) or asks for a specific artefact on an existing card, deliver exactly that — no more:
 
-- If the ask is "write a query", the reply is the **query**. Paste query output only when the TODO explicitly asks for verification numbers or examples.
-- **Do not** expand the reply into a verification essay. Skip multi-section narratives, runbook prose, dev-work notes, code-path pointers, affiliate / content-source provenance, multi-week trend tables, architectural clarifications, glossary reminders, etc. — **unless the TODO explicitly requests them**.
-- One short lead sentence naming the slice (window, filter) is fine; the rest of the reply should be the artefact the TODO asked for (and, when requested, a small result sample).
-- If you notice something important that falls outside the ask, mention it in **one line** at the end (`Side note: …`) — never grow it into another section.
-- These rules apply to **comments** on the card the same way they apply to description updates: match the scope of the ask, not the breadth of your investigation.
+- "Write a query" → the reply is the query. Paste query output only when the TODO explicitly asks for numbers or examples.
+- Do not expand into a verification essay. No multi-section narratives, runbook prose, dev-work notes, code-path pointers, affiliate / content-source provenance, multi-week trend tables, architectural clarifications, glossary reminders — unless the TODO explicitly asks.
+- One short lead sentence naming the slice (window, filter) is fine. The rest is the artefact and, when asked, a small result sample.
+- If you notice something important outside the ask, mention it in one line at the end (`Side note: …`). Never grow it into another section.
+- Same rule for comments and description updates: match the scope of the ask, not the breadth of your investigation.
 
-**Confirm the data grain before querying.** The card title prefix (`OPTIMIZER:`, `BOOKABILITY:`, `PAYHUB:` …) reflects product area, **not** data grain — don't let it steer the choice of table. For multi-ticket "find the combination of CARRIER_A + CARRIER_B" TODOs the grain is `ota.bookability_contestant_attempts` (master/slave self-joined on `search_hash`) even on `OPTIMIZER:`-titled cards, because several low-cost carriers (e.g. Flair / F8) do not surface in `optimizer_candidates` the same way and optimizer-side queries will silently return zero. See [`../bookability_analysis/SKILL.md#multi-ticket-pair-audits`](../bookability_analysis/SKILL.md#multi-ticket-pair-audits) for the template; treat it as the default starting point for these TODOs.
+**Confirm the data grain before querying.** The card title prefix (`OPTIMIZER:`, `BOOKABILITY:`, `PAYHUB:` …) reflects product area, not data grain. Do not let it steer the table choice. For multi-ticket "find the combination of CARRIER_A + CARRIER_B" TODOs the grain is `ota.bookability_contestant_attempts` (master/slave self-joined on `search_hash`) even on `OPTIMIZER:`-titled cards — several low-cost carriers (e.g. Flair / F8) do not surface in `optimizer_candidates` the same way, and optimizer-side queries silently return zero. See [`../bookability_analysis/SKILL.md#multi-ticket-pair-audits`](../bookability_analysis/SKILL.md#multi-ticket-pair-audits). Treat it as the default starting point for these TODOs.
 
-**Aggregation / example queries on a card are CTEs (mandatory).** Apply the same rule as **Query structure — always debuggable** above. Concretely:
+**Aggregation / example queries on a card are CTEs (mandatory).** Apply the **Query structure — always debuggable** rule:
 
-- MySQL / ClickHouse: write `WITH <slice_name> AS (SELECT … WHERE …) SELECT …`. The outer `SELECT` is either the aggregate *or* an example row listing (`ORDER BY … LIMIT N`); put the counterpart as a **commented-out** `SELECT` from the same CTE so readers can swap it in.
-- Mongo: the pipeline starts with an explicit `$match` stage that encodes the slice once (context, date bounds, and the payload regex — `Response` on `debug_logs`, `errors` on `optimizer_logs`, etc.). The rest branches between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two canonical permalink output shapes: **Shape B** — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }` (single doc with a flat `links[]` array of URL strings, **default for cards** — one scroll of pasteable permalinks, no per-row sub-objects to expand in Compass); or **Shape A** — `$project` with context columns → `$sort: { date_added: -1 }` (N separate docs, one per match; useful when you need per-row context columns, per-row filtering/sorting in Compass, or a `.forEach` loop in mongosh). Either shape is card-safe; pick one per block. It must paste directly into MongoDB Compass's Aggregation tab — `ISODate("…")` for date bounds, **unquoted** field names.
-- Never ship two separately-filtered queries (one for counts, one for examples) on a card — reviewers can't trust they describe the same slice.
+- MySQL / ClickHouse: `WITH <slice_name> AS (SELECT … WHERE …) SELECT …`. The outer `SELECT` is the aggregate or an example row listing (`ORDER BY … LIMIT N`). Put the counterpart as a commented-out `SELECT` from the same CTE so readers can swap it in.
+- Mongo: the pipeline starts with an explicit `$match` stage encoding the slice once (context, date bounds, payload regex — `Response` on `debug_logs`, `errors` on `optimizer_logs`). The rest branches between aggregation (`$group` with `$sum` / `$addToSet` etc.) and one of the two canonical permalink output shapes: **Shape B** — `$sort: { date_added: -1 }` → `$project: { _id: 0, link: … }` → `$group: { _id: null, count: { $sum: 1 }, links: { $push: "$link" } }` → `$project: { _id: 0, count: 1, links: 1 }` (single doc with a flat `links[]`, default for cards — one scroll of pasteable permalinks, no per-row sub-objects to expand); or **Shape A** — `$project` with context columns → `$sort: { date_added: -1 }` (N docs, one per match; useful for per-row columns, per-row filtering in Compass, or a `.forEach` loop in mongosh). Pick one per block. Must paste directly into Compass's Aggregation tab — `ISODate("…")` for date bounds, unquoted field names.
+- Never ship two separately-filtered queries (one for counts, one for examples) on a card — reviewers cannot trust they describe the same slice.
 
 ## AI agent footer (required)
 
-Append this as the **last lines** of every **description** the agent writes (new or updated), with no text after it:
+Append as the last lines of every description the agent writes (new or updated). No text after it:
 
 ```markdown
 ---
@@ -261,18 +261,18 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 
 ## What not to do
 
-- Do not create new cards outside **Backlog** unless the user explicitly asks.
-- Do not skip the **deduplication** pass before creating a card.
-- Do not ship a card (new or updated) **without Filipp** (delivery manager) as a member—no exceptions.
+- Do not create new cards outside Backlog unless the user explicitly asks.
+- Do not skip the deduplication pass before creating a card.
+- Do not ship a card (new or updated) without Filipp (delivery manager) as a member.
 - Do not invent booking IDs, hashes, or log URLs.
-- Do not **trim** real `IN (...)` hash lists, SQL filters, or Mongo bounds **inside Numbers/ Examples** just to shorten the card—those lists are often the reproducible slice.
-- Do not omit `⊙ **Numbers/ quantity/ Examples:**` when there are examples, queries, or patterns—put them there (compact).
-- Do not bury related-card context in a long standalone section; use **one or two bullets** under **Numbers/ Examples** unless the user asked for more.
+- Do not trim real `IN (...)` hash lists, SQL filters, or Mongo bounds inside Numbers/ Examples just to shorten the card — those lists are often the reproducible slice.
+- Do not omit `⊙ **Numbers/ quantity/ Examples:**` when there are examples, queries, or patterns.
+- Do not bury related-card context in a long standalone section; use one or two bullets under Numbers/ Examples unless the user asks for more.
 - Do not omit `⊙ **Summary**` or replace it with only the card title.
-- Do not write a **jargon-heavy Summary** (long technical sentences, stacked acronyms, supplier payload walkthroughs)—put that under **Numbers/ Examples** with permalinks and queries.
-- Do not **pad Numbers/ Examples** with long **Scale** preambles, correlation essays, histograms, or extra mongosh tips when **Scale + some examples + mongo_query:** already reproduces the issue—add those only when they change decisions.
-- Do not add **post-query runbook prose** after **`mongo_query:`** (e.g. “Scope (counts):”, “reuse the same `$match`”, “append `{ $count: … }`”, “distinct transactions”, “adjust `date_added`”)—put measured numbers in **Scale** instead; counting mechanics stay in skills, not on Trello.
-- Do not **edit an existing card** the user pointed to as a **reference-only** example—unless they explicitly ask to update that card; create **new** content using the same style instead.
-- Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts, etc.)—fold everything into the two allowed sections.
-- Do not **expand a narrow TODO or direct request** (e.g. *"write a query"*, *"add the hashes"*, *"paste the permalink"*) into a multi-section verification essay. Deliver the artefact the user asked for; runbooks, trend tables, dev-work notes, and architectural clarifications only appear when the user explicitly requests them. See [`Responding to TODOs / direct requests on an existing card`](#responding-to-todos--direct-requests-on-an-existing-card).
-- Do not write aggregation or example queries **without a CTE** (MySQL / ClickHouse) or **without a leading `$match` stage** (Mongo). The slice must live in one named place so the query is debuggable and the outer statement can be swapped between count and examples without re-validating the filter.
+- Do not write a jargon-heavy Summary (long technical sentences, stacked acronyms, supplier payload walkthroughs). Put that under Numbers/ Examples with permalinks and queries.
+- Do not pad Numbers/ Examples with long Scale preambles, correlation essays, histograms, or extra mongosh tips when Scale + some examples + mongo_query: already reproduces the issue. Add those only when they change decisions.
+- Do not add post-query runbook prose after `mongo_query:` (e.g. "Scope (counts):", "reuse the same `$match`", "append `{ $count: … }`", "distinct transactions", "adjust `date_added`"). Put measured numbers in Scale instead; counting mechanics stay in skills, not on Trello.
+- Do not edit an existing card the user pointed to as a reference-only example unless they explicitly ask.
+- Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts). Fold everything into the two allowed sections.
+- Do not expand a narrow TODO or direct request (e.g. "write a query", "add the hashes", "paste the permalink") into a multi-section verification essay. Deliver the artefact asked for. See [Responding to TODOs / direct requests on an existing card](#responding-to-todos--direct-requests-on-an-existing-card).
+- Do not write aggregation or example queries without a CTE (MySQL / ClickHouse) or without a leading `$match` stage (Mongo). The slice must live in one named place so the query is debuggable and the outer statement can be swapped between count and examples without re-validating the filter.

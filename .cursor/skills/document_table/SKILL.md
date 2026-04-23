@@ -12,10 +12,7 @@ description:
 
 # Document Table Skill
 
-You help the Flighthub team understand and document ClickHouse and MySQL tables and MongoDB
-collections. The goal is to produce a clear reference doc that future team members can use to
-quickly understand what a table or collection stores, how it relates to other data, and how to
-query it effectively.
+Produce a reference doc for a ClickHouse or MySQL table, or a MongoDB collection. The doc must let the next person query it without rediscovering its structure.
 
 ## Which script to use
 
@@ -25,17 +22,11 @@ query it effectively.
 | MySQL      | `scripts/mysql_query.py`       | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` |
 | MongoDB    | `scripts/mongo_query.py`       | `MONGODB_URI`, optional `MONGODB_DATABASE` (when the URI has no database path) |
 
-ClickHouse and MySQL share `describe`, `query`, and `tables`. ClickHouse also has `batch`
-(date-chunked queries with `{start}` / `{end}`) for very large tables — use only when sampling or
-aggregating would otherwise time out; MySQL has no equivalent in this repo.
+ClickHouse and MySQL share `describe`, `query`, `tables`. ClickHouse also has `batch` (date-chunked queries with `{start}` / `{end}`) — use only when sampling or aggregating would time out; MySQL has no equivalent.
 
-MongoDB uses **`collections`** (list collections), **`describe`** (indexes, estimated count, sample
-docs), **`find`** (filter / sort / limit; default limit 100), and **`aggregate`** (pipeline as JSON
-array). There is no SQL `query` subcommand — use `find` or `aggregate` instead.
+MongoDB uses `collections`, `describe` (indexes, estimated count, sample docs), `find` (filter / sort / limit; default limit 100), and `aggregate` (pipeline as JSON array). No SQL `query`.
 
-If the user does not specify an engine, prefer ClickHouse unless they said MySQL or MongoDB, named a
-known MySQL-only database, mentioned a collection, or you are continuing from a specific script’s
-output.
+If the engine is not specified, default to ClickHouse. Use MySQL or MongoDB if the user said so, named a known database, mentioned a collection, or the previous step used that script.
 
 Optional discovery:
 
@@ -47,14 +38,11 @@ python3 scripts/mongo_query.py collections [database]
 
 ## Inputs
 
-The user provides a **table or collection name** and optionally a **database name**. If no
-database is given, use the default from the environment (`CLICKHOUSE_DATABASE`, `MYSQL_DATABASE`, or
-for MongoDB the database in `MONGODB_URI` / `MONGODB_DATABASE`).
+Table or collection name, optionally a database. If no database is given, use the default from the environment (`CLICKHOUSE_DATABASE`, `MYSQL_DATABASE`, or the database in `MONGODB_URI` / `MONGODB_DATABASE`).
 
 ## Steps
 
-Load credentials once at the start of the session: `set -a && source .env && set +a`
-(canonical pattern in `.cursor/rules/global_setup.md`). All bash blocks below assume that env.
+Load credentials once: `set -a && source .env && set +a`. All bash blocks assume that env.
 
 ### 1. Describe the table
 
@@ -70,35 +58,27 @@ python3 scripts/clickhouse_query.py describe <table> [database]
 python3 scripts/mysql_query.py describe <table> [database]
 ```
 
-**MongoDB** — indexes, estimated document count, and random sample documents (default `--sample 3`):
+**MongoDB** — indexes, estimated document count, random sample docs (default `--sample 3`):
 
 ```bash
 python3 scripts/mongo_query.py describe <collection> [database] [--sample N]
 ```
 
-There is no SQL-style column catalog; infer fields from `describe` samples and from the larger find
-sample in Step 2.
+MongoDB has no column catalog. Infer fields from `describe` samples and the larger sample in Step 2.
 
-Read the output carefully — column names and types often reveal purpose (e.g. `booking_id`,
-`affiliate_name`, `margin_usd`). For MySQL, `key` and `extra` hint at primary keys and auto-increment.
+Read column names and types closely — they usually reveal purpose (`booking_id`, `affiliate_name`, `margin_usd`). For MySQL, `key` and `extra` flag primary keys and auto-increment.
 
 ### 2. Sample 100 rows (latest first)
 
-Do **not** use bare `LIMIT 100` — that returns an arbitrary slice (often oldest or physical order) and
-misleadingly documents stale data.
+Do not use bare `LIMIT 100`. It returns arbitrary rows and documents stale data.
 
-After **Step 1**, pick one **sort column** that reflects recency, in this order of preference:
+Pick one sort column that reflects recency, in this order:
 
-1. **Time columns:** `DateTime` / `Date`, or names like `created_at`, `updated_at`, `timestamp`,
-   `event_date`, `day_added`, `search_time`, etc.
-2. **If no time column:** a monotonic surrogate such as `id` or `*_id` when it clearly tracks insert
-   order (common in logs).
-3. **If neither fits:** run an unordered `LIMIT 100` only as a last resort and **say so in the doc’s
-   Notes** (“sample is unordered; values may not reflect current usage”).
+1. Time column: `DateTime` / `Date` or names like `created_at`, `updated_at`, `timestamp`, `event_date`, `day_added`, `search_time`.
+2. If no time column: a monotonic surrogate such as `id` or `*_id` when it clearly tracks insert order.
+3. If neither fits: run an unordered `LIMIT 100` as a last resort and note in the doc ("sample is unordered; values may not reflect current usage").
 
-Use **`ORDER BY <sort_column> DESC`** (and **`NULLS LAST`** on ClickHouse when the column can be
-NULL). On very large ClickHouse tables, if the query is slow or times out, add a **recent** filter on
-a partition or date column in `WHERE`, then keep `ORDER BY ... DESC LIMIT 100`.
+Use `ORDER BY <sort_column> DESC` (add `NULLS LAST` on ClickHouse when the column is nullable). On very large ClickHouse tables, add a recent filter on a partition or date column in `WHERE` if the query is slow.
 
 **ClickHouse:**
 
@@ -106,38 +86,32 @@ a partition or date column in `WHERE`, then keep `ORDER BY ... DESC LIMIT 100`.
 python3 scripts/clickhouse_query.py query "SELECT * FROM [database.]<table> ORDER BY <sort_column> DESC NULLS LAST LIMIT 100"
 ```
 
-**MySQL** (with `MYSQL_DATABASE` set, a bare table name is enough; otherwise use `database.table`; wrap the name in backticks if it is a reserved word):
+**MySQL** (with `MYSQL_DATABASE` set, a bare table name works; otherwise `database.table`; wrap reserved words in backticks):
 
 ```bash
 python3 scripts/mysql_query.py query "SELECT * FROM <table> ORDER BY <sort_column> DESC LIMIT 100"
 ```
 
-(MySQL sorts NULLs first on `DESC`; if that hides real rows, use
-`ORDER BY <sort_column> IS NULL, <sort_column> DESC LIMIT 100`.)
+MySQL sorts NULLs first on `DESC`. If that hides real rows:
+`ORDER BY <sort_column> IS NULL, <sort_column> DESC LIMIT 100`.
 
-**MongoDB** — `find` defaults to `--limit 100`. Pass sort as JSON (`-1` = descending). Use `--json`
-for Extended JSON (ObjectIds, dates).
+**MongoDB** — `find` defaults to `--limit 100`. Sort is JSON (`-1` = descending). Use `--json` for Extended JSON (ObjectIds, dates).
 
 ```bash
 python3 scripts/mongo_query.py find <collection> [database] --sort '{"<sort_field>": -1}' --limit 100
 ```
 
-Add `--filter '{"field": "value"}'` when you need a subset. For ad hoc analytics use `aggregate`:
+Add `--filter '{"field": "value"}'` for a subset. For ad hoc analytics use `aggregate`:
 
 ```bash
 python3 scripts/mongo_query.py aggregate <collection> '[{"$match": {...}}, {"$limit": 20}]' [database]
 ```
 
-`aggregate` filters are JSON-only (no `ISODate` in the shell string); for date-bounded pipelines on
-large collections, use mongosh, Compass, or Python with pymongo.
+`aggregate` filters are JSON-only (no `ISODate` in the shell string). For date-bounded pipelines on large collections, use mongosh, Compass, or pymongo.
 
-In the saved doc, mention which column you sorted by so readers know what “sample” means. For
-**large append-only logs**, list **`date_added`** (or the recency field you used) under **Recommended
-constraints**, and note which top-level fields hold **supplier payloads** vs **app exceptions** when
-you observe them (e.g. `Response` vs `message`).
+In the doc, name the sort column so readers know what "sample" means. For large append-only logs, list `date_added` (or the recency field used) under Recommended constraints, and note which top-level fields hold supplier payloads vs app exceptions (e.g. `Response` vs `message`).
 
-Pay attention to: value patterns, NULLs, **how recent** the data looks, status/flag columns, and
-business logic hints.
+Watch for: value patterns, NULLs, data freshness, status/flag columns, business logic hints.
 
 ### 3. Check table metadata
 
@@ -153,83 +127,76 @@ python3 scripts/clickhouse_query.py query "SELECT engine, total_rows, formatRead
 python3 scripts/mysql_query.py query "SELECT ENGINE AS engine, TABLE_ROWS AS total_rows, CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') AS size FROM information_schema.TABLES WHERE TABLE_SCHEMA = '<database>' AND TABLE_NAME = '<table>'"
 ```
 
-For **InnoDB**, `TABLE_ROWS` in `information_schema` is an **estimate**, not an exact count — say so
-in the doc if you rely on it. For an exact MySQL row count when needed: `SELECT COUNT(*) FROM
-<table>` (may be expensive on huge tables).
+For InnoDB, `TABLE_ROWS` in `information_schema` is an estimate. Say so in the doc if you rely on it. For an exact count: `SELECT COUNT(*) FROM <table>` (may be expensive).
 
-**MongoDB** — use the **estimated document count** from Step 1 (`describe`). MongoDB has no
-`information_schema`; index list from `describe` substitutes for “engine” / key hints. For
-storage stats you can run a `collStats` aggregation when needed (optional).
+**MongoDB** — use the estimated document count from Step 1 (`describe`). No `information_schema`; the index list from `describe` substitutes for engine / key hints. Use a `collStats` aggregation for storage stats if needed.
 
-### 4. Analyze and draft documentation
+### 4. Draft the doc
 
-Based on everything gathered, draft documentation following this template:
+Template:
 
 ```markdown
 ## <table_name>
 
 **Database:** `<database_name>`
 **Engine:** `<engine>`  |  **Rows:** `<total_rows>`  |  **Size:** `<size>`
-**Purpose:** <One-line description of what this table stores and why it matters to the business.>
+**Purpose:** <One line: what this table stores and why it matters.>
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `column_name` | `type` | What it represents — be specific and business-oriented |
+| `column_name` | `type` | What it represents — business-specific |
 
 **Key relationships:**
-- Joins to `other_table` on `column` (explain what this join gives you)
+- Joins to `other_table` on `column` (what this join gives you)
 
 **Common queries:**
 ```sql
--- Example: description of what this query does
+-- What this query does
 SELECT ... FROM table_name WHERE ...
 ```
 
 **Query guidance:**
-- **Size class:** <small / medium / large / very large> — <brief explanation, e.g., "~500M rows, always filter by date">
-- **Recommended constraints:** <columns that should usually appear in WHERE to avoid full scans>
+- **Size class:** <small / medium / large / very large> — <why, e.g. "~500M rows, always filter by date">
+- **Recommended constraints:** <columns that should usually appear in WHERE>
 - **Typical date range:** <how far back data goes and granularity>
 
 **Notes:**
-- Any gotchas, quirks, or important context
+- Gotchas, quirks, context
 ```
 
-**Query guidance** helps future skills query safely. Size classes:
+Size classes:
 
-- **small**: < 1M rows — no special constraints needed
+- **small**: < 1M rows — no special constraints
 - **medium**: 1M–50M rows — filtering recommended
 - **large**: 50M–500M rows — always filter by date or partition key
 - **very large**: > 500M rows — filter by date and at least one other dimension
 
-For **ClickHouse**, use partition key and engine from metadata + `system.tables` / column stats.
-For **MySQL**, use indexes (`describe` shows `key`), primary keys, and typical time-range columns.
-For **MongoDB**, document observed field paths (including nested keys), index list from `describe`,
-and that schemas can evolve — call out optional or sparse fields.
+ClickHouse: use partition key and engine from metadata + `system.tables` / column stats.
+MySQL: use indexes (`describe` shows `key`), primary keys, typical time-range columns.
+MongoDB: document observed field paths (including nested keys), index list from `describe`, and that schemas evolve — flag optional or sparse fields.
 
-When writing column descriptions: be business-specific; list enum-like values you saw; note FKs;
-group IDs, timestamps, metrics, and dimensions mentally.
+Column descriptions: be specific, list enum-like values seen, note FKs, group IDs / timestamps / metrics / dimensions mentally.
 
-When inferring purpose: tie to business questions (bookings, revenue); flag uncertainty for the user.
+Purpose: tie to business questions (bookings, revenue). Flag uncertainty.
 
 ### 5. Confirm with the user
 
-Present the draft and ask:
+Show the draft. Ask:
 
-- Does the purpose description look right?
-- Any columns or fields misunderstood or needing more context?
+- Is the purpose right?
+- Any columns or fields misread or needing more context?
 - Any relationships or common queries to add?
 
-Incorporate feedback before saving.
+Apply feedback before saving.
 
 ### 6. Save to db-docs/
 
-Save under the engine that matches the script you used:
+Save under the engine matching the script used:
 
 - `scripts/clickhouse_query.py` → `db-docs/clickhouse/<table_name>.md`
 - `scripts/mysql_query.py` → `db-docs/mysql/<table_name>.md`
 - `scripts/mongo_query.py` → `db-docs/mongodb/<collection_name>.md`
 
-Default to `db-docs/clickhouse/` unless the user specified MySQL, MongoDB, or exploration used
-`mysql_query.py` / `mongo_query.py`.
+Default to `db-docs/clickhouse/` unless the user specified MySQL, MongoDB, or exploration used `mysql_query.py` / `mongo_query.py`.
 
 Filename: table or collection name, lowercase, as-is. After saving, tell the user the path.

@@ -1,74 +1,74 @@
 # Project Setup
 
+## Writing style
+
+Follow `.cursor/rules/global_setup.md` § Writing style for every output: plain, direct, concise. No pleasantries, no filler. Cut anything that does not change the reader's next action.
+
 ## Database access
 
-**ClickHouse** — always use the repo CLI (loads credentials from `.env`):
+Use the repo CLIs. They load credentials from `.env`. Do not invent connection strings.
+
+**ClickHouse:**
 
 ```bash
 set -a && source .env && set +a && python3 scripts/clickhouse_query.py query "SELECT ..."
 ```
 
-**MySQL (genesis)** — same pattern:
+**MySQL (genesis):**
 
 ```bash
 set -a && source .env && set +a && python3 scripts/mysql_query.py query "SELECT ..."
 ```
 
-**MongoDB** — URI from `.env` (`MONGODB_URI`); use `collections`, `describe`, `find`, or `aggregate` (not SQL):
+**MongoDB** — URI from `.env` (`MONGODB_URI`). Use `collections`, `describe`, `find`, `aggregate`. No SQL.
 
 ```bash
 set -a && source .env && set +a && python3 scripts/mongo_query.py collections [database]
 set -a && source .env && set +a && python3 scripts/mongo_query.py find <collection> [database] --sort '{"created_at": -1}' --limit 50
 ```
 
-For **query hygiene** on `ota.debug_logs` / `ota.optimizer_logs` (collection choice, `transaction_id` /
-`context` / `Response` filtering, why the CLI rejects `ISODate(...)`, when to switch to mongosh /
-Compass / `pymongo`), read **`.cursor/rules/mongodb.md`**. For **bookability-specific** Mongo patterns
-(supplier evidence hierarchy, permalink harvest), see **`.cursor/skills/bookability_analysis/`**.
-
-Do not invent connection strings; use these scripts unless the user explicitly points elsewhere.
+For query hygiene on `ota.debug_logs` and `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filters, why the CLI rejects `ISODate(...)`, when to switch to mongosh / Compass / `pymongo`), read `.cursor/rules/mongodb.md`. For bookability Mongo patterns (supplier evidence hierarchy, permalink harvest), see `.cursor/skills/bookability_analysis/`.
 
 
-### Query hygiene (baseline)
+### Query rules
 
-- Prefer filters and grain that match how the business segments data (dates, content sources, airlines, etc.)
-- Document or reuse existing expressions for rates, counts, and deduplication; do not silently change denominators between queries.
-- When comparing time periods, state the window and timezone assumptions.
+- Filter and group data the way the business does: dates, content sources, airlines, etc.
+- Reuse existing expressions for rates, counts, and dedup. Do not change denominators between queries.
+- When comparing time periods, state the window and timezone.
 
 
 ### Table documentation
 
-Before relying on a table, check **`db-docs/`** (by engine):
+Check `db-docs/` before using a table:
 
-- `db-docs/clickhouse/` — tables accessed via `scripts/clickhouse_query.py`
-- `db-docs/mysql/` — tables accessed via `scripts/mysql_query.py`
-- `db-docs/mongodb/` — collections accessed via `scripts/mongo_query.py`
+- `db-docs/clickhouse/` — ClickHouse tables
+- `db-docs/mysql/` — MySQL tables
+- `db-docs/mongodb/` — MongoDB collections
 
-If a table is not documented yet, say so and offer to add docs using the **`/document_table`** skill and the template in `db-docs/README.md`.
+If a table is not documented, say so. Offer to add docs using the `/document_table` skill and the template in `db-docs/README.md`.
 
 
-### Skill routing reference
+### Skill routing
 
-Invoke these as slash commands (e.g. `/bookability_analysis`). Full instructions live in each skill's `SKILL.md`.
+Slash commands load each skill (e.g. `/bookability_analysis`). Full rules live in each `SKILL.md`.
 
 | Skill | Pick when |
 |-------|-----------|
-| `/bookability_analysis` | Bookability questions — failure rates for a content source / carrier / office, single-booking flow (`booking_id` / `search_hash` → "what went wrong"), deep / similar-errors analysis. |
+| `/bookability_analysis` | Bookability: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
+| `/optimizer_analysis` | Optimizer: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, matching audit across a content source (MySQL `optimizer_candidates` + `optimizer_attempts` ↔ MongoDB `optimizer_logs.fares`). |
 | `/document_table` | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`. |
-| `/explore_tables` | User needs data but no `db-docs/` entry covers the right table or collection ("which table has…", "find table", etc.). |
-| `/trello_content_integration` | Creating or updating cards on the **Content Integration** Trello board (backlog tickets for GDS / content sources, bookability, optimizer, payhub). |
+| `/explore_tables` | User needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
+| `/trello_content_integration` | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
 
 
-### Skills — layout, use, and changes
+### Skills layout
 
-**Where general rules live** — Repo-wide policies (database access, query hygiene, cross-cutting agent behavior) belong in **`.cursor/rules/`** and this `CLAUDE.md`. Edit here when guidance applies regardless of which skill is in play.
-
-**Where skill content lives** — Each skill has its own directory under **`.cursor/skills/<skill_name>/`**. The entry point is **`SKILL.md`**. Keep everything skill-specific there. The `.claude/commands/<skill_name>.md` files are thin wrappers that load the skill.
-
-**Adding or modifying skills** — Create or update **`.cursor/skills/<skill_name>/`**, update the routing table above, and add a corresponding `.claude/commands/<skill_name>.md`.
+- **General rules** go in `.cursor/rules/` and this `CLAUDE.md`. Use for anything that applies to every session: database access, query rules, git, cross-cutting behavior.
+- **Skill content** goes in `.cursor/skills/<skill_name>/`. Entry point is `SKILL.md`. `.claude/commands/<skill_name>.md` is a thin wrapper that loads the skill.
+- **Adding or changing a skill:** edit files in `.cursor/skills/<skill_name>/`, update the routing table above, and add or update `.claude/commands/<skill_name>.md`.
 
 
-### Project structure (reference)
+### Project structure
 
 ```text
 .claude/
@@ -94,10 +94,11 @@ reports/                   # Ephemeral output (gitignored)
 ---
 
 ## Optional extensions
+
 ### Local application codebase (genesis)
 
-If questions involve application code: `GENESIS_PATH` in `.env` should point at the local clone. If it is missing on first use, ask the user for the path and add it to `.env`.
+For questions about application code, `GENESIS_PATH` in `.env` must point to the local clone. If missing, ask the user for the path and add it to `.env`.
 
 ## Git commits
 
-Do not add editor or tool attribution trailers to commits — in particular never use `--trailer "Made-with: Cursor"` or any similar `Made-with:` / co-authored trailer for tools.
+Do not add editor or tool attribution trailers. Never use `--trailer "Made-with: Cursor"` or any `Made-with:` / co-authored trailer for tools.
