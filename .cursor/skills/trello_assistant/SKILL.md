@@ -3,8 +3,10 @@ name: trello-content-integration
 description: >-
   Use when creating or updating Trello cards on the Content Integration board,
   filing backlog items for content sources, GDS integrations, bookability,
-  optimizer, or payhub—or when the user mentions Trello, CI board, or backlog
-  tickets for those areas.
+  optimizer, or payhub, OR when the user asks to prep grooming / produce a
+  grooming report / list what each dev has in flight (developer-centric
+  in-flight report across Ready for Dev, In Progress, Blocked, Staging,
+  Fixes needed, Ready for Deployment).
 ---
 
 # Trello: Content Integration board
@@ -205,6 +207,51 @@ Pick one shape per `mongo_query:` block, not both. Use the same label (`mongo_qu
 1. `⊙ **Summary**` — short paragraph, plain language first (always this heading, not `## Summary`).
 2. `⊙ **Numbers/ quantity/ Examples:**` — lean by default: optional **Scale** + one or more blocks each with `some examples` (permalink lines) + `mongo_query:` fenced pipeline (or **MySQL:**); optional one-line extras only when needed; related-card line only when dedup requires it.
 3. **AI attribution footer** — exact block at the end (see below).
+
+## Grooming prep report (weekly)
+
+When the user asks to **prep grooming** / produce a **grooming report** / list **what each dev has in flight**, produce the canonical developer-centric in-flight report. Do not invent a different layout; users review it the same way every week.
+
+**What the report is:**
+
+- Developers only, per [`roles.md`](./roles.md) § Developers. Everyone else (QA, analysts, specialists, manual agent team) is excluded.
+- **Every card currently sitting in the 6 in-flight lists**, regardless of recent activity:
+  1. `In Progress` — `61d5cfd748343984d1dd4fc3`
+  2. `Ready for Dev` — `61d5cfd1ffca1f891a0fd237`
+  3. `Blocked` — `679d612a6f880eb62c672aa1`
+  4. `Staging` — `68de85f3a35d950e37cefc8b`
+  5. `Fixes needed` — `65563ff118d482065927fa4b`
+  6. `Ready for Deployment` — `68e7ce249a3c3f669f04399b`
+- If any list ID above 404s / returns empty unexpectedly, run `get_lists` against the board and refresh the mapping — admins occasionally rename or recreate a list.
+- Cards idle for 14+ days carry a `**STALE 14d+**` marker. A card can appear under multiple devs; counts are lines, not unique board cards.
+
+**Procedure:**
+
+1. `set_active_board` with `61d5cf784c6396541499e7ce` once per session, then `get_cards_by_list_id` for each of the 6 lists above. Save each response as a JSON array to a file (one per list) — the MCP response body is already a JSON array.
+2. Run the script:
+
+   ```bash
+   python3 .cursor/skills/trello_assistant/scripts/grooming_report.py \
+     --list "In Progress:/abs/path/in_progress.json" \
+     --list "Ready for Dev:/abs/path/ready_for_dev.json" \
+     --list "Blocked:/abs/path/blocked.json" \
+     --list "Staging:/abs/path/staging.json" \
+     --list "Fixes needed:/abs/path/fixes_needed.json" \
+     --list "Ready for Deployment:/abs/path/ready_for_deployment.json" \
+     --out reports/grooming_devs_inflight_$(date -u +%F).md
+   ```
+
+3. Summarize to the user: per-list volumes, biggest in-flight queues, and any stale cards worth flagging. Link to the generated file in `reports/`.
+
+**Keep the developer mapping honest.** The script hard-codes Trello member IDs → display names in `DEVELOPERS`. When someone joins or leaves the dev team, update both [`roles.md`](./roles.md) § Developers **and** `DEVELOPERS` in `scripts/grooming_report.py`. A missing entry silently drops that dev's cards from the report.
+
+**What not to do:**
+
+- Do not filter by `dateLastActivity` window. The report is "everything in flight", not "touched this week".
+- Do not include non-dev roles, even if they have cards in the in-flight lists.
+- Do not include `QA`, `QA Tracking 👀`, `Done`, `Parking`, or any other list. Only the 6 in-flight lists above.
+- Do not re-order the per-dev sub-buckets. Always `In Progress → Ready for Dev → Blocked → Staging → Fixes needed → Ready for Deployment`.
+- Do not drop the `**STALE 14d+**` flag or change the 14d threshold without the user asking.
 
 ## Team roles
 
