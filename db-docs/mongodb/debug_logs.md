@@ -67,7 +67,7 @@ _Add rows as you confirm definitions._
 
 | Date | Change |
 |------|--------|
-| 2026-04-20 | Added FR24 and Amadeus content-source hints (verified during content_integration_reporter test run). |
+| 2026-04-20 | Added FR24 and Amadeus content-source hints. |
 
 ---
 

@@ -5,6 +5,13 @@ For raw query mechanics (collection choice, `transaction_id` / `context` filteri
 limitation), see [`.cursor/rules/mongodb.md`](../../../rules/mongodb.md). For permalink harvest
 pipelines, see [`harvest_permalinks.md`](harvest_permalinks.md).
 
+**Before reaching for Mongo:** check
+[`db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../../db-docs/clickhouse/jupiter_booking_errors_v2.md).
+CH already carries the supplier `error_message`, `booking_step`, and a classification for the
+booking-failure path. Query Mongo when you need the raw request / response body, chronological
+flow for one `transaction_id`, or a field CH does not capture (full NDC payload, 3DS / Payhub
+detail, search / availability / ticketing stages other than the failure itself).
+
 ## Effective queries on debug_logs
 
 Use patterns that stay **index-friendly** and match **where the text actually lives**:

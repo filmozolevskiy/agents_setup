@@ -9,6 +9,13 @@ Run these in **mongosh**, **MongoDB Compass**, or **Python + pymongo** — the r
 `scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` inside a JSON
 pipeline string.
 
+**Feeding the harvest with a `transaction_id` shortlist:** the `search_id` list for `$in`
+filters (or for narrowing Variant A) can come straight from ClickHouse
+`jupiter_booking_errors_v2` — it already groups failures by signature and returns the sample
+`search_id`s per group. See
+[`deep_bookability_analysis.md`](deep_bookability_analysis.md#clickhouse-failure-signatures--search_id-list).
+This skips the MySQL hash extraction when you only need supplier-side context.
+
 ## Common `$match` recipe
 
 - **`context`:** use equality when you know the full string (e.g. `"Downtowntravel::BookFlight"`).
