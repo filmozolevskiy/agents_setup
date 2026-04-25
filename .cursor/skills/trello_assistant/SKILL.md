@@ -20,6 +20,8 @@ Use the **user-trello** MCP server. Before each tool call, read that tool's JSON
 | Board **Content Integration** | `61d5cf784c6396541499e7ce` |
 | List **Backlog** | `6509c593087340dfdd332b0a` |
 
+**Different board for Automation cards.** When the user asks to file a card for new Automation functionality (agents, AI pipelines, internal tools that automate a workflow), follow [`automation_cards.md`](./automation_cards.md) instead — different board, short human-written description, none of the dedup / `⊙` / footer machinery below applies.
+
 **New cards:** always create with `add_card_to_list` on list `6509c593087340dfdd332b0a` (Backlog). Do not place new agent-created cards in Ready for Dev, In Progress, or other lists unless the user explicitly overrides.
 
 **Updates:** use `update_card_details`, `move_card`, checklists, labels, and comments as needed. Keep the card on its current list unless the user asks to move it.
