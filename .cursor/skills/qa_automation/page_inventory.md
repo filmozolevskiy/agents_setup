@@ -1,6 +1,7 @@
 # QA Automation — Page Inventory
 
-All selectors verified against **staging2.flighthub.com** on **2026-04-23**.
+All selectors verified against **staging2.flighthub.com** (and
+**reservations.voyagesalacarte.ca** for ResPro) on **2026-04-25**.
 Casper-era selectors have been replaced. Selector constants live in
 [`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py);
 the `VERIFIED_ON` string in that file must match this header.
@@ -125,5 +126,42 @@ URL: `https://staging2-summit.flighthub.com/flight-search/info/`
 
 ## 7. ResPro Booking Detail / Cancel
 
-⚠️ Not yet confirmed — requires Phase 1 spike with RESPRO_USER/RESPRO_PASS credentials.
-URL: `https://staging2-reservations.voyagesalacarte.ca/internal/booking/index/{booking_id}`
+Base URL: `https://reservations.voyagesalacarte.ca` for **both** staging and
+production — there is no staging prefix (see "ResPro URL is not
+staging-prefixed" in [`references/known_issues.md`](references/known_issues.md)).
+The cleanup runner reaches it via `resolve_url(App.RESPRO, qa_env)`.
+
+| Step | URL | Element | Selector |
+|------|-----|---------|----------|
+| Login | `/login` (or any auth-gated path while logged out) | Login form wrapper | `form` |
+| Login | same | Username input | `[name="username"]` |
+| Login | same | Password input | `[name="password"]` |
+| Login | same | Submit button | `input[type="submit"]` |
+| Booking detail | `/booking/index/{booking_id}` | Override to Cancel link (active bookings only) | `text=Override to Cancel` |
+| Cancel modal | inline overlay loaded by `requestCancelOverride()` from `/booking/modal-cancel-trip/{booking_id}` | Reason `<select>` | `#reason` |
+| Cancel modal | same | Note `<input>` | `#note` |
+| Cancel modal | same | Submit (Continue) | `#btn-continue` |
+| Booking detail (post-abort) | `/booking/index/{booking_id}` | Red `Cancelled: <reason>` banner | `text=Cancelled:` |
+
+**Notes:**
+- Successful login redirects to `**/home/**`; `ResProPage.login()` waits on
+  that URL pattern (no DOM selector, since the home page layout is unstable).
+- The `Status` column of the air-summary table is **not** a cancellation
+  signal — it shows "OPEN" / "CLOSED" (ticket-queue state) regardless of
+  whether the booking is aborted. Use the red `Cancelled: …` banner that
+  appears next to the action buttons instead.
+- Submitting the cancel modal queues an async `Work Order Process [Abort
+  Booking]`. The banner only renders after that work order is picked up
+  by the ResPro worker — empirically 10–30 s on staging, occasionally
+  longer. `ResProPage.cancel()` polls `text=Cancelled:` for up to 90 s
+  with a reload between polls; do not shorten that without re-measuring.
+- The `Override to Cancel` link is removed from the DOM once the banner
+  appears, so an "already cancelled" booking is detected by
+  `text=Cancelled:` count > 0 in `is_cancelled()`. This is what makes
+  `qa-cleanup` idempotent (`was_already_cancelled=true`).
+- `qa-diag --page respro --url <booking-detail-url>` against an unauthed
+  context will redirect to `/login` and only confirm the four login-form
+  selectors. Selector rot in the booking-detail / cancel-modal portion is
+  caught instead by an actual `qa-cleanup` run; the runner's `error`
+  body names the failing selector (`respro.override_cancel_link`,
+  `respro.abort_reason_select`, etc.).

@@ -367,6 +367,36 @@ Interpretation rules: [`validation_checklist.md`](validation_checklist.md).
 
 Cancel a test booking via ResPro. Idempotent.
 
+### ResPro flow this runner drives
+
+1. `GET https://reservations.voyagesalacarte.ca/` → fill `[name="username"]` /
+   `[name="password"]`, click `input[type="submit"]`, wait for
+   `**/home/**`. (Same URL for staging and production — see
+   [`known_issues.md`](known_issues.md) "ResPro URL is not staging-prefixed".)
+2. `GET /booking/index/{booking_id}`. If `text=Cancelled:` is already
+   visible the runner returns `cancelled=true,
+   was_already_cancelled=true` — that's the idempotent no-op return.
+3. Click the red `text=Override to Cancel` link, which opens
+   `/booking/modal-cancel-trip/{booking_id}` as an in-page overlay.
+4. In the overlay, set `#reason = "test"`, `#note = "Automatic QA
+   cancellation"`, click `#btn-continue`.
+5. ResPro queues a `Work Order Process [Abort Booking]`. The booking
+   detail page does not auto-refresh, so the runner polls
+   `/booking/index/{booking_id}` every 5 s for up to 90 s, looking for
+   the red `Cancelled: <reason>` banner (`text=Cancelled:`). Once that
+   banner appears, the booking is cancelled in `ota.bookings.status`.
+6. Captures `001-respro-logged-in.png` →
+   `002-respro-booking-detail.png` → `003-respro-cancelled.png` (the
+   final post-banner screenshot) into the scenario dir.
+
+When the runner reports `selector_not_found`, the `name` tells you
+which step broke: `respro.override_cancel_link` means the booking-detail
+page changed; `respro.abort_reason_select` / `respro.abort_note_input`
+/ `respro.abort_submit` means the cancel modal changed; and
+`respro.cancelled_status` means the work-order processor never updated
+the page within 90 s — usually a real selector-rename, occasionally
+a stuck staging worker.
+
 ### Flags
 
 | Flag | Notes |

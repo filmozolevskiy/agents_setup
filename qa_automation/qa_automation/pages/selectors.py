@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 
-VERIFIED_ON = "2026-04-24b"
+VERIFIED_ON = "2026-04-25"
 
 
 @dataclass(frozen=True)
