@@ -3,10 +3,15 @@ name: trello-content-integration
 description: >-
   Use when creating or updating Trello cards on the Content Integration board,
   filing backlog items for content sources, GDS integrations, bookability,
-  optimizer, or payhub, OR when the user asks to prep grooming / produce a
+  optimizer, or payhub; when the user asks to prep grooming / produce a
   grooming report / list what each dev has in flight (developer-centric
   in-flight report across Ready for Dev, In Progress, Blocked, Staging,
-  Fixes needed, Ready for Deployment).
+  Fixes needed, Ready for Deployment); OR when the user points you at any
+  Trello card (`/c/<shortLink>` URL on either the Content Integration or the
+  Content Integration - AI Automation board) and asks you to work the task
+  described on it — read this skill so you get the lifecycle rules
+  (in-progress / QA / done transitions, mandatory closing comment, one
+  card → one branch → one PR) right.
 ---
 
 # Trello: Content Integration board
