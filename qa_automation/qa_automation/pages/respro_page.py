@@ -1,10 +1,9 @@
 """
 ResPro booking detail + cancel (abort) page.
+Selectors live in `qa_automation.pages.selectors.RESPRO`.
 
-Selectors confirmed 2026-04-21 against reservations.voyagesalacarte.ca.
-Login lands on /home/index (Manager, Fulfillment role).
-Booking URL: /booking/index/{booking_id} (no /internal/ prefix).
-Cancel via "Override to Cancel" link → modal-cancel-trip → #abort-form.
+Booking URL: /booking/index/{booking_id}. Cancel via "Override to Cancel" link
+→ modal-cancel-trip → #btn-continue.
 """
 from __future__ import annotations
 
@@ -13,18 +12,8 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
-from qa_automation.pages.base_page import BasePage
-
-_LOGIN_FORM = "form"
-_USERNAME_INPUT = '[name="username"]'
-_PASSWORD_INPUT = '[name="password"]'
-_LOGIN_SUBMIT = 'input[type="submit"]'
-_OVERRIDE_CANCEL_LINK = 'text=Override to Cancel'
-# Modal abort form opened by requestCancelOverride() → /booking/modal-cancel-trip/{id}
-_ABORT_REASON_SELECT = '#reason'
-_ABORT_NOTE_INPUT = '#note'
-_ABORT_SUBMIT = '#btn-continue'   # <a id="btn-continue"> Abort
-_CANCELLED_STATUS = 'text=Cancelled:'
+from qa_automation.pages.base_page import BasePage, SelectorNotFound
+from qa_automation.pages.selectors import RESPRO
 
 
 class ResProPage(BasePage):
@@ -37,19 +26,24 @@ class ResProPage(BasePage):
         if self._logged_in:
             return
         self.goto(self._base_url)
-        self._page.wait_for_selector(_LOGIN_FORM, timeout=10_000)
-        self._page.fill(_USERNAME_INPUT, os.environ["RESPRO_USER"])
-        self._page.fill(_PASSWORD_INPUT, os.environ["RESPRO_PASS"])
-        self._page.click(_LOGIN_SUBMIT)
-        # Lands on /home/index after successful login
-        self._page.wait_for_url("**/home/**", timeout=15_000)
+        self.wait_for("respro.login_form", RESPRO.login_form, timeout=10_000)
+        self.fill("respro.username_input", RESPRO.username_input, os.environ["RESPRO_USER"])
+        self.fill("respro.password_input", RESPRO.password_input, os.environ["RESPRO_PASS"])
+        self.click("respro.login_submit", RESPRO.login_submit)
+        try:
+            self._page.wait_for_url("**/home/**", timeout=15_000)
+        except Exception as exc:
+            raise SelectorNotFound(
+                "respro.post_login_home",
+                url=self._page.url,
+                detail="did not reach /home/** after login submit",
+            ) from exc
         self.screenshot("respro-logged-in")
         self._logged_in = True
 
     def open_booking(self, booking_id: int) -> None:
         url = f"{self._base_url}/booking/index/{booking_id}"
         self.goto(url)
-        # If session expired, re-authenticate
         if "/login" in self._page.url:
             self._logged_in = False
             self.login()
@@ -58,29 +52,33 @@ class ResProPage(BasePage):
         self.screenshot("respro-booking-detail")
 
     def is_cancelled(self) -> bool:
-        return self._page.locator(_CANCELLED_STATUS).count() > 0
+        return self._page.locator(RESPRO.cancelled_status).count() > 0
 
-    def cancel(self, booking_id: int) -> None:
-        """Abort the booking via ResPro. Idempotent — skips if already cancelled."""
+    def cancel(self, booking_id: int) -> bool:
+        """Abort the booking via ResPro. Returns True if cancelled this call, False if already cancelled.
+
+        Idempotent — skips cancel if the booking is already cancelled.
+        """
         self.open_booking(booking_id)
 
         if self.is_cancelled():
-            return  # already cancelled — idempotent
+            return False
 
-        # Click "Override to Cancel" → opens /booking/modal-cancel-trip modal
-        self._page.click(_OVERRIDE_CANCEL_LINK)
+        self.click("respro.override_cancel_link", RESPRO.override_cancel_link)
         self._page.wait_for_timeout(2_000)
 
-        self._page.select_option(_ABORT_REASON_SELECT, value="test")
-        self._page.fill(_ABORT_NOTE_INPUT, "Automatic QA cancellation")
-        self._page.click(_ABORT_SUBMIT)
-        # Wait for the AJAX cancel to complete and page to update
+        self._page.select_option(RESPRO.abort_reason_select, value="test")
+        self.fill("respro.abort_note_input", RESPRO.abort_note_input, "Automatic QA cancellation")
+        self.click("respro.abort_submit", RESPRO.abort_submit)
         self._page.wait_for_timeout(5_000)
 
         self.screenshot("respro-cancelled")
 
-        # Reload and assert cancelled status
         self.open_booking(booking_id)
-        assert self.is_cancelled(), (
-            f"[RESPRO] booking {booking_id} — expected Cancelled status after abort"
-        )
+        if not self.is_cancelled():
+            raise SelectorNotFound(
+                "respro.cancelled_status",
+                url=self._page.url,
+                detail=f"booking {booking_id} did not reach Cancelled status after abort",
+            )
+        return True

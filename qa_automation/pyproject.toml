@@ -23,6 +23,14 @@ dependencies = [
     "pytest-metadata==3.1.1",
 ]
 
+[project.scripts]
+qa-search = "qa_automation.runners.search:main"
+qa-book = "qa_automation.runners.book:main"
+qa-validate = "qa_automation.runners.validate:main"
+qa-search-telemetry = "qa_automation.runners.search_telemetry:main"
+qa-cleanup = "qa_automation.runners.cleanup:main"
+qa-diag = "qa_automation.runners.diag:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

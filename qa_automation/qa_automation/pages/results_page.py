@@ -1,16 +1,13 @@
 """
 Search results page — /flight/search.
-Phase 0 confirmed selectors (staging2.flighthub.com, 2026-04-20).
+Selectors live in `qa_automation.pages.selectors.RESULTS`.
 
-The results page is a React SPA.  Selecting a package goes through two modal
-steps before the browser navigates away to checkout:
+Selecting a package is a 3-step SPA flow:
   1. Bundle modal  → dismiss with .continue-with-flight-only-btn
   2. Fare family   → wait for fare load, then click "Continue to checkout"
 
-Debug Filters panel (staging only, collapsed by default):
-  Toggle: .debug-filters-header-toggle  ("Show" / "Hide")
-  GDS select: select#gds  — option values are Title-cased (e.g. "Amadeus", "Kiwi")
-  Selects are added to DOM dynamically when the panel is expanded.
+Debug Filters panel (staging only, collapsed by default) lets us constrain
+results to a single content source via select#gds.
 """
 from __future__ import annotations
 
@@ -18,19 +15,8 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
-from qa_automation.pages.base_page import BasePage
-
-_SELECT_BTN = 'button:has-text("Select")'
-_BUNDLE_DISMISS_BTN = ".continue-with-flight-only-btn"
-_FARE_LOADING = "text=Fetching fare information"
-_CONTINUE_TO_CHECKOUT = 'button:has-text("Continue to checkout")'
-
-# Debug Filters panel
-_DEBUG_FILTER_TOGGLE = ".debug-filters-header-toggle"
-_GDS_SELECT = "select#gds"
-
-# Modal overlay that can block clicks on the results page (e.g. upsell popups)
-_REACT_MODAL_OVERLAY = ".ReactModal__Overlay--after-open"
+from qa_automation.pages.base_page import BasePage, SelectorNotFound
+from qa_automation.pages.selectors import RESULTS
 
 _RESULTS_LOAD_TIMEOUT = 60_000
 _FARE_LOAD_TIMEOUT = 30_000
@@ -48,20 +34,22 @@ class ResultsPage(BasePage):
     def __init__(self, page: Page, scenario_dir: Path) -> None:
         super().__init__(page, scenario_dir)
         self._search_hash: str | None = None
+        self.no_source_packages_in_ui = False
 
     def wait_for_results(self) -> None:
-        # wait_for_url would raise ERR_FAILED when the ad network navigation is
-        # aborted by the route handler, so poll the URL instead.
         deadline_ms = _RESULTS_LOAD_TIMEOUT
         poll_ms = 500
         elapsed = 0
         while "flight/search" not in self._page.url:
             self._page.wait_for_timeout(poll_ms)
             elapsed += poll_ms
-            assert elapsed < deadline_ms, (
-                f"Timed out waiting for /flight/search — current URL: {self._page.url}"
-            )
-        self._page.wait_for_selector(_SELECT_BTN, timeout=_RESULTS_LOAD_TIMEOUT)
+            if elapsed >= deadline_ms:
+                raise SelectorNotFound(
+                    "results.flight_search_url",
+                    url=self._page.url,
+                    detail="page never navigated to /flight/search within timeout",
+                )
+        self.wait_for("results.select_btn", RESULTS.select_btn, timeout=_RESULTS_LOAD_TIMEOUT)
         self._page.wait_for_timeout(2_000)
         self._dismiss_cookie_banner()
         self.screenshot("results-page-loaded")
@@ -71,9 +59,8 @@ class ResultsPage(BasePage):
         return self._search_hash
 
     def _dismiss_cookie_banner(self) -> None:
-        """Dismiss the Osano cookie consent banner — it blocks clicks on results in headless mode."""
         try:
-            btn = self._page.locator("button:has-text('Accept All'), button:has-text('Reject All')")
+            btn = self._page.locator(RESULTS.cookie_accept)
             if btn.count() > 0 and btn.first.is_visible():
                 btn.first.click()
                 self._page.wait_for_timeout(300)
@@ -83,7 +70,7 @@ class ResultsPage(BasePage):
     def _dismiss_modal(self) -> None:
         """Dismiss any open React modal overlay (upsell/info popups) that blocks clicks."""
         try:
-            overlay = self._page.locator(_REACT_MODAL_OVERLAY)
+            overlay = self._page.locator(RESULTS.react_modal_overlay)
             if overlay.count() == 0 or not overlay.first.is_visible():
                 return
             self._page.keyboard.press("Escape")
@@ -91,8 +78,6 @@ class ResultsPage(BasePage):
             if overlay.count() > 0 and overlay.first.is_visible():
                 overlay.first.click(force=True)
                 self._page.wait_for_timeout(400)
-            # Some modals (e.g. storefront-modal-overlay) ignore Escape and overlay clicks.
-            # Remove via JS so it doesn't block subsequent interactions.
             if overlay.count() > 0 and overlay.first.is_visible():
                 self._page.evaluate(
                     """() => {
@@ -106,35 +91,98 @@ class ResultsPage(BasePage):
         except Exception:
             pass
 
-    def select_package_by_source(self, content_source: str, package_index: int = 0) -> None:
-        """Filter results by GDS/content source, then select the first matching package.
+    # ---------- package enumeration (no selection) ----------
 
-        Uses the Debug Filters panel (staging only). The GDS select option values are
-        Title-cased; matching is done case-insensitively with hyphen-stripping to handle
-        edge cases like "navitairendc" ↔ "Navitaire-ndc".
+    def list_debug_filter_sources(self) -> list[str]:
+        """Return the list of content-source option values in select#gds.
 
-        If no matching option is found in the dropdown (new source not yet listed), falls
-        back to selecting the first available package.
-
-        If the option is found but no packages appear after filtering, sets
-        `self.no_source_packages_in_ui = True`, resets the filter, and falls back to
-        the first available package. The post-booking gds_raw check then queries
-        ClickHouse to determine whether the source was called at search time.
+        Empty list if the Debug Filters panel is not available on this build.
         """
-        # 0. Dismiss any modal overlay that may block the debug filter toggle
+        self._dismiss_modal()
+        toggle = self._page.locator(RESULTS.debug_filter_toggle)
+        if toggle.count() == 0:
+            return []
+        text = toggle.inner_text()
+        if "Show" in text:
+            toggle.click()
+            try:
+                self.wait_for("results.gds_select", RESULTS.gds_select, timeout=5_000)
+            except SelectorNotFound:
+                return []
+            self._page.wait_for_timeout(300)
+
+        options = self._page.evaluate(
+            """() => {
+                const sel = document.querySelector('select#gds');
+                if (!sel) return [];
+                return Array.from(sel.options).map(o => o.value).filter(v => v);
+            }"""
+        )
+        return list(options or [])
+
+    def enumerate_packages(self, max_count: int = 20) -> list[dict]:
+        """Scrape visible package cards without clicking Select.
+
+        Best-effort extraction of price / carrier / content-source labels from the
+        DOM. Returns a list of dicts like:
+            {"index": 0, "total_display": "USD 315.39", "validating_carrier": "AC",
+             "content_source": "amadeus"}
+        Missing fields are omitted. Use for agent reasoning only — not an assertion target.
+        """
+        self._dismiss_modal()
+        cards = self._page.evaluate(
+            """(maxCount) => {
+                const buttons = Array.from(document.querySelectorAll('button'))
+                    .filter(b => /\\bSelect\\b/.test(b.innerText || ''));
+                const out = [];
+                for (let i = 0; i < Math.min(buttons.length, maxCount); i++) {
+                    const btn = buttons[i];
+                    let card = btn.closest('[class*="package"], [class*="result"], article, li, div');
+                    for (let depth = 0; depth < 6 && card && card !== document.body; depth++) {
+                        if (card && (card.innerText || '').length > 40) break;
+                        card = card ? card.parentElement : null;
+                    }
+                    const text = (card && card.innerText) || '';
+                    // Price patterns common on flighthub checkout/results
+                    let total_display = null;
+                    let m = text.match(/\\b([A-Z]{3})\\s*([\\d,]+\\.\\d{2})\\b/);
+                    if (m) total_display = `${m[1]} ${m[2]}`;
+                    else {
+                        m = text.match(/\\$([\\d,]+\\.\\d{2})/);
+                        if (m) total_display = `USD ${m[1]}`;
+                    }
+                    const carrierMatch = text.match(/\\b([A-Z0-9]{2})\\s*[-·]\\s*[A-Za-z]/);
+                    const sourceAttr = card && (
+                        card.getAttribute('data-gds') ||
+                        card.getAttribute('data-content-source') ||
+                        card.getAttribute('data-source')
+                    );
+                    const entry = {index: i};
+                    if (total_display) entry.total_display = total_display;
+                    if (carrierMatch) entry.validating_carrier = carrierMatch[1];
+                    if (sourceAttr) entry.content_source = sourceAttr;
+                    out.push(entry);
+                }
+                return out;
+            }""",
+            max_count,
+        )
+        return list(cards or [])
+
+    # ---------- package selection ----------
+
+    def select_package_by_source(self, content_source: str, package_index: int = 0) -> None:
+        """Filter results by content source via Debug Filters, then Select the Nth match."""
         self._dismiss_modal()
 
-        # 1. Expand the Debug Filters panel (it's collapsed by default)
-        toggle = self._page.locator(_DEBUG_FILTER_TOGGLE)
+        toggle = self._page.locator(RESULTS.debug_filter_toggle)
         if toggle.count() > 0:
             text = toggle.inner_text()
             if "Show" in text:
                 toggle.click()
-                # Wait for the select elements to be added to the DOM
-                self._page.wait_for_selector(_GDS_SELECT, timeout=5_000)
+                self.wait_for("results.gds_select", RESULTS.gds_select, timeout=5_000)
                 self._page.wait_for_timeout(300)
 
-        # 2. Find a matching option in the GDS select (case-insensitive, hyphen-tolerant)
         gds_option_value = self._page.evaluate(
             """(source) => {
                 const sel = document.querySelector('select#gds');
@@ -153,8 +201,6 @@ class ResultsPage(BasePage):
                 f"content_source={content_source!r} has no option in the GDS filter dropdown"
             )
 
-        # 3. Select the GDS option via JS to avoid headless interactability issues
-        #    (the panel animation can leave the select non-interactable briefly).
         self._page.evaluate(
             """(val) => {
                 const sel = document.querySelector('select#gds');
@@ -165,31 +211,110 @@ class ResultsPage(BasePage):
             }""",
             gds_option_value,
         )
-        self._page.wait_for_timeout(2_000)
+        # Applying a Debug Filter kicks off a fresh search against only that
+        # content source, which on staging can take up to ~90s (same shape as
+        # the initial results wait). Poll for Select buttons until they appear.
+        deadline_ms = 90_000
+        poll_interval_ms = 2_000
+        elapsed = 0
+        pkg_count = 0
+        while elapsed < deadline_ms:
+            pkg_count = self._page.locator(RESULTS.select_btn).count()
+            if pkg_count > 0:
+                break
+            self._page.wait_for_timeout(poll_interval_ms)
+            elapsed += poll_interval_ms
         self.screenshot("gds-filter-applied")
 
-        # 4. Check if any packages are visible for this source
-        pkg_count = self._page.locator(_SELECT_BTN).count()
         if pkg_count == 0:
             self.screenshot("gds-filter-zero-packages")
             raise SourceNotAvailableError(
-                f"content_source={content_source!r} filter applied but 0 packages returned"
+                f"content_source={content_source!r} filter applied but 0 packages "
+                f"returned after {deadline_ms/1000:.0f}s wait"
             )
 
-        # 5. Select the requested package by index (0 = first, 1 = second for retry, etc.)
+        # Wait for the loading-banner overlay (fare pricing + top-of-page banner)
+        # AND the "Filtering results" banner (rendered by consolidator sources
+        # like Tripstack that re-run the search after filter apply) to go away
+        # before clicking; they intercept pointer events and the Select button
+        # can re-render while results are still settling.
+        for overlay_sel in (".loading-banner-wrapper", "text=Filtering results"):
+            try:
+                self._page.locator(overlay_sel).first.wait_for(
+                    state="detached", timeout=30_000
+                )
+            except Exception:
+                pass
+        self._page.wait_for_timeout(1_000)
+
+        # Guard: consolidator sources (e.g. tripstack) re-run the search after
+        # the filter is applied, and the staging UI may initially render GDS
+        # fallback Select buttons that disappear ~30-60s later when the
+        # source-only result set resolves to zero. Before clicking, check for
+        # the explicit "No flights found" empty-state and fail fast.
+        no_results = self._page.locator(
+            "text=/No flights found|No results found/i"
+        )
+        if no_results.count() > 0 and no_results.first.is_visible():
+            self.screenshot("gds-filter-no-flights-found")
+            raise SourceNotAvailableError(
+                f"content_source={content_source!r}: UI rendered 'No flights found' "
+                f"after applying the Debug Filter. The source has no matching "
+                f"inventory for this search (route/dates/pax). Try a different "
+                f"route, shift dates ±1/±7 days, or relax pax (e.g. drop INF)."
+            )
+
+        # Re-fetch the locator each attempt: consolidators like tripstack
+        # re-search continuously which replaces Select-button DOM nodes every
+        # few seconds. Fresh locator + force=True bypasses stale handles and
+        # whatever loading banner hasn't detached yet.
         pick = min(package_index, pkg_count - 1)
-        self._page.locator(_SELECT_BTN).nth(pick).click()
-        self._page.wait_for_selector(_BUNDLE_DISMISS_BTN, timeout=10_000)
+        last_err: Exception | None = None
+        for attempt in range(3):
+            # Re-check the empty-state between retries in case the source-only
+            # result set collapses to 0 during our retry window.
+            if no_results.count() > 0 and no_results.first.is_visible():
+                self.screenshot("gds-filter-no-flights-found-midway")
+                raise SourceNotAvailableError(
+                    f"content_source={content_source!r}: UI collapsed to "
+                    f"'No flights found' between retry {attempt} and {attempt + 1}. "
+                    f"The source has no matching inventory for this search."
+                )
+            try:
+                fresh = self._page.locator(RESULTS.select_btn).nth(pick)
+                fresh.scroll_into_view_if_needed(timeout=5_000)
+                self._page.wait_for_timeout(400)
+                fresh.click(timeout=15_000, force=True)
+                last_err = None
+                break
+            except Exception as exc:
+                last_err = exc
+                self.screenshot(f"gds-filter-click-retry-{attempt + 1}")
+                self._page.wait_for_timeout(2_000)
+        if last_err is not None:
+            raise last_err
+        self.wait_for("results.bundle_dismiss_btn", RESULTS.bundle_dismiss_btn, timeout=10_000)
         self.screenshot("bundle-modal-opened")
 
-        self._page.locator(_BUNDLE_DISMISS_BTN).click()
+        self.click("results.bundle_dismiss_btn", RESULTS.bundle_dismiss_btn)
+        self._proceed_to_checkout()
+
+    def select_first_package(self, package_index: int = 0) -> None:
+        """Select a package by position without applying a content-source filter."""
+        self._dismiss_modal()
+        pkg_count = self._page.locator(RESULTS.select_btn).count()
+        if pkg_count == 0:
+            raise SourceNotAvailableError("0 packages returned on search results page")
+        pick = min(package_index, max(pkg_count - 1, 0))
+        self._page.locator(RESULTS.select_btn).nth(pick).click()
+        self.wait_for("results.bundle_dismiss_btn", RESULTS.bundle_dismiss_btn, timeout=10_000)
+        self.screenshot("bundle-modal-opened")
+
+        self.click("results.bundle_dismiss_btn", RESULTS.bundle_dismiss_btn)
         self._proceed_to_checkout()
 
     def _proceed_to_checkout(self) -> None:
-        """After dismissing the bundle modal, handle either direct checkout navigation
-        or the intermediate fare-family panel (both are valid paths)."""
-        # Some packages (e.g. tripstack) navigate directly to /checkout after bundle dismiss —
-        # give it up to 20s before assuming a fare-family panel will be shown.
+        """Handle either direct checkout navigation or the fare-family panel."""
         try:
             self._page.wait_for_url("**/checkout/billing/flight/**", timeout=20_000)
             self.screenshot("navigated-to-checkout-directly")
@@ -197,30 +322,17 @@ class ResultsPage(BasePage):
         except Exception:
             pass
 
-        # Fare family panel — wait for fare data to finish loading, then continue.
-        self._page.wait_for_selector(_FARE_LOADING, state="hidden", timeout=_FARE_LOAD_TIMEOUT)
+        self.wait_for(
+            "results.fare_loading",
+            RESULTS.fare_loading,
+            timeout=_FARE_LOAD_TIMEOUT,
+            state="hidden",
+        )
         self._page.wait_for_timeout(500)
         self.screenshot("fare-family-loaded")
-        self._page.locator(_CONTINUE_TO_CHECKOUT).first.click(timeout=60_000)
-        self.screenshot("continue-to-checkout-clicked")
-
-    def select_first_package(self, package_index: int = 0) -> None:
-        """
-        Click Select → dismiss bundle modal → wait for fare family → go to checkout.
-        """
-        self._dismiss_modal()
-        pkg_count = self._page.locator(_SELECT_BTN).count()
-        pick = min(package_index, max(pkg_count - 1, 0))
-        self._page.locator(_SELECT_BTN).nth(pick).click()
-        self._page.wait_for_selector(_BUNDLE_DISMISS_BTN, timeout=10_000)
-        self.screenshot("bundle-modal-opened")
-
-        self._page.locator(_BUNDLE_DISMISS_BTN).click()
-
-        # Fare family panel loads inline (URL unchanged)
-        self._page.wait_for_selector(_FARE_LOADING, state="hidden", timeout=_FARE_LOAD_TIMEOUT)
-        self._page.wait_for_timeout(500)
-        self.screenshot("fare-family-loaded")
-
-        self._page.locator(_CONTINUE_TO_CHECKOUT).first.click()
+        self.click(
+            "results.continue_to_checkout",
+            RESULTS.continue_to_checkout,
+            timeout=60_000,
+        )
         self.screenshot("continue-to-checkout-clicked")

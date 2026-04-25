@@ -1,13 +1,16 @@
 # QA Automation — Page Inventory
 
-All selectors verified against **staging2.flighthub.com** on **2026-04-20**.
-Casper-era selectors have been replaced.
+All selectors verified against **staging2.flighthub.com** on **2026-04-23**.
+Casper-era selectors have been replaced. Selector constants live in
+[`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py);
+the `VERIFIED_ON` string in that file must match this header.
 
 ---
 
 ## Critical: Third-Party Ad Blocking
 
-`conftest.py` injects a route handler on every `BrowserContext` that blocks:
+[`qa_automation/qa_automation/browser.py`](../../../qa_automation/qa_automation/browser.py)
+injects a route handler on every `BrowserContext` that blocks:
 - **Third-party scripts** (`resource_type == "script"` not from flighthub.com/justfly.com)
 - **Third-party document navigations** (ClickTripz, TripAdvisor, etc.)
 
