@@ -16,6 +16,7 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 
 - **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
 - **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
+- **`/qa_automation`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
 - **`/table_analysis`** — find which table or collection holds the data you need (when `db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `db-docs/`.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
 
@@ -33,6 +34,7 @@ scripts/
 ├── mysql_query.py        # MySQL CLI
 ├── mongo_query.py        # MongoDB CLI (collections / describe / find / aggregate)
 └── sync_genesis.sh       # Optional pull of the genesis codebase
+qa_automation/      # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …)
 db-docs/
 ├── clickhouse/     # Documented CH tables
 ├── mysql/          # Documented MySQL tables
