@@ -47,10 +47,7 @@ For query hygiene on `ota.debug_logs` and `ota.optimizer_logs` (collection choic
 
 
 ### Query rules
-
-- Filter and group data the way the business does: dates, content sources, airlines, etc.
-- Reuse existing expressions for rates, counts, and dedup. Do not change denominators between queries.
-- When comparing time periods, state the window and timezone.
+- Write queries with CTEs for easy debugging.
 
 
 ### Table documentation
@@ -71,8 +68,10 @@ Pick the skill that matches the task. Full rules live in each `SKILL.md`. When y
 | Skill | Pick when |
 |-------|-----------|
 | [`bookability_analysis`](../skills/bookability_analysis/SKILL.md) | Bookability questions: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis. |
+| [`optimizer_analysis`](../skills/optimizer_analysis/SKILL.md) | Optimizer matching audits: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans (MySQL `optimizer_candidates` + `optimizer_attempts` ↔ MongoDB `optimizer_logs`). |
+| [`qa_automation`](../skills/qa_automation/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging and validating it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`). |
 | [`table_analysis`](../skills/table_analysis/SKILL.md) | User names a table or collection and wants its purpose, columns, or docs under `db-docs/`, **or** needs data but no `db-docs/` entry fits ("which table has…", "find table", etc.). |
-| [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). |
+| [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration Trello board (backlog for GDS / content sources, bookability, optimizer, payhub). For new **Automation** functionality use [`automation_cards.md`](../skills/trello_assistant/automation_cards.md) — different board, short human-written card. |
 
 ### Skills layout
 
@@ -94,6 +93,8 @@ scripts/
 ├── mongo_query.py         # MongoDB CLI
 ├── sync_genesis.sh        # Optional: pull genesis before codebase-memory use
 
+qa_automation/             # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …)
+
 db-docs/
 ├── clickhouse/
 ├── mysql/
@@ -109,6 +110,3 @@ reports/                   # Ephemeral output (gitignored)
 
 For questions about application code, `GENESIS_PATH` in `.env` must point to the local clone. If missing, ask the user for the path and add it to `.env`.
 
-## Git commits
-
-Do not add editor or tool attribution trailers. Never use `--trailer "Made-with: Cursor"` or any `Made-with:` / co-authored trailer for tools.
