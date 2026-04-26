@@ -4,11 +4,21 @@ packages and the Debug Filters content-source list, print JSON and exit.
 
 No booking is initiated. Output feeds ``qa-book`` and (optionally)
 ``qa-search-telemetry``.
+
+Environment is picked up from ``QA_ENV`` by default; pass ``--env`` to
+override for a single call. Both staging
+(``staging<N>.flighthub.com``) and production (``www.flighthub.com``)
+are supported. The Debug Filters source list
+(``debug_filter_sources`` in the output) is populated on **both
+envs** as of 2026-04-26 — an empty list is the signal that the
+build has dropped the panel and ``qa-book`` should fall back to the
+per-card "Show Info" path for content-source pinning.
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 
 from qa_automation.browser import launch_browser, launch_context
 from qa_automation.network import capture_storefront_transaction_id
@@ -21,7 +31,7 @@ from qa_automation.runners._common import (
     list_screenshots,
     load_env,
 )
-from qa_automation.utils.env import App, resolve_url
+from qa_automation.utils.env import App, current_env, resolve_url
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -47,6 +57,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--currency", default=None, help="Currency hint (informational only)")
     p.add_argument("--label", default=None, help="Scenario dir suffix under qa_automation/reports/")
     p.add_argument("--max-packages", type=int, default=20, help="Cap on DOM package enumeration")
+    p.add_argument(
+        "--env",
+        choices=["staging", "production"],
+        default=None,
+        help=(
+            "Override QA_ENV for this call. Default: read QA_ENV "
+            "(falls back to 'staging')."
+        ),
+    )
     return p
 
 
@@ -58,9 +77,13 @@ def main() -> None:
     load_env()
     args = _build_arg_parser().parse_args()
 
+    if args.env is not None:
+        os.environ["QA_ENV"] = args.env
+    qa_env = current_env()
+
     scenario_dir = allocate_scenario_dir(args.label or f"search-{args.origin}-{args.dest}")
     site_app = App.FLIGHTHUB if args.site == "flighthub" else App.JUSTFLY
-    base_url = resolve_url(site_app)
+    base_url = resolve_url(site_app, qa_env)
 
     try:
         depart = _parse_date(args.depart)
@@ -95,6 +118,7 @@ def main() -> None:
 
                 emit_ok({
                     "scenario_dir": scenario_dir,
+                    "env": qa_env.value,
                     "site": args.site,
                     "base_url": base_url,
                     "search_url": results_page_handle.url,

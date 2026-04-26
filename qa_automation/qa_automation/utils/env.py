@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
+from urllib.parse import urlparse
 
 
 class Env(str, Enum):
@@ -20,13 +21,37 @@ class App(str, Enum):
 
 def resolve_url(app: App, env: Env | None = None) -> str:
     if env is None:
-        env = Env(os.getenv("QA_ENV", "staging").lower())
+        env = current_env()
 
     if env == Env.PRODUCTION:
         return _PRODUCTION_URLS[app]
 
     prefix = os.environ["QA_STAGING_PREFIX"]
     return _STAGING_TEMPLATES[app].format(prefix=prefix)
+
+
+def current_env() -> Env:
+    """Resolve the current Env from ``QA_ENV`` (default staging)."""
+    return Env(os.getenv("QA_ENV", "staging").lower())
+
+
+def env_from_url(url: str) -> Env:
+    """Classify a URL as staging vs production based on the host.
+
+    The current convention is:
+      * ``staging<N>.flighthub.com`` / ``staging<N>.justfly.com`` (staging)
+      * ``www.flighthub.com`` / ``www.justfly.com`` (production)
+
+    Anything that doesn't start with ``staging`` is treated as production —
+    we'd rather over-engage the production safety rail than skip it on a
+    URL we don't recognise. ``ResPro`` (``reservations.voyagesalacarte.ca``)
+    is shared between envs and is not classified by this helper; callers
+    must pass ``Env`` explicitly for ResPro.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    if host.startswith("staging"):
+        return Env.STAGING
+    return Env.PRODUCTION
 
 
 _STAGING_TEMPLATES: dict[App, str] = {

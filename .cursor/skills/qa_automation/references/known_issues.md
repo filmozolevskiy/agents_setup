@@ -1,7 +1,9 @@
-# QA Automation — Known Issues & Staging Quirks
+# QA Automation — Known Issues & Env Quirks
 
-Distilled from the plan's "Constraints and known staging quirks" section and
-from `page_inventory.md`. When something here bites a run, the agent should
+Distilled from the plan's "Constraints and known staging quirks" section
+and from `page_inventory.md`. Covers both staging and production — when
+behaviour diverges, the section title calls it out (e.g. "Production vs
+staging differences"). When something here bites a run, the agent should
 mention the specific quirk in the final report rather than treating it as
 a bug.
 
@@ -31,22 +33,96 @@ a bug.
   on a different provider than what the Debug Filter selected (observed
   `atlas` → `Tripstack` on SJU→FLL). The ResPro `Provider` column, not the
   `--content-source` flag, is the truth at ticketing.
-- `qa-book` now auto-flips the staging-only **Debugging Options →
+- `qa-book` auto-flips the **Debugging Options →
   Disable Optimizer/Repricer** select to **Yes** whenever
-  `--content-source` is passed, to pin the source. `--package-index` runs
-  leave the optimizer enabled on purpose (they exercise the production
-  path).
-- If the toggle is missing (production build, panel renamed), the runner
-  fails with `selector_not_found name=checkout.disable_optimizer` —
-  safer than silently letting the optimizer reroute.
+  `--content-source` is passed, to pin the source. The toggle renders
+  on **both staging and production** (verified 2026-04-26), so this
+  applies regardless of `--env`. `--package-index` runs leave the
+  optimizer enabled on purpose (they exercise the production path).
+- If the toggle goes missing (panel renamed, build regression), the
+  runner fails with `selector_not_found name=checkout.disable_optimizer`
+  — safer than silently letting the optimizer reroute.
 
-## `is_test=1` backstop
+## `is_test=1` backstop (staging + production)
 
 - All bookings driven by these tools have `is_test=1` in
-  `ota.bookings`. Production infra has a `CancelTestBookings` cron that
-  cancels leaked rows if ResPro cancel fails.
-- `qa-cleanup` is therefore best-effort at the scenario level — a cancel
-  failure should be surfaced but rarely blocks the run.
+  `ota.bookings`. The flag is set server-side by the `?af=78FF47`
+  autofill query param, which the `CheckoutPage.autofill` step
+  triggers via the visible `Autofill` link on **both staging and
+  production** (verified by inspecting recent `is_test=1` rows on
+  multiple `site_id`s — see card `weaSgLaj`).
+- Production infra has a `CancelTestBookings` cron that cancels
+  leaked rows if ResPro cancel fails. `qa-cleanup` is therefore
+  best-effort at the scenario level — a cancel failure should be
+  surfaced but rarely blocks the run.
+
+## Production safety rail (qa-book)
+
+- `qa-book` defaults to injecting a `CC Decline` failure via the
+  Debugging Options panel on every production run. The booker
+  short-circuits before contacting the supplier or the payment
+  gateway, so the card is never actually charged, no PNR is
+  created, and **no `ota.bookings` row is persisted** — instead the
+  payment stage re-renders with the user-facing
+  "Credit Card check failed" alert.
+- The runner detects that alert post-submit and emits
+  `booking_failed_by_injection` (with
+  `failure_origin="qa_injection"`, `front_end_message=<banner>`,
+  `front_end_markers=["cc_decline"]`). This is the expected
+  outcome of every production safety-rail run — treat it as a
+  successful end-to-end exercise of the prod pipeline, not a
+  failure to clean up.
+- To run a real booking attempt against the supplier on production,
+  pass `--booking-failure-reason none --i-know-this-charges-real-money`.
+  Without the ack flag the runner emits `production_safety_rail` and
+  exits before launching a browser. The platform's own protections
+  (test-card detection / CC decline at the gateway) are the only
+  remaining safety net once the injection is disabled.
+- A run-summary banner is printed to **stderr** before submit on
+  every `qa-book` invocation: env, host, content_source,
+  package_index, booking_failure_reason, and (if `--cc-*` was passed)
+  a masked card preview. Capture stderr alongside stdout when running
+  on production so the audit trail for "what we submitted" lives next
+  to the JSON report.
+
+## Production vs staging differences
+
+Most selectors are unioned in `pages/selectors.py`, so callers do not
+care about the env. The four behavioural differences worth knowing are:
+
+| Surface | Staging | Production |
+|---|---|---|
+| Cookie banner | "Accept All" / "Reject All" | adds "Reject Non-Essential" |
+| Select CTA | `<button>Select</button>` | `<a>Select</a>` |
+| Continue to checkout | inline "Continue to checkout" | fare-family modal ending in "Checkout" |
+
+The Autofill link, `is_test=1` flag, Debug Filters dropdown
+(`select#gds`), Debugging Options panel (`Disable Optimizer/Repricer`,
+`Booking Failure Reason`), per-card "Show Info" toggle, and ResPro
+cancellation all behave identically across the two envs as of
+2026-04-26. `qa-book` keeps a per-card "Show Info" fallback for
+content-source pinning that engages automatically if a future build
+ever drops the `select#gds` dropdown.
+
+## Production "Something went wrong" mid-checkout (transient inventory)
+
+- Production occasionally shows a full-page "Something went wrong /
+  Sorry, we experienced an issue loading your flight package" between
+  Select and the payment stage. The package became unavailable
+  between the Select click and the checkout/payment render. Two
+  shapes have been observed:
+  - On the `/checkout/billing/flight/...` page itself: the React
+    form never mounts, `Autofill` is never visible. `qa-book`
+    surfaces this as `selector_not_found name=checkout.autofill_link`
+    with the error page captured in
+    `001-missing-checkout-autofill_link.png`.
+  - After "Continue to payment" on a two-stage package: the payment
+    form (`#submit_booking`) never renders. `qa-book` surfaces this
+    as `checkout_render_timeout` with
+    `008-payment-stage-mount-failed.png`.
+- This is a real production response, not an automation bug. Retry
+  with a different `--package-index`, a different `--content-source`,
+  or shift the date by ±1/±7 days.
 
 ## PNRs / tickets are empty until ticketing
 
@@ -74,16 +150,24 @@ a bug.
 
 ## Cookie / tracking banners cover the first click
 
-- `ResultsPage` and `CheckoutPage` dismiss visible "Accept All" / "Reject
-  All" banners before the first interaction. If a new banner appears, add
-  it to `CHECKOUT.cookie_accept` / `RESULTS.cookie_accept`.
+- `ResultsPage` and `CheckoutPage` dismiss visible
+  "Accept All" / "Reject All" / **"Reject Non-Essential"** banners
+  before the first interaction. The third variant only renders on
+  production (verified 2026-04-26) but is part of the union
+  selector, so the same dismiss path covers both envs. If a new
+  banner copy appears, add it to `CHECKOUT.cookie_accept` /
+  `RESULTS.cookie_accept`.
 
-## Autofill shortcut
+## Autofill shortcut (staging + production)
 
-- Staging exposes a `?af=78FF47` autofill query param; the `Autofill`
-  link on the checkout form appends it automatically when clicked.
-- Full autofill data (passenger details, card, passport) is pre-populated.
-  Override individual fields via `qa-book --cc-*` flags if needed.
+- The `Autofill` link appends a testing query param (e.g.
+  `?af=78FF47`) and triggers full pre-fill of passenger details,
+  card, and passport. Same anchor and behaviour on both staging
+  and production — including setting `is_test=1` server-side on
+  the resulting `ota.bookings` row.
+- Override individual card fields via `qa-book --cc-*` flags if
+  needed. On production with `--booking-failure-reason none` the
+  resolved card is logged (masked) to stderr before submit.
 
 ## Selector rot is expected
 

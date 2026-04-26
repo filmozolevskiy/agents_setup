@@ -1,19 +1,44 @@
 ---
 name: qa-automation
 description: >-
-  Use when creating real test bookings on FlightHub / JustFly staging and
-  validating them across MySQL, ClickHouse, and MongoDB. Drives the booking
-  flow with a Playwright-backed set of stateless CLI tools
-  (qa-search → qa-search-telemetry → qa-book → qa-validate → qa-cleanup)
-  and lets the agent decide retries and pass/fail based on evidence dumps
-  and a documented checklist.
+  Use when creating real test bookings on FlightHub / JustFly staging or
+  production and validating them across MySQL, ClickHouse, and MongoDB.
+  Drives the booking flow with a Playwright-backed set of stateless CLI
+  tools (qa-search → qa-search-telemetry → qa-book → qa-validate →
+  qa-cleanup) and lets the agent decide retries and pass/fail based on
+  evidence dumps and a documented checklist. Production runs default to a
+  controlled CC Decline injection so cards are never charged.
 ---
 
 # QA Automation
 
 Drive a real test booking on `staging{QA_STAGING_PREFIX}.flighthub.com` /
-`staging{QA_STAGING_PREFIX}.justfly.com`, then validate it across the three
-DB layers we care about (MySQL `ota`, ClickHouse `jupiter`, MongoDB `ota`).
+`staging{QA_STAGING_PREFIX}.justfly.com` or on production
+(`www.flighthub.com` / `www.justfly.com`), then validate it across the
+three DB layers we care about (MySQL `ota`, ClickHouse `jupiter`,
+MongoDB `ota`).
+
+Both environments share the same DBs — `qa-validate` and `qa-cleanup`
+work the same regardless of where the booking originated. The
+production-vs-staging UI differences (no Debug Filter dropdown,
+`<a>` Select buttons, "Reject Non-Essential" cookie banner, etc.) are
+absorbed inside the page objects and runners; callers simply pass
+`--env production` (or a `www.*` `--search-url`) to `qa-search` /
+`qa-book`. See [`references/known_issues.md`](references/known_issues.md)
+"Production vs staging differences" for the full inventory.
+
+**Production safety**: `qa-book` defaults to injecting a
+`CC Decline` failure via the Debugging Options panel on every
+production run. The booker pipeline short-circuits before contacting
+the supplier or the payment gateway — the card is never charged.
+The runner detects the user-facing CC-decline alert post-submit
+and emits `booking_failed_by_injection` (with
+`failure_origin=qa_injection`); that is the **expected outcome of
+every production safety-rail run**. To run a real production
+booking against a supplier you must explicitly pass
+`--booking-failure-reason none --i-know-this-charges-real-money`;
+even then, the platform's own protections (test-card detection at
+the gateway) are the only safety net.
 
 Five CLI tools, each stateless. Each tool emits a **single JSON object on
 stdout**; errors have an `error` key and a non-zero exit code. Stderr carries
@@ -35,9 +60,10 @@ Exact inputs, output schemas, and error bodies live in
 
 ## When to invoke
 
-- User asks for a live booking test on staging: "book via amadeus on YUL-LAX",
-  "reproduce a booking on tripstack", "end-to-end test for content source X",
-  "validate a staging booking across the 3 DBs".
+- User asks for a live booking test on staging or production: "book via
+  amadeus on YUL-LAX", "reproduce a booking on tripstack",
+  "end-to-end test for content source X", "validate a staging booking
+  across the 3 DBs", "run a prod E2E against unififi".
 - User passes an existing `booking_id` / `id_hash` / `transaction_id` and asks
   to "re-validate" a prior booking without re-creating it — skip straight to
   `qa-validate`.
@@ -108,8 +134,26 @@ cd qa_automation && uv run qa-book \
     --scenario-dir qa_automation/reports/20260423-130000-amadeus-smoke
 ```
 
+For a production E2E (auto-injects `CC Decline` — supplier never sees
+the booking, card is never charged):
+
+```bash
+cd qa_automation && uv run qa-search --env production \
+    --origin YUL --dest LAX --depart 2026-07-15 --trip-type oneway \
+    --label prod-amadeus-smoke
+cd qa_automation && uv run qa-book \
+    --search-url "https://www.flighthub.com/flight/search?..." \
+    --content-source amadeus \
+    --scenario-dir qa_automation/reports/<UTC>-prod-amadeus-smoke
+# qa-book emits a banner to stderr summarising env / failure-reason /
+# resolved card before submitting; capture it for the run report.
+```
+
 `qa-validate` needs at least one of `--booking-id`, `--id-hash`,
-`--transaction-id`. `qa-cleanup` takes `--booking-id`.
+`--transaction-id` — both staging and production bookings live in the
+same `ota.bookings` table. `qa-cleanup` takes `--booking-id` and
+optionally `--env` (default: from `QA_ENV`); ResPro is shared between
+envs so the cleanup URL is identical.
 
 ### Where to redirect stdout/stderr
 

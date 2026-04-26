@@ -18,6 +18,13 @@ from qa_automation.pages.selectors import CHECKOUT
 _CHECKOUT_LOAD_TIMEOUT = 60_000
 
 
+def _safe_label(text: str) -> str:
+    """Filename-safe slug for label-driven screenshot names."""
+    return "".join(
+        ch.lower() if ch.isalnum() else "-" for ch in text
+    ).strip("-") or "label"
+
+
 class CheckoutRenderTimeout(Exception):
     """Submit button did not render within the allotted window after autofill."""
 
@@ -139,17 +146,20 @@ class CheckoutPage(BasePage):
         self.fill("checkout.cc_name", CHECKOUT.cc_name, name)
 
     def disable_optimizer(self) -> None:
-        """Set the staging-only "Disable Optimizer/Repricer" toggle to Yes.
+        """Set the "Disable Optimizer/Repricer" toggle to Yes.
 
-        Required when booking against a specific content source (``--content-source``
-        in ``qa-book``): otherwise the optimizer can reprice/reroute the candidate
-        to a different provider (e.g. atlas -> Tripstack) and the booking no longer
-        tests what we asked for. The Debugging Options panel is staging-only and
-        invisible on production builds, so this is a no-op there.
+        Required when booking against a specific content source
+        (``--content-source`` in ``qa-book``): otherwise the optimizer
+        can reprice/reroute the candidate to a different provider (e.g.
+        ``atlas`` → ``Tripstack``) and the booking no longer tests what
+        we asked for. The Debugging Options panel renders on **both
+        staging and production** (verified 2026-04-26), so this method
+        is wired the same way on both envs.
 
-        Uses Playwright's native ``select_option`` so React's onChange fires
-        correctly; a raw ``element.value = ...`` + dispatchEvent dance has
-        been observed to be overwritten by React on the next render.
+        Uses Playwright's native ``select_option`` so React's onChange
+        fires correctly; a raw ``element.value = ...`` + dispatchEvent
+        dance has been observed to be overwritten by React on the next
+        render.
         """
         # The debug panel is at the bottom; scroll to force it into view so
         # React is more likely to have it mounted.
@@ -190,6 +200,71 @@ class CheckoutPage(BasePage):
                 "select on the checkout page. Booking a specific content source "
                 "without this toggle lets the optimizer reroute to another "
                 f"provider and invalidates the source-specific test. "
+                f"Last error: {last_err!r}"
+            ),
+        )
+
+    def set_booking_failure_reason(self, reason_label: str) -> None:
+        """Force a controlled failure via the "Booking Failure Reason" select.
+
+        Pick from the labels exposed by the Debugging Options panel — at
+        the time of writing those are ``CC Decline``, ``Fraud``,
+        ``Fare Increase``, ``Flight Not Available``, ``CC 3DS Failed``,
+        ``Issue with this card`` (case-insensitive matching). The
+        backend short-circuits the booker pipeline with the matching
+        exception class instead of hitting the supplier or the payment
+        gateway, which is what makes a **production** end-to-end test
+        safe to run: the card is never charged, no PNR is created, and
+        ``ota.bookings.process_status`` carries a ``BOOKING_FAILED`` row
+        we can validate against.
+
+        Same DOM strategy as ``disable_optimizer`` — locate the
+        ``<select>`` by walking from the visible label text, then use
+        Playwright's native ``select_option`` so React's onChange fires.
+        """
+        try:
+            self._page.evaluate(
+                "window.scrollTo(0, document.body.scrollHeight)"
+            )
+        except Exception:
+            pass
+        self._page.wait_for_timeout(300)
+        label_text = CHECKOUT.booking_failure_reason_label_text
+        candidates = [
+            f'div:has(label:has-text("{label_text}")) select',
+            f'label:has-text("{label_text}") + select',
+            f'div:has(:text("{label_text}")) select',
+        ]
+        last_err: Exception | None = None
+        for sel_css in candidates:
+            loc = self._page.locator(sel_css).first
+            if loc.count() == 0:
+                continue
+            try:
+                loc.scroll_into_view_if_needed(timeout=2_000)
+                # Tolerate label-vs-value drift between front-end deploys
+                # by trying both ``label=`` and ``value=`` when label
+                # selection trips on the first attempt.
+                try:
+                    loc.select_option(label=reason_label, timeout=5_000)
+                except Exception:
+                    loc.select_option(value=reason_label, timeout=5_000)
+                self._page.wait_for_timeout(300)
+                self.screenshot(
+                    f"booking-failure-reason-{_safe_label(reason_label)}"
+                )
+                return
+            except Exception as exc:
+                last_err = exc
+                continue
+        raise SelectorNotFound(
+            "checkout.booking_failure_reason",
+            url=self._page.url,
+            detail=(
+                "Could not find + set the 'Booking Failure Reason' select on "
+                "the checkout page. Without it the qa-book runner cannot "
+                "guarantee a controlled failure on a real booking attempt — "
+                "on production this means we cannot proceed safely. "
                 f"Last error: {last_err!r}"
             ),
         )
@@ -272,3 +347,74 @@ class CheckoutPage(BasePage):
         self.screenshot("after-submit-3s")
         self._page.wait_for_timeout(15_000)
         self.screenshot("after-submit-18s")
+
+    def detect_failure_injection_banner(self) -> dict | None:
+        """Read the booker's user-facing failure banner from the checkout DOM.
+
+        When ``set_booking_failure_reason`` injects a label, the booker
+        short-circuits the booking and re-renders the payment stage with
+        an inline alert (``role="alert"`` / ``.alert``). The banner copy
+        differs per-reason:
+          * ``CC Decline`` → "Your payment method was declined…
+            [Credit Card check failed]".
+          * ``Fraud`` / ``CC 3DS Failed`` → fraud / 3DS-rejected copy.
+          * ``Fare Increase`` / ``Flight Not Available`` → pricing /
+            availability copy.
+        Returns a dict with ``text`` (visible banner copy, single line)
+        and ``markers`` (which known signal phrases matched) when found,
+        or ``None`` if no recognised injection banner is present. Used
+        by ``qa-book`` post-submit to convert the otherwise generic
+        ``confirmation_url_timeout`` into a clean
+        ``booking_failed_by_injection`` outcome.
+        """
+        result = self._page.evaluate(
+            """() => {
+                const phrases = [
+                    {key: 'cc_decline', re: /credit\\s*card\\s*check\\s*failed/i},
+                    {key: 'cc_decline', re: /payment\\s*method\\s*was\\s*declined/i},
+                    {key: 'cc_decline', re: /verify\\s*or\\s*update\\s*your\\s*credit\\s*card/i},
+                    {key: 'fraud', re: /flagged\\s*as\\s*(potential\\s*)?fraud/i},
+                    {key: 'cc_3ds_failed', re: /3[\\-\\s]?d\\s*secure/i},
+                    {key: 'fare_increase', re: /fare\\s*has\\s*(increased|changed)/i},
+                    {key: 'flight_not_available', re: /(flight|seats?)\\s*(no longer|not)\\s*available/i},
+                ];
+                const containers = Array.from(
+                    document.querySelectorAll(
+                        '[role=alert], .alert, .error, [class*=Alert], [class*=Error], [class*=banner]'
+                    )
+                );
+                for (const el of containers) {
+                    if (!el || !el.offsetParent) continue;
+                    const raw = (el.innerText || el.textContent || '').trim();
+                    if (!raw) continue;
+                    const matched = [];
+                    for (const p of phrases) {
+                        if (p.re.test(raw)) matched.push(p.key);
+                    }
+                    if (matched.length) {
+                        return {
+                            text: raw.replace(/\\s+/g, ' ').slice(0, 400),
+                            markers: Array.from(new Set(matched)),
+                        };
+                    }
+                }
+                const body = (document.body && document.body.innerText) || '';
+                const matched = [];
+                for (const p of phrases) {
+                    if (p.re.test(body)) matched.push(p.key);
+                }
+                if (matched.length) {
+                    return {
+                        text: body.replace(/\\s+/g, ' ').slice(0, 400),
+                        markers: Array.from(new Set(matched)),
+                    };
+                }
+                return null;
+            }"""
+        )
+        if not result:
+            return None
+        return {
+            "text": str(result.get("text") or ""),
+            "markers": list(result.get("markers") or []),
+        }

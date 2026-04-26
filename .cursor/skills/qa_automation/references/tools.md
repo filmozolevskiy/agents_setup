@@ -30,12 +30,14 @@ No booking is initiated.
 | `--pos` / `--currency` | — | Informational only (staging2 overrides to USD). |
 | `--label` | `search-{origin}-{dest}` | Suffix on the scenario dir. |
 | `--max-packages` | `20` | Cap on DOM package enumeration. |
+| `--env` | from `QA_ENV` (default `staging`) | One of `staging` / `production`. Per-call override. Production resolves URLs to `www.flighthub.com` / `www.justfly.com`; `debug_filter_sources` is empty there (no Debug Filter dropdown). |
 
 ### Success output
 
 ```json
 {
   "scenario_dir": "qa_automation/reports/20260423-120000-amadeus-smoke",
+  "env": "staging",
   "site": "flighthub",
   "base_url": "https://staging2.flighthub.com",
   "search_url": "https://staging2.flighthub.com/flight/search?...",
@@ -149,28 +151,72 @@ checkout flow to confirmation.
 | `--scenario-dir` | new UTC-labelled dir | Pass the dir from `qa-search` to co-locate screenshots. |
 | `--label` | `book` | Used only when `--scenario-dir` is omitted. |
 | `--cc-number` / `--cc-expiry` / `--cc-cvv` / `--cc-name` | autofill | Override the autofilled card. All four or none. |
+| `--env` | inferred from `--search-url` host | One of `staging` / `production`. Default rule: host starts with `staging` → staging, else production. Set explicitly when the URL is ambiguous or when you want to force the safety rail. |
+| `--booking-failure-reason` | `CC Decline` on prod, `none` on staging | Visible label of the Debugging Options "Booking Failure Reason" select to inject before submit. Pass `none` to skip injection — see safety rail below. Other accepted labels: `Fraud`, `Fare Increase`, `Flight Not Available`, `CC 3DS Failed`, `Issue with this card`. |
+| `--i-know-this-charges-real-money` | off | Required to set `--booking-failure-reason none` on production. Without it the runner emits `production_safety_rail` and exits before launching a browser. |
 
 ### Optimizer disable (implicit with `--content-source`)
 
-When `--content-source` is set, the runner also flips the staging-only
-**Debugging Options → Disable Optimizer/Repricer** select to **Yes** on the
-checkout page before submit. Without this, the optimizer can reprice/reroute
-the candidate to a different provider at book time (e.g. an `atlas` candidate
-booked via `Tripstack`) and the test no longer exercises the requested source.
-On `--package-index` we leave the optimizer enabled — the index-based flow
-intentionally exercises the production path.
+When `--content-source` is set, the runner also flips the
+**Debugging Options → Disable Optimizer/Repricer** select to **Yes**
+on the checkout page before submit. Without this, the optimizer can
+reprice/reroute the candidate to a different provider at book time
+(e.g. an `atlas` candidate booked via `Tripstack`) and the test no
+longer exercises the requested source. The toggle renders on both
+**staging and production** (verified 2026-04-26). On
+`--package-index` we leave the optimizer enabled — the index-based
+flow intentionally exercises the production path.
+
+### Production-side content-source pinning
+
+Production has no Debug Filter dropdown. When the runner detects
+`select#gds` is absent it falls back to the per-card "Show Info"
+toggle: it expands every card's debug panel, reads the
+`gds => <source>` line, and clicks Select on the first card whose
+panel matches `--content-source` (case-insensitive, `-` ignored to
+match staging's normalisation). `--package-index` shifts the pick
+within the matching subset. If no card on the visible result page
+carries the requested source, the runner emits
+`source_not_available_in_ui` with a hint to try a different
+date/route or use `--package-index`.
+
+### Production safety rail
+
+On `--env production` (or any non-`staging*` host in `--search-url`)
+the runner defaults to injecting a `CC Decline` failure via the
+Debugging Options panel **before submit**. The booker pipeline
+short-circuits before contacting the supplier or the payment
+gateway:
+
+* The card is never charged.
+* No PNR / `air_pnr` / `ticket_number` is created.
+* `ota.bookings.process_status` carries a
+  `BOOKING_FAILED` row that `qa-validate` can inspect to confirm the
+  E2E ran end-to-end on real production infra.
+
+Pass `--booking-failure-reason none --i-know-this-charges-real-money`
+to disable the injection. Without the ack flag the runner emits
+`production_safety_rail` (exit code 1, body includes `env=production`)
+**before launching a browser**. A run-summary banner is printed to
+**stderr** on every invocation: env, host, content_source,
+package_index, booking_failure_reason, ack flag, and (if `--cc-*`
+was passed) a masked card preview. Capture stderr alongside stdout
+when running on production so the audit trail for "what we
+submitted" lives next to the JSON report.
 
 ### Success output
 
 ```json
 {
   "scenario_dir": "qa_automation/reports/...",
+  "env": "staging",
   "id_hash": "2F3...",
   "booking_id": 297983572,
   "debug_transaction_id": "abc123...",
   "portal_url": "https://staging2.flighthub.com/service/portal/detail/2F3...",
   "content_source_booked": "amadeus",
   "package_index_booked": null,
+  "booking_failure_reason_injected": null,
   "currency_shown_at_checkout": "USD",
   "total_shown_at_checkout": 315.39,
   "bookings_row": { ...full row from ota.bookings... },
@@ -178,8 +224,31 @@ intentionally exercises the production path.
 }
 ```
 
+On production, `booking_failure_reason_injected` is the resolved label
+(`"CC Decline"` by default). The success path is rare on production
+because the injection is designed to fail the booking — most prod runs
+fall into the `booking_failed_in_pipeline` error path with
+`failure_origin = payment_processor` and `front_end_message` matching
+the injected reason.
+
 ### Error bodies
 
+- `production_safety_rail` — `--env production` (or a `www.*`
+  search URL) plus `--booking-failure-reason none`, but
+  `--i-know-this-charges-real-money` was not passed. Body includes
+  `env=production`. The runner exits before launching a browser.
+  Either re-run with the ack flag, or with a non-`none` failure
+  label (e.g. the default `CC Decline`).
+- `booking_failed_by_injection` — the booker honoured the
+  ``--booking-failure-reason`` we injected and re-rendered the
+  payment stage with the matching alert (e.g. "Credit Card check
+  failed" for `CC Decline`). No supplier was contacted, no card was
+  charged, no `ota.bookings` row was written. Body carries
+  `failure_origin="qa_injection"` plus the user-facing
+  `front_end_message` and `front_end_markers` (e.g.
+  `["cc_decline"]`). This is the **expected outcome of every
+  production safety-rail run** — the agent should treat it as a
+  successful end-to-end exercise of the prod pipeline.
 - `source_not_available_in_ui` — Debug Filter has no option matching
   `--content-source`, or 0 packages matched. Retry with a different date,
   route, or source (scenario-dependent).

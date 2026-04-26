@@ -5,13 +5,32 @@ booking_id + debug_transaction_id via MySQL.
 
 Input comes from the previous ``qa-search`` call. Stateless — the runner
 re-navigates to the search URL and lets results re-load.
+
+The runner is environment-aware:
+
+  * On **staging** (``staging<N>.flighthub.com``), the booking flow can
+    end either in confirmation (autofill cards are gateway-faked) or in
+    a controlled failure if you pass ``--booking-failure-reason``.
+  * On **production** (``www.flighthub.com``), the runner *defaults* to
+    injecting a ``CC Decline`` failure via the Debugging Options panel
+    so the card is never actually charged. To run a real production
+    booking against the supplier, pass
+    ``--booking-failure-reason none --i-know-this-charges-real-money``;
+    the platform's own protections (test-card detection / CC decline)
+    are still in effect, but the runner is no longer the safety net.
+
+Env detection order: ``--env`` flag (if given) → host of ``--search-url``
+(``staging*`` → staging, anything else → production).
 """
 from __future__ import annotations
 
 import argparse
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import NoReturn
+from urllib.parse import urlparse
 
 from qa_automation.browser import launch_browser, launch_context
 from qa_automation.db.queries import (
@@ -34,8 +53,21 @@ from qa_automation.runners._common import (
     list_screenshots,
     load_env,
 )
+from qa_automation.utils.env import Env, env_from_url
 
 logger = logging.getLogger(__name__)
+
+# Production-default failure reason injected via the Debugging Options panel.
+# Picked because it is the cleanest *no-supplier-impact* failure: the booker
+# short-circuits before calling the GDS, the card never reaches the payment
+# gateway, and ``ota.bookings.process_status`` lands on a clean
+# ``BOOKING_FAILED`` row. Other allowed labels: ``Fraud``, ``Fare Increase``,
+# ``Flight Not Available``, ``CC 3DS Failed``, ``Issue with this card``.
+PROD_DEFAULT_FAILURE_REASON = "CC Decline"
+
+# Sentinel meaning "do not inject any failure". Lower-cased so the label
+# match in CheckoutPage.set_booking_failure_reason is case-insensitive.
+NO_FAILURE_INJECTION = "none"
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -53,6 +85,37 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--cc-expiry", default=None)
     p.add_argument("--cc-cvv", default=None)
     p.add_argument("--cc-name", default=None)
+    p.add_argument(
+        "--env",
+        choices=["staging", "production"],
+        default=None,
+        help=(
+            "Override env detection. Default: derive from --search-url host "
+            "(staging* -> staging, else -> production)."
+        ),
+    )
+    p.add_argument(
+        "--booking-failure-reason",
+        default=None,
+        help=(
+            "Inject a controlled failure via the Debugging Options panel "
+            "before submit. Pass the visible label (e.g. 'CC Decline', "
+            "'Fraud', 'Fare Increase', 'Flight Not Available'), or 'none' "
+            "to skip injection. Default: 'CC Decline' on production "
+            "(safe), 'none' on staging."
+        ),
+    )
+    p.add_argument(
+        "--i-know-this-charges-real-money",
+        action="store_true",
+        dest="ack_real_money",
+        help=(
+            "Required to run on production with --booking-failure-reason "
+            "none. Acknowledges that the platform's protection mechanisms "
+            "(test-card detection, CC decline at the gateway) are now the "
+            "only safety net."
+        ),
+    )
     return p
 
 
@@ -182,6 +245,9 @@ def _diagnose_post_submit_failure(
     price_amount: float | None,
     price_currency: str | None,
     cause: BaseException,
+    qa_env: Env,
+    booking_failure_reason: str | None,
+    failure_injection_banner: dict | None = None,
 ) -> NoReturn:
     """Translate a stuck post-submit checkout into an actionable error JSON.
 
@@ -219,7 +285,36 @@ def _diagnose_post_submit_failure(
         "package_index_requested": package_index,
         "currency_shown_at_checkout": price_currency,
         "total_shown_at_checkout": price_amount,
+        "env": qa_env.value,
+        "booking_failure_reason_injected": booking_failure_reason,
     }
+
+    # 0. Booker-injected failure banner — short-circuit before paying for
+    #    DB lookups. When ``--booking-failure-reason`` was honoured the
+    #    booker re-renders the payment stage with the matching alert
+    #    ("Credit Card check failed", etc.) and never persists a row.
+    #    Surfacing this as ``booking_failed_by_injection`` makes the
+    #    production safety-rail outcome trivially recognisable.
+    if failure_injection_banner is not None and booking_failure_reason is not None:
+        emit_error(
+            "booking_failed_by_injection",
+            detail=(
+                f"Booker honoured the injected '{booking_failure_reason}' "
+                "failure: the payment stage re-rendered with the matching "
+                "user-facing alert and never persisted an ota.bookings row. "
+                "No supplier was contacted, no card was charged."
+            ),
+            retry_hint=(
+                "this is the expected outcome of the production safety "
+                "rail — pass --booking-failure-reason none "
+                "--i-know-this-charges-real-money to attempt a real "
+                "booking against the supplier."
+            ),
+            failure_origin="qa_injection",
+            front_end_message=failure_injection_banner.get("text"),
+            front_end_markers=failure_injection_banner.get("markers"),
+            **common,
+        )
 
     if txn_id is None:
         emit_error(
@@ -357,6 +452,94 @@ def _diagnose_post_submit_failure(
     )
 
 
+def _resolve_env(args: argparse.Namespace) -> Env:
+    """Pick env from explicit flag, else infer from --search-url host."""
+    if args.env:
+        return Env(args.env)
+    return env_from_url(args.search_url)
+
+
+def _resolve_failure_reason(
+    args: argparse.Namespace,
+    qa_env: Env,
+    scenario_dir: Path,
+) -> str | None:
+    """Resolve the requested ``--booking-failure-reason`` for this run.
+
+    Returns the (label-cased) reason to inject, or ``None`` for no injection.
+    Enforces the production safety rail:
+      * Default on prod is ``PROD_DEFAULT_FAILURE_REASON`` (``CC Decline``).
+      * Setting ``--booking-failure-reason none`` on prod requires
+        ``--i-know-this-charges-real-money`` — without it the runner
+        emits ``production_safety_rail`` and exits non-zero.
+    """
+    explicit = args.booking_failure_reason
+    if qa_env == Env.PRODUCTION:
+        reason = explicit if explicit is not None else PROD_DEFAULT_FAILURE_REASON
+        if reason.lower() == NO_FAILURE_INJECTION:
+            if not args.ack_real_money:
+                emit_error(
+                    "production_safety_rail",
+                    detail=(
+                        "Refusing to submit a booking on production without "
+                        "a controlled-failure injection. Pass "
+                        "--i-know-this-charges-real-money to acknowledge "
+                        "that the platform's own protections (test-card "
+                        "detection, CC decline at the gateway) are now the "
+                        "only safety net, or pass --booking-failure-reason "
+                        "with a non-'none' label like 'CC Decline'."
+                    ),
+                    env="production",
+                    scenario_dir=scenario_dir,
+                    screenshots=list_screenshots(scenario_dir),
+                )
+            return None
+        return reason
+    if explicit is None or explicit.lower() == NO_FAILURE_INJECTION:
+        return None
+    return explicit
+
+
+def _log_run_summary(
+    *,
+    qa_env: Env,
+    args: argparse.Namespace,
+    failure_reason: str | None,
+    card_override: tuple[str, str, str, str] | None,
+) -> None:
+    """Emit a single human-friendly run-summary block to stderr.
+
+    This is the *audit trail* a human or another agent reads to confirm
+    "yes, we are about to submit on production with a CC Decline
+    injection". It includes the full resolved card details (autofill or
+    override) — keep it on stderr so the JSON on stdout stays parseable
+    and we don't leak the card into a piped JSON file.
+    """
+    host = (urlparse(args.search_url).hostname or "<unknown>").lower()
+    sys.stderr.write("=" * 78 + "\n")
+    sys.stderr.write(f"qa-book run summary  env={qa_env.value}  host={host}\n")
+    sys.stderr.write(
+        f"  search_url            = {args.search_url}\n"
+        f"  content_source        = {args.content_source!r}\n"
+        f"  package_index         = {args.package_index!r}\n"
+        f"  booking_failure_reason= {failure_reason!r}  "
+        f"({'INJECT FAILURE' if failure_reason else 'NO injection — booking will go through'})\n"
+        f"  ack_real_money        = {args.ack_real_money}\n"
+    )
+    if card_override is not None:
+        n, e, c, name = card_override
+        masked = f"{n[:4]}…{n[-4:]}" if len(n) > 8 else n
+        sys.stderr.write(
+            f"  card_override         = number={masked} expiry={e} cvv=*** name={name!r}\n"
+        )
+    else:
+        sys.stderr.write(
+            "  card_override         = (none — relies on autofill card)\n"
+        )
+    sys.stderr.write("=" * 78 + "\n")
+    sys.stderr.flush()
+
+
 def main() -> None:
     load_env()
     args = _build_arg_parser().parse_args()
@@ -374,6 +557,19 @@ def main() -> None:
                 scenario_dir=scenario_dir,
             )
         card_override = (args.cc_number, args.cc_expiry, args.cc_cvv, args.cc_name)
+
+    qa_env = _resolve_env(args)
+    failure_reason = _resolve_failure_reason(args, qa_env, scenario_dir)
+    # Sync QA_ENV for downstream callers (resolve_url, ResPro cleanup, etc.)
+    # so they see the same env we resolved here even if the user passed
+    # ``--env`` or relied on URL inference.
+    os.environ["QA_ENV"] = qa_env.value
+    _log_run_summary(
+        qa_env=qa_env,
+        args=args,
+        failure_reason=failure_reason,
+        card_override=card_override,
+    )
 
     try:
         with launch_browser() as (_, browser):
@@ -394,13 +590,16 @@ def main() -> None:
                 checkout = CheckoutPage(page, scenario_dir)
                 checkout.wait_for_load()
                 checkout.autofill()
-                # Decline insurance (travel + baggage) and disable optimizer
-                # while still on stage 1 of the checkout — these controls live
+                # Decline insurance (travel + baggage), pin the optimizer,
+                # and inject a controlled failure (production-default) while
+                # still on stage 1 of the checkout — all three controls live
                 # above/below the "Continue to payment" CTA on two-stage
                 # flows, and are required to unblock stage advance.
                 checkout.decline_insurance()
                 if args.content_source is not None:
                     checkout.disable_optimizer()
+                if failure_reason is not None:
+                    checkout.set_booking_failure_reason(failure_reason)
                 # No-op on single-stage checkouts; advances to the payment
                 # form on two-stage (LCC/consolidator) checkouts.
                 checkout.advance_to_payment_if_needed()
@@ -422,6 +621,18 @@ def main() -> None:
                 except SelectorNotFound as exc:
                     if exc.name != "confirmation.url":
                         raise
+                    # If we injected a failure reason, look for the
+                    # booker's user-facing alert before paying for
+                    # CK / Mongo / MySQL lookups — it is the cleanest
+                    # signal that the safety rail did its job.
+                    injection_banner: dict | None = None
+                    if failure_reason is not None:
+                        try:
+                            injection_banner = (
+                                checkout.detect_failure_injection_banner()
+                            )
+                        except Exception:
+                            injection_banner = None
                     _diagnose_post_submit_failure(
                         page_url=page.url,
                         scenario_dir=scenario_dir,
@@ -431,6 +642,9 @@ def main() -> None:
                         price_amount=price_amount,
                         price_currency=price_currency,
                         cause=exc,
+                        qa_env=qa_env,
+                        booking_failure_reason=failure_reason,
+                        failure_injection_banner=injection_banner,
                     )
                 id_hash = confirmation.id_hash
                 confirmation.dismiss_post_booking_upsell()
@@ -449,6 +663,7 @@ def main() -> None:
 
                 emit_ok({
                     "scenario_dir": scenario_dir,
+                    "env": qa_env.value,
                     "id_hash": id_hash,
                     "booking_id": booking.get("id"),
                     "debug_transaction_id": booking.get("debug_transaction_id")
@@ -456,6 +671,7 @@ def main() -> None:
                     "portal_url": _confirmation_portal_url(args.search_url, id_hash),
                     "content_source_booked": args.content_source,
                     "package_index_booked": args.package_index,
+                    "booking_failure_reason_injected": failure_reason,
                     "currency_shown_at_checkout": price_currency,
                     "total_shown_at_checkout": price_amount,
                     "bookings_row": booking,
