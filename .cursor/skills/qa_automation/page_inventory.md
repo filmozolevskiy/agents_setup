@@ -1,7 +1,8 @@
 # QA Automation — Page Inventory
 
-All selectors verified against **staging2.flighthub.com** (and
-**reservations.voyagesalacarte.ca** for ResPro) on **2026-04-25**.
+All selectors verified against **staging2.flighthub.com**,
+**staging2-summit.flighthub.com** (Summit), and
+**reservations.voyagesalacarte.ca** (ResPro) on **2026-04-26**.
 Casper-era selectors have been replaced. Selector constants live in
 [`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py);
 the `VERIFIED_ON` string in that file must match this header.
@@ -119,8 +120,65 @@ No booking number is shown on the page — must be looked up in MySQL.
 
 ## 6. Summit Stats Page
 
-⚠️ Not yet confirmed — requires Phase 3 spike with SUMMIT_USER/SUMMIT_PASS credentials.
-URL: `https://staging2-summit.flighthub.com/flight-search/info/`
+Base URL: `https://staging2-summit.flighthub.com` (Momentum OTA-Admin).
+Stats are auth-gated; anonymous requests redirect to `/login`. The
+[`SummitStatsPage`](../../../qa_automation/qa_automation/pages/summit_stats_page.py)
+runner logs in at the base URL and then navigates straight to
+`/flight-search/info/{search_hash}` (the `#searchIdForm` lookup just
+redirects to the same path — bypass it).
+
+| Step | URL | Element | Selector |
+|------|-----|---------|----------|
+| Login | `/` | Login form wrapper | `form.login-form` |
+| Login | same | Username (Email) input | `#email` |
+| Login | same | Password input | `#password` |
+| Login | same | Submit (`Sign In`) | `#process-login` |
+| Stats page wrapper | `/flight-search/info/{search_hash}` | Stats container | `#flightSearchStats` |
+| Stats page wrapper | same | Search ID lookup form | `#searchIdForm` |
+| Stats page wrapper | same | Search ID lookup input | `#search_id` |
+| Stats summary (per `search_hash`) | same | `Stats` fieldset summary | `#flightSearchStats fieldset.stats` |
+| Search urls table | same | `Search urls` table (per-API-call detail) | `#flightSearchStats fieldset#urlStats table` |
+
+**Notes:**
+- Summit's username field is named `email` in the DOM; we keep
+  `username_input` as the canonical selector key on `SummitSelectors`
+  for parity with `RESPRO.username_input`. The selector itself is
+  `#email`.
+- The keyed URL only renders a `fieldset.stats` summary when the search
+  is still in Summit's in-memory store. The summary's `Expire at` line
+  shows ~20 minutes after run, so anything older than that returns the
+  same template with an `Error: Search not found` fieldset and *no*
+  `fieldset.stats`. `SummitStatsPage.find_search_hash_row()` raises
+  `SelectorNotFound("summit.stats_row")` in that case — the `detail`
+  string distinguishes "expired vs selector rot" so callers can act on it.
+- `find_search_hash_row()` returns the `<dl><dt>/<dd>` pairs inside
+  `fieldset.stats` as a `{label: value}` dict (e.g. `Search id`,
+  `Started`, `Completed`, `Packages count`, `Runtime`, `Started at`,
+  `Expire at`, `Backend`). The keyed page also exposes `Web link`,
+  `Api link`, and `Debug log` URLs in the same `dl` head — use the
+  `<dd> > a[href]` if you need the underlying URLs (the dict carries
+  the link text only).
+- `qa-diag --page summit --url https://staging2-summit.flighthub.com/`
+  is the canonical anonymous probe and confirms the four login
+  selectors. The five `summit.stats_*` selectors require auth and only
+  appear in the dump produced by the throwaway logged-in inspector
+  (see card [`ue37vUp5`](https://trello.com/c/ue37vUp5)). A `qa-diag`
+  call against the keyed stats URL also lands on `/login` (anonymous
+  redirect) and will report `summit.stats_*` as missing — that is
+  expected, not selector rot. To detect rot in the stats portion, run
+  the page object end-to-end (login → `find_search_hash_row(<live hash>)`)
+  using a freshly-issued hash from `search_api_stats.gds_raw` (anything
+  inside the last ~20 min).
+- A live hash for confirmation: pull the most recent
+  `search_id` from
+  `SELECT search_id FROM search_api_stats.gds_raw WHERE date_added >=
+  now() - INTERVAL 5 MINUTE GROUP BY search_id ORDER BY
+  max(date_added) DESC LIMIT 1`. Booking-derived hashes
+  (`bookings.debug_transaction_id`) age out fast — most are already
+  `Search not found` by the time you run the inspector.
+- Summit production env (`https://summit.flighthub.com`) is **not**
+  covered by this section — the prod end-to-end runbook lives on
+  [`weaSgLaj`](https://trello.com/c/weaSgLaj).
 
 ---
 

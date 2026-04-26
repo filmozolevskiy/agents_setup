@@ -149,5 +149,5 @@ Do not edit selectors elsewhere — that file is the single source of truth.
 
 ## Known open items
 
-- Summit stats page selectors (`SummitSelectors`) are not confirmed; leave
-  Summit-related asks for a separate investigation.
+_(none currently tracked — Summit selectors confirmed 2026-04-26 on card
+[`ue37vUp5`](https://trello.com/c/ue37vUp5).)_

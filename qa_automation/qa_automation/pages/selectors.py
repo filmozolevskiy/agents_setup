@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 
-VERIFIED_ON = "2026-04-25"
+VERIFIED_ON = "2026-04-26"
 
 
 @dataclass(frozen=True)
@@ -113,9 +113,26 @@ class ResProSelectors:
 
 @dataclass(frozen=True)
 class SummitSelectors:
-    login_form: str = "form"
-    login_submit: str = '[type="submit"]'
-    stats_table: str = "table"
+    # Login page (https://staging2-summit.flighthub.com/). Summit names the
+    # username field ``email`` — keep ``username_input`` as the canonical
+    # selector key so the constant name matches the rest of the codebase
+    # (RESPRO.username_input et al.) and so a future rename of the underlying
+    # input surfaces as ``selector_not_found[summit.username_input]``.
+    login_form: str = "form.login-form"
+    username_input: str = "#email"
+    password_input: str = "#password"
+    login_submit: str = "#process-login"
+
+    # Stats page (https://staging2-summit.flighthub.com/flight-search/info/<search_id>).
+    # Auth-gated: anonymous requests (e.g. ``qa-diag``) redirect to ``/login``
+    # and only the four login selectors above match. The five selectors below
+    # are confirmed by the throwaway logged-in inspector run for card ue37vUp5
+    # (see page_inventory.md § 6 for the captured DOM).
+    stats_container: str = "#flightSearchStats"
+    stats_lookup_form: str = "#searchIdForm"
+    stats_lookup_input: str = "#search_id"
+    stats_table: str = "#flightSearchStats fieldset#urlStats table"
+    stats_row: str = "#flightSearchStats fieldset.stats"
 
 
 SEARCH = SearchSelectors()
