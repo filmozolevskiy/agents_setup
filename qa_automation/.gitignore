@@ -1,0 +1,10 @@
+reports/
+!reports/.gitkeep
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+*.egg-info/
+dist/
+.uv/

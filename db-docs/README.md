@@ -19,7 +19,7 @@ Note: MongoDB exploration is currently limited to the **`OTA`** database and the
 
 ## Adding Table Documentation
 
-Use the **document-table** skill (`.cursor/skills/document_table/SKILL.md`), or follow this template:
+Use the **table-analysis** skill (`.cursor/skills/table_analysis/SKILL.md`), or follow this template:
 
 **Database:** `database_name`
 **Purpose:** One-line description of what this table stores.
@@ -44,6 +44,22 @@ SELECT ... FROM table_name WHERE ...
 ## Documented Tables
 
 Currently documented: 2 collections total.
+
+### MySQL
+
+| Table | Database | Purpose |
+|-------|----------|---------|
+| `bookability_customer_attempts` | `ota` | Core operational metadata for booking attempts |
+| `booking_contestants` | `ota` | Fare contestants generated during booking flows |
+| `bookability_built_contestant` | `ota` | Junction between attempts and contestants |
+| `bookability_contestant_attempts` | `ota` | GDS errors and exceptions for built contestants |
+| `bookings` | `ota` | Finalized bookings with pricing, status, and test flags |
+| `optimizer_attempts` | `ota` | Each Optimizer execution for a search / package / checkout |
+| `optimizer_candidates` | `ota` | Contestants (fare options) the Optimizer generated per attempt |
+| `optimizer_candidate_tags` | `ota` | Key-value tags attached to optimizer candidates |
+| `optimizer_tags` | `ota` | Reference table of tag names used by the Optimizer |
+| `optimizer_attempt_bookings` | `ota` | Junction linking the winning candidate to its booking |
+| `optimizer_join_pattern` *(reference)* | `ota` | Canonical 5-table Optimizer join — attempts ↔ candidates ↔ bookings + tag roll-up |
 
 ### MongoDB
 

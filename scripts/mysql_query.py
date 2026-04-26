@@ -80,7 +80,7 @@ def cmd_tables(args):
     with conn:
         with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT TABLE_NAME as name, ENGINE as engine, TABLE_ROWS as rows, "
+                "SELECT TABLE_NAME as name, ENGINE as engine, TABLE_ROWS as `rows`, "
                 "CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') as size "
                 "FROM information_schema.TABLES "
                 "WHERE TABLE_SCHEMA = %s ORDER BY TABLE_NAME",
