@@ -47,17 +47,14 @@ requirements.txt    # clickhouse-connect, pymysql, pymongo
 ## Setup
 
 1. **Clone and install Python deps** (Python 3.10+):
-
-   ```bash
+  ```bash
    git clone <this-repo>
    cd bookability_agent_setup
    python3 -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
-   ```
-
+  ```
 2. **Create `.env`** at the repo root. `.env` is gitignored. Never commit it.
-
-   ```bash
+  ```bash
    # ClickHouse (Phoenix analytics)
    CLICKHOUSE_HOST=<host>
    CLICKHOUSE_PORT=<port>
@@ -78,13 +75,85 @@ requirements.txt    # clickhouse-connect, pymysql, pymongo
 
    # Optional: local genesis checkout for code-aware questions
    GENESIS_PATH=/absolute/path/to/genesis
-   ```
-
+  ```
 3. **Load `.env` before running any CLI.** Every script reads credentials from environment variables. Export them first:
-
-   ```bash
+  ```bash
    set -a && source .env && set +a
-   ```
+  ```
+
+## MCP servers
+
+Some skills talk to external services through MCP (Model Context Protocol) servers. Only one is required today; the rest are optional and only matter if you want the agent to reach those products directly.
+
+
+| MCP                                                | Used by                     | Required            | What it does                                                         |
+| -------------------------------------------------- | --------------------------- | ------------------- | -------------------------------------------------------------------- |
+| **Trello** (`@delorenj/mcp-server-trello`)         | `/trello_assistant`         | Yes, for that skill | Read/create/update cards on the Content Integration board.           |
+| **GitHub** (`@modelcontextprotocol/server-github`) | Ad-hoc (PR / issue lookups) | Optional            | Read repos, PRs, issues when a skill or question needs code context. |
+| **Atlassian** (`https://mcp.atlassian.com/v1/mcp`) | Ad-hoc (Jira / Confluence)  | Optional            | Query Jira tickets and Confluence pages.                             |
+| **Lucid** (`https://mcp.lucid.app/mcp`)            | Ad-hoc (diagrams)           | Optional            | Read Lucidchart diagrams referenced in tickets.                      |
+
+
+No skill in this repo requires GitHub, Atlassian, or Lucid — add them only if you want them available to the agent generally.
+
+### Get credentials
+
+- **Trello:** log in, then grab `TRELLO_API_KEY` and `TRELLO_TOKEN` from [trello.com/power-ups/admin](https://trello.com/power-ups/admin) → your app → *API Key* → *Token*. The token needs read + write on the Content Integration board.
+- **GitHub:** create a fine-grained personal access token at [github.com/settings/tokens](https://github.com/settings/tokens) with `repo` + `read:org`.
+- **Atlassian / Lucid:** remote MCP endpoints, no token in the config — you authenticate in-browser on first use.
+
+### Configure in Cursor
+
+Cursor reads MCP servers from `~/.cursor/mcp.json` (user-level, applies to every project). Create or edit that file:
+
+```json
+{
+  "mcpServers": {
+    "trello": {
+      "command": "npx",
+      "args": ["-y", "@delorenj/mcp-server-trello"],
+      "env": {
+        "TRELLO_API_KEY": "<your key>",
+        "TRELLO_TOKEN": "<your token>"
+      }
+    },
+    "GitHub": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your token>"
+      }
+    },
+    "Atlassian-MCP-Server": { "url": "https://mcp.atlassian.com/v1/mcp" },
+    "Lucid":                { "url": "https://mcp.lucid.app/mcp" }
+  }
+}
+```
+
+Keep only the entries you want. Restart Cursor after editing. If `npx` is not on Cursor's `PATH`, point `command` at an absolute path (e.g. `/usr/local/bin/npx`) and add `"PATH": "..."` under `env`.
+
+### Configure in Claude Code
+
+Claude Code reads `.mcp.json` at the repo root (project-level, shareable) and/or `~/.claude.json` (user-level). Same schema as above. Do **not** commit tokens — put real values in the user-level file, or use env vars:
+
+```json
+{
+  "mcpServers": {
+    "trello": {
+      "command": "npx",
+      "args": ["-y", "@delorenj/mcp-server-trello"],
+      "env": {
+        "TRELLO_API_KEY": "${TRELLO_API_KEY}",
+        "TRELLO_TOKEN":  "${TRELLO_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### Verify
+
+In Cursor: open the MCP panel (Settings → MCP) and confirm each server shows *Connected*. In Claude Code: run `/mcp` in a session and check the server list. For Trello specifically, ask the agent to `set_active_board 61d5cf784c6396541499e7ce` and `get_lists` — if that returns the Content Integration lists, the MCP is wired up.
 
 ## Quick connection test
 
