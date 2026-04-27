@@ -74,12 +74,14 @@ Run the deduplication pass first. Among non-duplicates, align wording with exist
 
 ## Description templates (copy structure)
 
-Keep the description body short. The entire description (before the AI footer) uses **only these two sections**, in this order. No extra `⊙` headings, no multi-section "investigation" layouts, no exceptions:
+Keep the description body short. The entire description (before the AI footer) uses **two sections**, in this order. No extra `⊙` headings, no multi-section "investigation" layouts:
 
-1. `⊙ **Summary**`
+1. **First section** — one of:
+   - `⊙ **Summary**` (preferred for new cards)
+   - `⊙ **Describe the situation in detail**:` (older user-authored cards use this — keep it on edits, do not rename)
 2. `⊙ **Numbers/ quantity/ Examples:**`
 
-Field-shape reference: [#2676 DTT: Passenger type or count…](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error). For tone and lean Numbers: [#2679 DTT: NDC-1348…](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) — short Summary, then Scale + some examples + mongo_query. For several distinct error signatures on the same flow: [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors) — one example block per signature; do not mash unrelated regexes into a single list.
+Field-shape reference: [#2676 DTT: Passenger type or count…](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error). For tone and lean Numbers: [#2679 DTT: NDC-1348…](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) — short Summary, then Scale + some examples + mongo_query. For several distinct error signatures on the same flow: [#2677 DTT: VerifyPrice errors](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors) — one example block per signature; do not mash unrelated regexes into a single list. For per-day / per-bucket trend cards (manual-rate, leak-rate over time): [#2746 FLX NDC: Test Bookings go to Agents](https://trello.com/c/Nfg1JVNy) — open Numbers/ Examples with the breakdown text table itself (no prose `Scale - …` line above it), then a lean example callout (bare ResPro URL, no row-metadata parenthetical), then the MySQL CTE.
 
 Anything that would have been "Describe the situation", investigation narrative, repro steps, QA notes, or proposed solutions goes inside `⊙ **Numbers/ quantity/ Examples:**` as compact bullets. Do not add separate `⊙` blocks for those topics.
 
@@ -103,11 +105,13 @@ Lean by default — readers scan in seconds. Add heavy detail (collection names,
 
 **Prevalence / counts:** put totals in the **Scale** line only (e.g. log-line count and distinct `transaction_id` for the stated window). Do not add a prose runbook after `mongo_query:` explaining how to derive counts. No "Scope (counts): reuse the same `$match`…", "append `{ $count: … }`", or "move the `date_added` window as needed." Those instructions live in `bookability_analysis` and agent context, not on the card.
 
-**Order — card-level (optional one line, then example blocks):**
+**Order — card-level (optional Scale OR breakdown table, then example blocks):**
 
-1. **Scale** — one short line, plain language (optional if not measured yet). How often and the window (and distinct `transaction_id` when known).
-   - Good: `Scale - 93 times in 30d; 39 distinct transaction_id in 30d`
-   - Avoid: long preambles — the `mongo_query` block encodes filters.
+1. **Scale or Breakdown** — pick one, never both:
+   - **Scale line** (default for single-signature error cards) — one short line, plain language (optional if not measured yet). How often and the window (and distinct `transaction_id` when known).
+     - Good: `Scale - 93 times in 30d; 39 distinct transaction_id in 30d`
+     - Avoid: long preambles — the `mongo_query` / **MySQL:** block encodes filters.
+   - **Breakdown text table** (default for trend cards — per-day / per-source / per-bucket — see [#2746](https://trello.com/c/Nfg1JVNy)) — open with a fenced plain-text table whose columns are the dimensions you care about (e.g. `dd | all_cases | auto | manual | manual_rate`). The table IS the Scale — do not also write a prose `Scale - …` line above it; the totals it implies are right there. Put the MySQL / mongo_query that produced the table underneath, after the example callout.
 2. **Setup** (only when useful, one line): e.g. database `ota`, collection `debug_logs`, `context:` `…`; run pipelines in mongosh or Compass (`ISODate`).
 
 **Per error signature (one block per distinct pattern — see [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors)):**
@@ -121,6 +125,8 @@ Lean by default — readers scan in seconds. Add heavy detail (collection names,
    - **Shape A — per-row.** `$project` returns one document per match with `booking_id`, `transaction_id`, `date_added`, `log_id`, and the `link`; end with `$sort: { date_added: -1 }`. N separate result docs. Use when per-row context columns or per-row filtering in Compass matters, or for a `.forEach(...)` loop in mongosh.
 
 **Single-signature cards** (e.g. [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc)): one block after Scale. `some examples` + `mongo_query:` labels still preferred. The long `**… — example: debug log**` title is optional if the card title already names the error; keep it for scanability otherwise.
+
+**smartCard-rendered example URLs (ResPro `bookings.id`, Trello cards, etc. — see [#2746](https://trello.com/c/Nfg1JVNy)):** when the example is a ResPro booking page, a Trello card, or any other URL Trello renders inline as a smartCard, the title line ends with `… — example: ResPro` (or `— example: card`) and the example body is just the bare URL on its own line. Do **not** append a parenthetical with `gds=`, `cancel_reason=`, `booking_date=`, task IDs, etc. — those duplicate what the smartCard already exposes. If a specific task ID, status flag, or unusual field is genuinely the point of the example, one short line under the URL is enough; otherwise omit.
 
 **Counts / deduped permalinks:** agents use `bookability_analysis` (or DB tools) to compute prevalence, then write the result in Scale. Do not paste "how to count" steps on the card. For harvest pipelines, see the same skill's permalink variants when retries inflate line count.
 
@@ -211,8 +217,8 @@ Pick one shape per `mongo_query:` block, not both. Use the same label (`mongo_qu
 
 ## Mandatory fields (do not ship the card without these)
 
-1. `⊙ **Summary**` — short paragraph, plain language first (always this heading, not `## Summary`).
-2. `⊙ **Numbers/ quantity/ Examples:**` — lean by default: optional **Scale** + one or more blocks each with `some examples` (permalink lines) + `mongo_query:` fenced pipeline (or **MySQL:**); optional one-line extras only when needed; related-card line only when dedup requires it.
+1. **First section heading** — `⊙ **Summary**` for new cards, or whichever `⊙ **…**` heading the existing card already uses (e.g. older cards use `⊙ **Describe the situation in detail**:`); preserve it on edits. Always one of these `⊙ ` headings, never `## Summary`.
+2. `⊙ **Numbers/ quantity/ Examples:**` — lean by default: either a one-line **Scale** OR a fenced **breakdown text table** (never both) + one or more example blocks with `some examples` (permalink lines) + `mongo_query:` / **MySQL:** fenced query; optional one-line extras only when needed; related-card line only when dedup requires it.
 3. **AI attribution footer** — exact block at the end (see below).
 
 ## Grooming prep report (weekly)
@@ -283,7 +289,7 @@ Use label names consistent with board practice. Pass the correct label IDs to `a
 1. `set_active_board` with board `61d5cf784c6396541499e7ce`.
 2. **New card:** run the deduplication pass. Only if not duplicate: `add_card_to_list` on **Backlog** (`6509c593087340dfdd332b0a`) with `name` per **Card title**, `description` = `⊙ **Summary**` + `⊙ **Numbers/ quantity/ Examples:**` + AI footer, optional `labels`.
 3. **Structure reference:** field layout — [#2676](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error); Summary + lean Numbers — [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc); multi-signature `some examples` + `mongo_query:` — [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors). Optionally `get_card` (`includeMarkdown`: true) for layout. Do not copy private or unrelated content verbatim.
-4. **Edits:** `update_card_details` / `move_card` / checklist tools as needed. If the description gains substantial new scope, refresh `⊙ **Summary**` so it still matches the card.
+4. **Edits:** `update_card_details` / `move_card` / checklist tools as needed. **Preserve the card's existing first-section heading** — if the card uses `⊙ **Describe the situation in detail**:` (older user-authored cards) or any other `⊙ **…**` heading, keep it. Refresh the body to match the card's current scope, but do not rename the heading.
 
 ## Responding to TODOs / direct requests on an existing card
 
@@ -322,9 +328,11 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 - Do not trim real `IN (...)` hash lists, SQL filters, or Mongo bounds inside Numbers/ Examples just to shorten the card — those lists are often the reproducible slice.
 - Do not omit `⊙ **Numbers/ quantity/ Examples:**` when there are examples, queries, or patterns.
 - Do not bury related-card context in a long standalone section; use one or two bullets under Numbers/ Examples unless the user asks for more.
-- Do not omit `⊙ **Summary**` or replace it with only the card title.
+- Do not omit the first-section heading or replace it with only the card title; preserve the heading the card already uses (`⊙ **Summary**` / `⊙ **Describe the situation in detail**:` / etc.) when editing.
 - Do not write a jargon-heavy Summary (long technical sentences, stacked acronyms, supplier payload walkthroughs). Put that under Numbers/ Examples with permalinks and queries.
 - Do not pad Numbers/ Examples with long Scale preambles, correlation essays, histograms, or extra mongosh tips when Scale + some examples + mongo_query: already reproduces the issue. Add those only when they change decisions.
+- Do not duplicate a breakdown table's totals in a prose `Scale - …` line above it. When a per-day / per-bucket fenced text table is present, the table IS the Scale — see [#2746](https://trello.com/c/Nfg1JVNy).
+- Do not append row-metadata parentheticals (`gds=`, `cancel_reason=`, `booking_date=`, task IDs, …) after a ResPro / Trello / other smartCard-rendered example URL. The smartCard exposes the row; redundant prose makes the card noisy. If a specific task ID or flag is the point, one short line under the URL is enough.
 - Do not add post-query runbook prose after `mongo_query:` (e.g. "Scope (counts):", "reuse the same `$match`", "append `{ $count: … }`", "distinct transactions", "adjust `date_added`"). Put measured numbers in Scale instead; counting mechanics stay in skills, not on Trello.
 - Do not edit an existing card the user pointed to as a reference-only example unless they explicitly ask.
 - Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts). Fold everything into the two allowed sections.
