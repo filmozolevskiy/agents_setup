@@ -10,6 +10,7 @@ No judgment lives in this file.
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from qa_automation.db.run import (
@@ -76,6 +77,218 @@ def booking_statement_items(booking_id: int) -> list[dict]:
         "SELECT * FROM ota.booking_statement_items WHERE booking_id = %s ORDER BY id",
         (booking_id,),
     )
+
+
+def booking_statement_transactions(booking_id: int) -> list[dict]:
+    """All processor-operation rows for the booking (full evidence dump).
+
+    Includes every processor (Payhub, agency, Gordian, xcover, …) and every
+    operation type (``auth``, ``auth_capture``, ``capture``, ``refund``,
+    ``void``, …) so the agent can interpret refund/void chains alongside
+    the captures. The ``payhub_capture_summary`` helper does the
+    aggregation used by the verdict.
+    """
+    return mysql_query(
+        "SELECT * FROM ota.booking_statement_transactions "
+        "WHERE booking_id = %s ORDER BY transaction_date, id",
+        (booking_id,),
+    )
+
+
+def payhub_capture_summary(booking_id: int) -> dict[str, Any]:
+    """Aggregate the customer-side capture across all successful Payhub
+    ``auth_capture`` rows.
+
+    A booking with ancillaries added at checkout can produce more than one
+    capture row; we sum across them. ``auth``-only, ``refund`` and ``void``
+    rows are excluded.
+
+    Returns a single dict (always — even for bookings with zero capture rows):
+
+    * ``sum`` — ``Decimal`` grand total (``None`` when ``row_count == 0``).
+    * ``currency_set`` — sorted list of distinct currencies seen.
+    * ``row_count`` — number of capture rows aggregated.
+    * ``billing_info_ids`` — sorted list of distinct ``billing_info_id``
+      values from the matching ``booking_statement_items`` paid-sale rows
+      (joined via ``paid_transaction_id``); used by the double-payment
+      guard to identify which card was charged.
+    """
+    summary_rows = mysql_query(
+        "SELECT SUM(amount) AS `sum`, "
+        "       GROUP_CONCAT(DISTINCT currency) AS currency_set, "
+        "       COUNT(*) AS row_count "
+        "FROM ota.booking_statement_transactions "
+        "WHERE booking_id = %s "
+        "  AND processor = 'payhub' "
+        "  AND type      = 'auth_capture' "
+        "  AND status    = 'success'",
+        (booking_id,),
+    )
+    bi_rows = mysql_query(
+        "SELECT DISTINCT bsi.billing_info_id "
+        "FROM ota.booking_statement_items bsi "
+        "JOIN ota.booking_statement_transactions bst "
+        "  ON bst.id = bsi.paid_transaction_id "
+        "WHERE bsi.booking_id        = %s "
+        "  AND bsi.payment_processor = 'payhub' "
+        "  AND bsi.transaction_type  = 'sale' "
+        "  AND bsi.status            = 'paid' "
+        "  AND bst.processor         = 'payhub' "
+        "  AND bst.type              = 'auth_capture' "
+        "  AND bst.status            = 'success' "
+        "  AND bsi.billing_info_id IS NOT NULL",
+        (booking_id,),
+    )
+    return {
+        "sum": _to_decimal(summary_rows[0]["sum"]) if summary_rows else None,
+        "currency_set": _split_csv(summary_rows[0]["currency_set"] if summary_rows else None),
+        "row_count": int(summary_rows[0]["row_count"]) if summary_rows else 0,
+        "billing_info_ids": sorted({int(r["billing_info_id"]) for r in bi_rows}),
+    }
+
+
+def payhub_ledger_summary(booking_id: int) -> dict[str, Any]:
+    """Aggregate the per-line customer ledger across all paid Payhub sale rows.
+
+    No ``bsi.type`` filter — we want the **grand total** across ``fare``,
+    ``service_fees``, ``ancillary_*``, ``seatmap_fee``, etc. The
+    ``type_breakdown`` field surfaces the per-category split for forensic
+    use; the verdict only consumes the grand total.
+
+    Returns a single dict:
+
+    * ``sum`` — ``Decimal`` grand total of ``customer_amount`` (``None`` when
+      ``row_count == 0``).
+    * ``currency_set`` — sorted list of distinct currencies seen.
+    * ``row_count`` — number of ledger rows aggregated.
+    * ``billing_info_ids`` — sorted list of distinct non-null
+      ``billing_info_id`` values across the rows.
+    * ``type_breakdown`` — list of ``{"type": <bsi.type>, "sum": Decimal,
+      "row_count": int}`` entries, ordered by descending sum. Forensic
+      detail; not used by the verdict.
+    """
+    summary_rows = mysql_query(
+        "SELECT SUM(customer_amount) AS `sum`, "
+        "       GROUP_CONCAT(DISTINCT currency) AS currency_set, "
+        "       GROUP_CONCAT(DISTINCT billing_info_id) AS billing_info_ids, "
+        "       COUNT(*) AS row_count "
+        "FROM ota.booking_statement_items "
+        "WHERE booking_id = %s "
+        "  AND payment_processor = 'payhub' "
+        "  AND transaction_type  = 'sale' "
+        "  AND status            = 'paid'",
+        (booking_id,),
+    )
+    breakdown_rows = mysql_query(
+        "SELECT type, "
+        "       SUM(customer_amount) AS `sum`, "
+        "       COUNT(*) AS row_count "
+        "FROM ota.booking_statement_items "
+        "WHERE booking_id = %s "
+        "  AND payment_processor = 'payhub' "
+        "  AND transaction_type  = 'sale' "
+        "  AND status            = 'paid' "
+        "GROUP BY type "
+        "ORDER BY `sum` DESC",
+        (booking_id,),
+    )
+    s = summary_rows[0] if summary_rows else {}
+    return {
+        "sum": _to_decimal(s.get("sum")),
+        "currency_set": _split_csv(s.get("currency_set")),
+        "row_count": int(s.get("row_count") or 0),
+        "billing_info_ids": _split_csv_int(s.get("billing_info_ids")),
+        "type_breakdown": [
+            {
+                "type": r["type"],
+                "sum": _to_decimal(r["sum"]),
+                "row_count": int(r["row_count"]),
+            }
+            for r in breakdown_rows
+        ],
+    }
+
+
+def agency_supplier_payout_fop(booking_id: int) -> dict[str, Any]:
+    """Single round-trip query feeding the double-payment guard.
+
+    Returns one row with:
+
+    * ``payhub_capture_count`` — number of successful Payhub auth_captures
+      on the booking. Used to distinguish "Payhub side genuinely empty"
+      from "Payhub had a capture but no paid-sale ledger row" (the latter
+      would be flagged by the gateway-vs-ledger sub-check, not this one).
+    * ``payhub_billing_info_ids`` — sorted list of distinct
+      ``billing_info_id``s from Payhub paid-sale ledger rows (any
+      ``bsi.type`` — full grand-total view of which card we charged).
+    * ``agency_cc_billing_info_ids`` — sorted list of distinct
+      ``billing_info_id``s from agency-side **fare** payouts where
+      ``fop='credit_card'`` AND there is no corresponding
+      ``booking_virtual_card_statement_items`` row (i.e. real customer
+      credit-card passthrough, not a VCC).
+    """
+    rows = mysql_query(
+        "SELECT "
+        "  (SELECT COUNT(*) "
+        "     FROM ota.booking_statement_transactions bst "
+        "    WHERE bst.booking_id = %(booking_id)s "
+        "      AND bst.processor = 'payhub' "
+        "      AND bst.type      = 'auth_capture' "
+        "      AND bst.status    = 'success') AS payhub_capture_count, "
+        "  (SELECT GROUP_CONCAT(DISTINCT bsi.billing_info_id) "
+        "     FROM ota.booking_statement_items bsi "
+        "    WHERE bsi.booking_id        = %(booking_id)s "
+        "      AND bsi.payment_processor = 'payhub' "
+        "      AND bsi.transaction_type  = 'sale' "
+        "      AND bsi.status            = 'paid') AS payhub_billing_info_ids, "
+        "  (SELECT GROUP_CONCAT(DISTINCT bsi.billing_info_id) "
+        "     FROM ota.booking_statement_items bsi "
+        "     LEFT JOIN ota.booking_virtual_card_statement_items bvcsi "
+        "            ON bvcsi.statement_item_id = bsi.id "
+        "    WHERE bsi.booking_id        = %(booking_id)s "
+        "      AND bsi.payment_processor = 'agency' "
+        "      AND bsi.type              = 'fare' "
+        "      AND bsi.transaction_type  = 'sale' "
+        "      AND bsi.fop               = 'credit_card' "
+        "      AND bvcsi.id IS NULL) AS agency_cc_billing_info_ids",
+        {"booking_id": booking_id},
+    )
+    r = rows[0] if rows else {}
+    return {
+        "payhub_capture_count": int(r.get("payhub_capture_count") or 0),
+        "payhub_billing_info_ids": _split_csv_int(r.get("payhub_billing_info_ids")),
+        "agency_cc_billing_info_ids": _split_csv_int(r.get("agency_cc_billing_info_ids")),
+    }
+
+
+def _to_decimal(v: Any) -> Decimal | None:
+    """Coerce a sum-like value back to ``Decimal`` for exact money math.
+
+    The MySQL wrapper (``_jsonable_row``) converts ``Decimal`` to ``float``
+    before this helper sees it, which is fine for evidence dumps but unsafe
+    for comparisons. Going through ``Decimal(str(...))`` round-trips
+    correctly for the float repr of any short-precision money value.
+    """
+    if v is None:
+        return None
+    if isinstance(v, Decimal):
+        return v
+    return Decimal(str(v))
+
+
+def _split_csv(s: Any) -> list[str]:
+    """Return a sorted list of distinct strings parsed from a
+    ``GROUP_CONCAT`` result. Handles ``None`` and empty inputs."""
+    if not s:
+        return []
+    if isinstance(s, (list, tuple, set)):
+        return sorted({str(v) for v in s if v is not None and str(v) != ""})
+    return sorted({p for p in str(s).split(",") if p})
+
+
+def _split_csv_int(s: Any) -> list[int]:
+    """Same as ``_split_csv`` but coerces to ``int``."""
+    return sorted({int(p) for p in _split_csv(s)})
 
 
 def booking_tasks(booking_id: int) -> list[dict]:

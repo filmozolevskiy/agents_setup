@@ -308,7 +308,8 @@ intentionally exercises the production path.
 
 ## `qa-validate`
 
-Evidence dump across MySQL / ClickHouse / MongoDB. No pass/fail.
+Evidence dump across MySQL / ClickHouse / MongoDB. No pass/fail —
+verdicts live in [`validation_checklist.md`](validation_checklist.md).
 
 ### Flags
 
@@ -331,6 +332,10 @@ Evidence dump across MySQL / ClickHouse / MongoDB. No pass/fail.
     "booking_passengers": [ ... ],
     "booking_segments": [ ... ],
     "booking_statement_items": [ ... ],
+    "booking_statement_transactions": [ ... ],
+    "payhub_capture_summary": {"sum": "366.97", "currency_set": ["CAD"], "row_count": 1, "billing_info_ids": [308138552]},
+    "payhub_ledger_summary":  {"sum": "366.97", "currency_set": ["CAD"], "row_count": 1, "billing_info_ids": [308138552], "type_breakdown": [{"type": "fare", "sum": "366.97", "row_count": 1}]},
+    "agency_supplier_payout_fop": {"payhub_capture_count": 1, "payhub_billing_info_ids": [308138552], "agency_cc_billing_info_ids": []},
     "booking_tasks": [ ... ],
     "bookability_contestant_attempts_for_search": [ ... ],
     "bookability_customer_attempts_for_search": [ ... ]
@@ -353,7 +358,32 @@ Evidence dump across MySQL / ClickHouse / MongoDB. No pass/fail.
 }
 ```
 
-Interpretation rules: [`validation_checklist.md`](validation_checklist.md).
+Three of the MySQL keys exist specifically to make the agent's payment
+comparison trivial — they are SQL-side aggregates over the raw rows:
+
+- `payhub_capture_summary` — gateway grand total: `SUM(amount)` over
+  `booking_statement_transactions` filtered to
+  `processor='payhub' AND type='auth_capture' AND status='success'`,
+  plus the `currency_set`, `row_count`, and `billing_info_ids`.
+- `payhub_ledger_summary` — ledger grand total: `SUM(customer_amount)`
+  over `booking_statement_items` filtered to
+  `payment_processor='payhub' AND transaction_type='sale' AND status='paid'`
+  (no `bsi.type` filter — fare + service_fees + ancillary_* +
+  seatmap_fee), plus a `type_breakdown` for forensic detail.
+- `agency_supplier_payout_fop` — inputs to the double-payment guard:
+  `payhub_capture_count`, `payhub_billing_info_ids`, and
+  `agency_cc_billing_info_ids` (agency-side fare payouts with
+  `fop='credit_card'` excluding VCC).
+
+Decimal amounts are emitted as JSON **strings** (`"366.97"`) so
+precision survives the round-trip; convert with `Decimal(value)`
+before comparing.
+
+Interpretation rules — including the customer-shown total ↔ ledger
+sum, gateway ↔ ledger, and double-payment guard comparisons — live in
+[`validation_checklist.md`](validation_checklist.md) (see the
+**Payment consistency (cross-evidence)** section). The runner
+deliberately does no math on these values.
 
 ### Error bodies
 

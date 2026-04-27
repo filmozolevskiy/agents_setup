@@ -72,6 +72,12 @@ def main() -> None:
             "booking_passengers": queries.booking_passengers(booking_id),
             "booking_segments": queries.booking_segments(booking_id),
             "booking_statement_items": queries.booking_statement_items(booking_id),
+            "booking_statement_transactions": (
+                queries.booking_statement_transactions(booking_id)
+            ),
+            "payhub_capture_summary": queries.payhub_capture_summary(booking_id),
+            "payhub_ledger_summary": queries.payhub_ledger_summary(booking_id),
+            "agency_supplier_payout_fop": queries.agency_supplier_payout_fop(booking_id),
             "booking_tasks": queries.booking_tasks(booking_id),
         }
         if debug_transaction_id:
