@@ -124,6 +124,53 @@ ever drops the `select#gds` dropdown.
   with a different `--package-index`, a different `--content-source`,
   or shift the date by ±1/±7 days.
 
+## Production: B6 (JetBlue) packages have poor bookability
+
+- B6 (JetBlue) has a **carrier-level bookability problem** on
+  production: most B6 packages refuse to mount the payment SDK
+  after `Continue to payment` and JustFly / FlightHub redirect to
+  the full-page "Something went wrong / Sorry, we experienced an
+  issue loading your flight package" error. The failure is
+  property of the B6 inventory itself, not of the GDS the package
+  is sourced from or of the automation pinning a particular source.
+- Verified 2026-04-27 on JustFly EWR→SJU 2026-06-19: the
+  optimizer's package #0 / #1 are Blue Basic on B6 and consistently
+  fail (`payment-stage-mount-failed` with
+  `008-payment-stage-mount-failed.png`). Backend logs
+  (`ota.debug_logs`) show every API call succeed up through
+  `check-availability-comparison-report`, then the page redirects
+  without mounting the payment SDK. `--package-index 2` on the
+  exact same search URL (a non-B6 itinerary) ran end-to-end
+  through Amadeus `[YKXC42100]` + `[ATL1S211S]` + Amadeus seatmap
+  retrieval + `post-air-booker` and hit the expected CC Decline
+  banner at the gateway (`booking_failed_by_injection`). Only the
+  carrier on the chosen package changed.
+- This is **not** an Amadeus-wide bookability issue. The same
+  Amadeus office `ATL1S211S` books cleanly when paired with other
+  carriers (DL, UA, AC, AZ, IB, ...) — the DB has 20+ recent
+  successful Amadeus prod test bookings on FlightHub and JustFly
+  across CAD and USD on YUL/EWR/MIA/LAX/MTY origins.
+- Practical guidance for `qa-book` on production:
+  - **Avoid B6 routes when picking a test route.** EWR/JFK/BOS/FLL
+    →SJU/MCO/LAX are all B6-heavy and likely to surface a B6
+    package as #0 — pick a route where the dominant carrier is
+    AC/DL/UA/AA/WS/AZ/IB/etc. instead.
+  - When you do hit `payment-stage-mount-failed` /
+    `checkout_render_timeout` /
+    `selector_not_found name=checkout.autofill_link`, **bump
+    `--package-index` (1, then 2, etc.) until you skip past the
+    B6 package(s).** The next non-B6 package is usually healthy.
+    (Track via `content_source_booked` in the JSON output and
+    `bookings.validating_carrier` post-hoc.)
+  - The `--keep-optimizer` flag exists for diagnosis: it skips the
+    "Disable Optimizer/Repricer = Yes" toggle so the optimizer is
+    free to repackage the candidate at checkout. It does not fix
+    the B6 case but separates "filter pins to source" from
+    "optimizer disabled" in the evidence trail.
+  - Do **not** revive the previously-documented "Amadeus prod-pin is
+    unbookable" claim. Amadeus prod packages book fine when the
+    chosen package is on any non-B6 carrier.
+
 ## PNRs / tickets are empty until ticketing
 
 - `bookings.status` is `not_issued` right after `qa-book`; do not assert

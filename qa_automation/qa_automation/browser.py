@@ -85,6 +85,9 @@ def launch_context(
     if trace is None:
         trace = os.environ.get("QA_TRACE", "1") != "0"
 
+    if user_agent is None:
+        user_agent = os.environ.get("QA_USER_AGENT") or None
+
     context = browser.new_context(
         viewport={"width": viewport[0], "height": viewport[1]},
         user_agent=user_agent,
