@@ -89,8 +89,28 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _resolve_input_path(path: str) -> Path:
+    """Resolve ``--input`` the same way ``--out`` resolves: relative paths
+    are anchored on ``REPO_ROOT`` so callers do not have to know which cwd
+    `qa-report` was launched from."""
+    p = Path(path).expanduser()
+    if not p.is_absolute():
+        p = REPO_ROOT / p
+    return p
+
+
 def _load_envelope(path: str | None) -> dict[str, Any]:
-    raw = Path(path).read_text(encoding="utf-8") if path else sys.stdin.read()
+    if path:
+        resolved = _resolve_input_path(path)
+        try:
+            raw = resolved.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            emit_error(
+                "input_not_found",
+                detail=f"--input path not found: {resolved}",
+            )
+    else:
+        raw = sys.stdin.read()
     if not raw.strip():
         emit_error(
             "empty_input",
