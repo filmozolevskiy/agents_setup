@@ -30,6 +30,7 @@ qa-validate = "qa_automation.runners.validate:main"
 qa-search-telemetry = "qa_automation.runners.search_telemetry:main"
 qa-cleanup = "qa_automation.runners.cleanup:main"
 qa-diag = "qa_automation.runners.diag:main"
+qa-report = "qa_automation.runners.report:main"
 
 [build-system]
 requires = ["hatchling"]
