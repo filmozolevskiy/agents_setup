@@ -10,6 +10,24 @@ At most **3 retries total** per booking scenario. After the third failed
 attempt, stop and report. This keeps staging load manageable and prevents
 the agent from spinning on a deep problem.
 
+## Invariant: a retry must not change which content source is booked
+
+If the user named a content source, every retry in the scenario must
+keep `--content-source <same source>`. The retry ladder below
+(date / route / `--pos` shifts) is allowed; substituting a different
+`--content-source`, dropping the flag, or switching to
+`--package-index N` (which is mutually exclusive with `--content-source`
+and would lift the source pin and re-enable the optimizer) is **not** a
+retry — it's a different scenario, and silently swapping defeats the
+point of the test. If the pinned source genuinely cannot book within
+the 3-retry budget, stop and report that to the user. See
+`SKILL.md` "When the user names a content source, pin to it — period".
+
+If the user did not name a content source (`--package-index N` or no
+package selection at all), this invariant doesn't apply — the
+scenario is "book *something* on this route", and any package on any
+source is fair game.
+
 ## Retry ladder (apply in order)
 
 1. **Shift `--depart` by +1 or +2 days.** Content source availability on
@@ -21,13 +39,13 @@ the agent from spinning on a deep problem.
    simple.
 4. **Drop `--pos` and `--currency` overrides.** Staging2 returns USD
    regardless, so the search succeeds without them.
-5. **Try `--package-index 1`** if the same search produced packages but the
-   first one hit `checkout_render_timeout` — a backend error specific to
-   package 0 often isn't shared by subsequent packages.
-
-**Do not substitute a different content source** unless the user explicitly
-said "any source". The scenario targets a specific source and silent
-substitution defeats the point of the test.
+5. **Try `--package-index 1`** if the same search produced packages but
+   the first one hit `checkout_render_timeout` — a backend error
+   specific to package 0 often isn't shared by subsequent packages.
+   **Only applies on non-pinned runs.** `--package-index` is mutually
+   exclusive with `--content-source` at the runner level, so on a
+   pinned run this is not a legal retry — fall back to steps 1-3
+   instead, keeping `--content-source <same source>`.
 
 ## Terminating conditions
 

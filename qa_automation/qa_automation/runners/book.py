@@ -116,21 +116,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
             "only safety net."
         ),
     )
-    p.add_argument(
-        "--keep-optimizer",
-        action="store_true",
-        help=(
-            "Skip the 'Disable Optimizer/Repricer' debug-panel toggle that "
-            "is normally set when --content-source is used to pin a source. "
-            "Useful on production where some content sources (notably "
-            "amadeus) have packages that fail to mount on the payment stage "
-            "when the optimizer is disabled. Trade-off: with the optimizer "
-            "left running, the repricer may swap to a cheaper non-pinned "
-            "source mid-checkout, so the actually-booked content_source is "
-            "not guaranteed to match --content-source. Verify post-booking "
-            "via qa-validate."
-        ),
-    )
     return p
 
 
@@ -540,7 +525,6 @@ def _log_run_summary(
         f"  booking_failure_reason= {failure_reason!r}  "
         f"({'INJECT FAILURE' if failure_reason else 'NO injection — booking will go through'})\n"
         f"  ack_real_money        = {args.ack_real_money}\n"
-        f"  keep_optimizer        = {args.keep_optimizer}\n"
     )
     if card_override is not None:
         n, e, c, name = card_override
@@ -612,7 +596,7 @@ def main() -> None:
                 # above/below the "Continue to payment" CTA on two-stage
                 # flows, and are required to unblock stage advance.
                 checkout.decline_insurance()
-                if args.content_source is not None and not args.keep_optimizer:
+                if args.content_source is not None:
                     checkout.disable_optimizer()
                 if failure_reason is not None:
                     checkout.set_booking_failure_reason(failure_reason)

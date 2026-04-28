@@ -35,10 +35,12 @@ a bug.
   `--content-source` flag, is the truth at ticketing.
 - `qa-book` auto-flips the **Debugging Options →
   Disable Optimizer/Repricer** select to **Yes** whenever
-  `--content-source` is passed, to pin the source. The toggle renders
-  on **both staging and production** (verified 2026-04-26), so this
-  applies regardless of `--env`. `--package-index` runs leave the
-  optimizer enabled on purpose (they exercise the production path).
+  `--content-source` is passed, to pin the source — non-overridable.
+  The toggle renders on **both staging and production** (verified
+  2026-04-26), so this applies regardless of `--env`.
+  `--package-index` runs are mutually exclusive with `--content-source`
+  and leave the optimizer enabled (they exercise the production path
+  in cases where the user has not named a source).
 - If the toggle goes missing (panel renamed, build regression), the
   runner fails with `selector_not_found name=checkout.disable_optimizer`
   — safer than silently letting the optimizer reroute.
@@ -121,8 +123,11 @@ ever drops the `select#gds` dropdown.
     as `checkout_render_timeout` with
     `008-payment-stage-mount-failed.png`.
 - This is a real production response, not an automation bug. Retry
-  with a different `--package-index`, a different `--content-source`,
-  or shift the date by ±1/±7 days.
+  by shifting the date (±1 / ±7 days) or changing route. On runs
+  that pin a `--content-source`, keep the same source across retries
+  — see `SKILL.md` "When the user names a content source, pin to it
+  — period". On runs that did not pin a source, bumping
+  `--package-index` is also fair game.
 
 ## Production: B6 (JetBlue) packages have poor bookability
 
@@ -154,19 +159,26 @@ ever drops the `select#gds` dropdown.
   - **Avoid B6 routes when picking a test route.** EWR/JFK/BOS/FLL
     →SJU/MCO/LAX are all B6-heavy and likely to surface a B6
     package as #0 — pick a route where the dominant carrier is
-    AC/DL/UA/AA/WS/AZ/IB/etc. instead.
-  - When you do hit `payment-stage-mount-failed` /
+    AC/DL/UA/AA/WS/AZ/IB/etc. instead. This is the right move on
+    both pinned (`--content-source`) and non-pinned
+    (`--package-index`) runs, since the B6 inventory is what
+    misbehaves regardless of which source the package is sourced
+    from.
+  - On non-pinned (`--package-index`) runs that hit
+    `payment-stage-mount-failed` /
     `checkout_render_timeout` /
     `selector_not_found name=checkout.autofill_link`, **bump
     `--package-index` (1, then 2, etc.) until you skip past the
     B6 package(s).** The next non-B6 package is usually healthy.
     (Track via `content_source_booked` in the JSON output and
     `bookings.validating_carrier` post-hoc.)
-  - The `--keep-optimizer` flag exists for diagnosis: it skips the
-    "Disable Optimizer/Repricer = Yes" toggle so the optimizer is
-    free to repackage the candidate at checkout. It does not fix
-    the B6 case but separates "filter pins to source" from
-    "optimizer disabled" in the evidence trail.
+  - On pinned (`--content-source`) runs, **do not** drop the pin
+    or switch to `--package-index N` — the runner already enforces
+    the source pin. Instead pick a non-B6 route, shift the date
+    (±1 / ±7 days), or accept that this scenario doesn't book on
+    production within budget and report that to the user. See
+    `SKILL.md` "When the user names a content source, pin to it —
+    period".
   - Do **not** revive the previously-documented "Amadeus prod-pin is
     unbookable" claim. Amadeus prod packages book fine when the
     chosen package is on any non-B6 carrier.

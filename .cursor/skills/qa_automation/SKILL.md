@@ -73,6 +73,36 @@ Exact inputs, output schemas, and error bodies live in
 Do not invoke this skill for data-only investigations (bookability rates,
 optimizer audits) — those use `/bookability_analysis` or `/optimizer_analysis`.
 
+## When the user names a content source, pin to it — period
+
+When the user names a content source for the booking ("book on
+Amadeus", "test Downtowntravel end-to-end", "reproduce on tripstack"),
+the booking must actually land on that source. The agent has one
+move: pass `--content-source <source>` to `qa-book`. The runner then
+auto-flips **Debugging Options → Disable Optimizer/Repricer = Yes**
+so the repricer cannot swap the candidate to a different supplier
+mid-checkout. There is no override flag and no diagnostic carve-out.
+
+If the pinned source fails (`payment-stage-mount-failed`,
+`selector_not_found name=checkout.autofill_link`,
+`checkout_render_timeout`, `source_not_available_in_ui`), retry per
+[`references/retry_policy.md`](references/retry_policy.md) — a
+date shift (±1 / ±7 days) or a different route, **always with
+`--content-source <same source>`**. Switching to a different
+`--content-source`, dropping the flag to let the optimizer pick, or
+falling back to `--package-index N` (which is mutually exclusive
+with `--content-source` and would lift the pin) is **not** a retry
+— it's a different scenario. If the pinned source genuinely cannot
+book on production within the retry budget, report that to the user;
+do not silently book on a different source.
+
+`--package-index N` runs (mutually exclusive with `--content-source`)
+are for cases where the user has not named a source — they exercise
+the production path with the optimizer enabled and are not subject
+to this rule. Background on the auto-flip:
+[`references/known_issues.md`](references/known_issues.md)
+"Optimizer reroutes content-source-specific bookings".
+
 ## Decision flow
 
 ```mermaid
