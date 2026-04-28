@@ -26,6 +26,7 @@ logs only.
 | `qa-book` | Re-open the `search_url`, pick a package (by content source or index), autofill checkout, submit, wait for confirmation, resolve `booking_id` + `debug_transaction_id` via MySQL. |
 | `qa-validate` | Dump raw evidence for a booking across MySQL / ClickHouse / MongoDB. No judgment — the agent compares the dump with `references/validation_checklist.md`. |
 | `qa-cleanup` | Cancel the test booking via ResPro. Idempotent. |
+| `qa-report` | Render the per-step final report (`report.md`) from the agent's classified records. See [`references/report_format.md`](references/report_format.md). |
 
 Plus `qa-diag` for selector health checks when Playwright timeouts look like
 selector rot.
@@ -138,6 +139,20 @@ that part is unchanged.
 and apply the invariants field-by-field before reporting an outcome. If a
 check is ambiguous — say, `bookings.status = not_issued` right after book —
 say so. Do not over-interpret.
+
+## The deliverable is `report.md`
+
+Every run ends with a single markdown file at
+`{scenario_dir}/report.md`, written by `qa-report`. The body is one
+canonical table — `Booking ID | Validation | Verdict | Explanation |
+Proof` — with one row per invariant from
+[`references/validation_checklist.md`](references/validation_checklist.md).
+Verdicts are `PASS` / `FAIL` / `AMBIGUOUS` / `SKIPPED`; proofs are
+either an inline-backticked SQL/Mongo query or a raw debug-log
+permalink. Format spec, per-invariant proof catalogue, and a worked
+example: [`references/report_format.md`](references/report_format.md).
+Do not free-form summarize in chat once `report.md` is written —
+quote it.
 
 ## When the UI breaks
 
