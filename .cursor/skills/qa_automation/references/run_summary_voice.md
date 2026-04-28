@@ -202,6 +202,18 @@ stage; pick the form that matches the actual outcome.
   later calls reused the same booking session."
 - "`<supplier>` is absent from the telemetry rows entirely — the
   booking went through some other path."
+- **Telemetry gap (booking succeeded but our log is incomplete) —
+  surface as a finding, not a booking failure.** When the booking
+  itself confirmed on `<supplier>` but `<supplier>` does not appear
+  in the search-response log for the booking session: "Search-response
+  log has no `<supplier>` row for this booking session — only `<other
+  source>` is recorded — yet the booking confirmed on `<supplier>`.
+  Telemetry gap, not a booking failure. Worth a one-line ticket for
+  engineering." Pair with a `FAIL` verdict on the "Supplier responded
+  to the search" row in the validation table, and put the runnable
+  `gds_raw` query in the `Proof` column. Cross-check the supplier log
+  group is present (it usually is in this case) — that's what proves
+  the booking call actually reached the supplier.
 
 ### `qa-book`
 
