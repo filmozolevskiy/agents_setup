@@ -225,6 +225,38 @@ ever drops the `select#gds` dropdown.
     unbookable" claim. Amadeus prod packages book fine when the
     chosen package is on any non-B6 carrier.
 
+## Travelfusion fare-cache TTL on thin lanes
+
+- Travelfusion's `fare_fetch` (visible as `fare_fetch_id=…` inside
+  `gds_url` in `pre-air-booker.Input Package`) caches supplier fares
+  for a short window. On thin transatlantic inventory (Condor / DE
+  on YYZ↔FRA, YYZ↔BCN — observed 2026-04-28 / 2026-04-29 on card
+  [`weaSgLaj`](https://trello.com/c/weaSgLaj)) the cache often
+  expires before our automation completes checkout — cards-stage to
+  submit takes ~3–4 minutes vs ~60–90 s for a human user — and the
+  supplier rejects the book request with
+  `error_type=flight_unavailable` /
+  `Mv_Ota_Air_Booker_Exception_DelayedFlightNotAvailable`. The
+  storefront re-renders with the "One or more flights are no longer
+  available" recovery modal.
+- `qa-book`'s `--carrier-package-index N` does **not** rescue this
+  on TF + DE: the next-priced fares are usually variants of the
+  same fragile DE 2403 / DE 2402 pair, with the same TTL behaviour.
+  The flag is still useful on richer-inventory lanes, just not on
+  this one.
+- This is **inventory fragility**, not an automation bug. The same
+  source booked end-to-end on the same week against AF on YUL↔CDG
+  (verified 2026-04-29). Picking a thicker lane is the right fix
+  when the user just wants any TF reproduction; staying on DE
+  requires escalating the fare-cache TTL to ops.
+- After 3 consecutive failures of this shape on the same source,
+  follow [`retry_policy.md`](retry_policy.md) → "Stop and
+  investigate after 3 supplier-side 'flight not available'
+  failures" rather than spinning the retry ladder. The Mongo
+  investigation will name the specific fragile flight numbers
+  (e.g. `DE 2403`, `DE 2402`) and the user can decide whether to
+  switch carrier or stop.
+
 ## PNRs / tickets are empty until ticketing
 
 - `bookings.status` is `not_issued` right after `qa-book`; do not assert
