@@ -63,6 +63,139 @@ Stop immediately (no further retries) when:
   `missing_join_key`) → unknown failure
   mode, escalate.
 
+## Stop and investigate after 3 supplier-side "flight not available" failures
+
+Three consecutive submit-time "flight not available" failures on the
+**same source** (and `--carrier` if pinned) within one scenario stop
+being noise — the supplier is telling us something specific about the
+inventory we're staging. Stop the retry ladder, drop into Mongo
+`ota.debug_logs` for the 3 `transaction_id`s, identify which flight /
+fare the supplier reported as unavailable, and report that to the
+user with permalinks. The user decides what to do next (shift dates
+±7 days, switch carrier, drop the lane); the agent does **not**
+silently take a 4th attempt.
+
+### Trigger
+
+Counts as a "flight not available" failure:
+
+- `qa-book` exits `confirmation_url_timeout` and the storefront's
+  "One or more flights are no longer available" recovery modal is
+  captured in `010-after-submit-18s.png` (or the equivalent
+  late-submit screenshot). Supplier-side variant.
+- `qa-book` exits `booking_failed_by_injection` and `front_end_markers`
+  contains `flight_not_available` — **only** when we did not ourselves
+  pass `--booking-failure-reason "Flight Not Available"`. An injection
+  run we asked for is a successful exercise of the short-circuit and
+  does not count toward the 3.
+
+A retry that swapped `--content-source`, dropped `--carrier`, or
+switched to `--package-index N` resets the counter. The rule fires on
+3-in-a-row on the same supplier slot, not 3 anywhere in the scenario.
+
+### Investigation pipeline
+
+Collect the 3 transaction_ids from each scenario's `trace.zip` (the
+checkout URL embeds it as `/checkout/billing/flight/<TX>/<package_id>`)
+or from `qa-book`'s JSON output, then run:
+
+```bash
+python3 scripts/mongo_query.py find debug_logs ota \
+  --filter '{"transaction_id":{"$in":["TX1","TX2","TX3"]},
+             "context":{"$in":["post-air-booker",
+                               "handling-booking-exception",
+                               "Travelfusion-reprice-original-package"]}}' \
+  --projection '{"_id":1,"transaction_id":1,"context":1,
+                 "date_added":1,"data":1,
+                 "Response from Booker":1,"exception":1}' \
+  --sort '{"transaction_id":1,"date_added":1}' --limit 30 --json
+```
+
+Universal signals (source-agnostic, present on every booker failure):
+
+- `post-air-booker` → `Response from Booker` carries
+  `error_type=flight_unavailable`, the user-facing alert text, and
+  `user_error_display=show_alternative_flights`. This is the
+  canonical "supplier said no" indicator.
+- `handling-booking-exception` → `exception.class =
+  Mv_Ota_Air_Booker_Exception_DelayedFlightNotAvailable`,
+  `message="One or more flights not available"`, with the booker
+  manager file/line.
+
+Per-source flight-signature contexts. Extend with **evidence** as new
+sources land in this trap — TODO rows stay TODO until reproduced; do
+not invent context names:
+
+| Source       | Context                                | Read from `data` / payload                                                                     |
+|--------------|----------------------------------------|------------------------------------------------------------------------------------------------|
+| Travelfusion | `Travelfusion-reprice-original-package` | `<FN1>-<FN2>-…-<FNn>_<grpcount>_<fare basis>_<RBD>-<RBD>-…`. The `FN` tokens are supplier flight numbers (e.g. `DE2403-DE2402_1_M_Y-Y` ⇒ DE 2403 outbound + DE 2402 inbound, fare basis M, Y class). |
+| Amadeus / Downtowntravel / Tripstack | TODO                  | Extract on the next 3-in-a-row reproduction; do not guess at context names. |
+
+Permalinks for the user-facing report use the standard storefront
+shape — append `#<log _id>` when pointing at a specific event inside
+the group:
+
+```
+https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>
+```
+
+### User-facing report shape
+
+Print a compact block, not a wall of text. Voice rules from
+[`run_summary_voice.md`](run_summary_voice.md) still apply.
+
+```
+Stopped after 3 supplier-side "flight not available" failures on the same source.
+
+Source: travelfusion
+Carrier: DE (Condor)
+Lane / dates tried:
+  - YYZ↔FRA  2026-06-08 / 2026-06-15
+  - YYZ↔BCN  2026-06-15 / 2026-06-22  (--carrier-package-index 0)
+  - YYZ↔BCN  2026-06-15 / 2026-06-22  (--carrier-package-index 1)
+
+Supplier-reported failing flights (per attempt):
+  1. DE 2403 (YYZ→FRA) + DE 2402 (FRA→YYZ)              [tx ce30343d…]
+  2. DE 2403 + DE 4325 + DE 4322 + DE 2402              [tx 6617d3c3…]
+  3. DE 2403 + DE 4325 + DE 4326 + DE 2402              [tx 8a13fb96…]
+
+Common across all 3: DE 2403 / DE 2402. Same fragile pair on every
+retry — Condor's cached fare expires faster than our automation
+completes the flow (~3-4 min vs ~60-90 s human).
+
+Debug log groups:
+  - https://reservations.voyagesalacarte.ca/debug-logs/log-group/ce30343d68a90e8435aaa2bb4033a19d
+  - https://reservations.voyagesalacarte.ca/debug-logs/log-group/6617d3c33726d75165011a4c087464f9
+  - https://reservations.voyagesalacarte.ca/debug-logs/log-group/8a13fb962fe7c942af14027777f37d03
+
+Recommended next move: pivot to a different carrier with thicker
+inventory (TF + AF on YUL↔CDG was reliable on 2026-04-29). If staying
+on DE is required, escalate to ops to look at the fare-cache TTL on
+this Travelfusion fare_fetch.
+```
+
+### Worked example (TF + DE on 2026-04-28 / 2026-04-29)
+
+Three consecutive attempts on Travelfusion + Condor (DE) over
+transatlantic routes during card
+[`weaSgLaj`](https://trello.com/c/weaSgLaj):
+
+| # | Scenario                                       | Transaction ID                     | `Travelfusion-reprice-original-package.data`     |
+|---|------------------------------------------------|------------------------------------|--------------------------------------------------|
+| 1 | YYZ↔FRA Jun 8/15                               | `ce30343d68a90e8435aaa2bb4033a19d` | `DE2403-DE2402_1_M_Y-Y`                          |
+| 2 | YYZ↔BCN Jun 15/22                              | `6617d3c33726d75165011a4c087464f9` | `DE2403-DE4325-DE4322-DE2402_1_M_Y-Y-Y-Y`        |
+| 3 | YYZ↔BCN Jun 15/22 + `--carrier-package-index 1`| `8a13fb962fe7c942af14027777f37d03` | `DE2403-DE4325-DE4326-DE2402_1_M_Y-Y-Y-Y`        |
+
+All three hit `post-air-booker` with `error_type=flight_unavailable`
+and `Mv_Ota_Air_Booker_Exception_DelayedFlightNotAvailable` in
+`handling-booking-exception`. DE 2403 / DE 2402 were the common
+fragile legs across all three. With this rule the agent stops at
+attempt 3 and reports the supplier-named flights; without it the
+loop ate a 4th attempt before pivoting.
+
+See [`known_issues.md`](known_issues.md) → "Travelfusion fare-cache
+TTL on thin lanes" for the inventory-side context.
+
 ## Partial failures
 
 If `qa-book` succeeded but `qa-validate` reports FAIL on some invariants:
