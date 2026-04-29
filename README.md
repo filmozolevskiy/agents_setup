@@ -41,6 +41,7 @@ db-docs/
 └── mongodb/        # Documented Mongo collections
 reports/            # Ephemeral output from skills (gitignored)
 CLAUDE.md           # Agent rules + skill routing
+.env.example        # Template for the gitignored .env (copy and fill in)
 requirements.txt    # clickhouse-connect, pymysql, pymongo
 ```
 
@@ -53,29 +54,11 @@ requirements.txt    # clickhouse-connect, pymysql, pymongo
    python3 -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
   ```
-2. **Create `.env`** at the repo root. `.env` is gitignored. Never commit it.
+2. **Create `.env`** at the repo root by copying the template. `.env` is gitignored. Never commit it.
   ```bash
-   # ClickHouse (Phoenix analytics)
-   CLICKHOUSE_HOST=<host>
-   CLICKHOUSE_PORT=<port>
-   CLICKHOUSE_USER=<user>
-   CLICKHOUSE_PASSWORD=<password>
-   CLICKHOUSE_DATABASE=default
-
-   # MySQL (genesis / ota)
-   MYSQL_HOST=<host>
-   MYSQL_PORT=<port>
-   MYSQL_USER=<user>
-   MYSQL_PASSWORD=<password>
-   MYSQL_DATABASE=ota
-
-   # MongoDB (debug_logs / optimizer_logs)
-   MONGODB_URI=mongodb://<host>:27017/
-   MONGODB_DATABASE=ota
-
-   # Optional: local genesis checkout for code-aware questions
-   GENESIS_PATH=/absolute/path/to/genesis
+   cp .env.example .env
   ```
+   Then fill in real values. `.env.example` lists every variable the repo reads, grouped by area (ClickHouse, MySQL, MongoDB, optional genesis path, QA automation). Only the database blocks are required for the core skills; the QA section is only needed for `/qa_automation`.
 3. **Load `.env` before running any CLI.** Every script reads credentials from environment variables. Export them first:
   ```bash
    set -a && source .env && set +a
