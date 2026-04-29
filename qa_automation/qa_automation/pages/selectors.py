@@ -4,14 +4,22 @@ Single source of truth for every CSS/text selector used by page objects.
 When staging front-end deploys break a selector, update it here. Pages import
 from this module; no selector constants live anywhere else.
 
-All selectors verified against staging2.flighthub.com / staging2.justfly.com.
-Bump the `VERIFIED_ON` string each time this file is edited.
+Selectors are written as **unions** that match both staging
+(``staging2.flighthub.com`` / ``staging2.justfly.com``) and production
+(``www.flighthub.com`` / ``www.justfly.com``) wherever the two surfaces
+diverge cosmetically. Where the underlying flow differs, the divergence
+lives in the page-object logic, not the selector string. As of
+``VERIFIED_ON``, the Debug Filters panel (``select#gds`` + the
+Debugging Options block on checkout) is present on **both** envs;
+the per-package "Show Info" reveal is the prod-side fallback for
+content-source pinning if a future deploy ever drops the dropdown.
+``VERIFIED_ON`` is the date both envs were last confirmed.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
 
-VERIFIED_ON = "2026-04-26"
+VERIFIED_ON = "2026-04-26 (staging2 + production)"
 
 
 @dataclass(frozen=True)
@@ -39,17 +47,50 @@ class SearchSelectors:
 
 @dataclass(frozen=True)
 class ResultsSelectors:
-    select_btn: str = 'button:has-text("Select")'
-    bundle_dismiss_btn: str = ".continue-with-flight-only-btn"
+    # Staging renders Select as a <button>; production renders it as an
+    # <a> styled like a button. Match both — the click semantics are
+    # identical and Playwright's text engine doesn't care.
+    select_btn: str = 'button:has-text("Select"), a:has-text("Select")'
+    # Staging exposes a class on the dismiss CTA; production uses an
+    # anchor with the visible text only. Match both.
+    bundle_dismiss_btn: str = (
+        '.continue-with-flight-only-btn, a:has-text("Continue with flight only")'
+    )
     fare_loading: str = "text=Fetching fare information"
-    continue_to_checkout: str = 'button:has-text("Continue to checkout")'
+    # Staging advances inline ("Continue to checkout"); production opens a
+    # fare-family modal that ends in a "Checkout" button. Either CTA
+    # advances the flow to /checkout/billing/flight/.
+    continue_to_checkout: str = (
+        'button:has-text("Continue to checkout"), '
+        'button:has-text("Checkout"):not(:has-text("Continue"))'
+    )
 
+    # Debug Filters panel — dropdown filter that re-runs the search
+    # against a single content source. Verified on **both staging and
+    # production** as of 2026-04-26. Used as the primary content-source
+    # pinning path; the "Show Info" fallback below is only triggered
+    # when this panel is absent (older builds or future refactors).
     debug_filter_toggle: str = ".debug-filters-header-toggle"
     gds_select: str = "select#gds"
+    # Per-package debug surface: clicking the toggle reveals an inline
+    # ``gds => <source>`` info panel for every result card. Present on
+    # production (and recent staging deploys); used by
+    # ``ResultsPage.select_package_by_source`` only when the
+    # Debug Filters dropdown is missing.
+    show_info_toggle: str = (
+        'button:has-text("Show Info"), button:has-text("Hide Info")'
+    )
 
     react_modal_overlay: str = ".ReactModal__Overlay--after-open"
 
-    cookie_accept: str = "button:has-text('Accept All'), button:has-text('Reject All')"
+    # Production adds "Reject Non-Essential" alongside "Accept All".
+    # Production also gates result rendering until the banner is dismissed,
+    # so this list must include every variant we have observed in the wild.
+    cookie_accept: str = (
+        "button:has-text('Accept All'), "
+        "button:has-text('Reject All'), "
+        "button:has-text('Reject Non-Essential')"
+    )
 
 
 @dataclass(frozen=True)
@@ -81,12 +122,26 @@ class CheckoutSelectors:
     p1_first_name: str = "#p1_first_name"
     p1_last_name: str = "#p1_last_name"
 
-    cookie_accept: str = "button:has-text('Accept All'), button:has-text('Reject All')"
+    cookie_accept: str = (
+        "button:has-text('Accept All'), "
+        "button:has-text('Reject All'), "
+        "button:has-text('Reject Non-Essential')"
+    )
 
-    # Debugging Options panel (staging-only, bottom of checkout). We match the
-    # visible label text and walk to its nearest <select>; the underlying DOM
-    # name/id has changed before, the visible label survives longer.
+    # Debugging Options panel — present on staging AND production. We match
+    # the visible label text and walk to its nearest <select>; the
+    # underlying DOM name/id has changed before, the visible label
+    # survives longer.
     disable_optimizer_label_text: str = "Disable Optimizer"
+    # Production-and-staging production-style failure injection: the
+    # "Booking Failure Reason" select on the debug panel forces the
+    # backend to fail the booking with a known shape (CC Decline, Fare
+    # Increase, Flight Not Available, …). This is what makes a
+    # production E2E test safe to run — pick ``cc_decline`` and the
+    # supplier never sees the request, the card is never charged, and
+    # ``ota.bookings.process_status`` carries a ``BOOKING_FAILED`` row
+    # we can validate against.
+    booking_failure_reason_label_text: str = "Booking Failure Reason"
 
 
 @dataclass(frozen=True)

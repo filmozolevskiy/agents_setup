@@ -1,11 +1,19 @@
 # QA Automation — Page Inventory
 
-All selectors verified against **staging2.flighthub.com**,
-**staging2-summit.flighthub.com** (Summit), and
-**reservations.voyagesalacarte.ca** (ResPro) on **2026-04-26**.
-Casper-era selectors have been replaced. Selector constants live in
+All selectors verified against **staging2.flighthub.com** and
+**www.flighthub.com** (production), plus
+**staging2-summit.flighthub.com** (Summit) and
+**reservations.voyagesalacarte.ca** (ResPro), on **2026-04-26**. Casper-era
+selectors have been replaced. Selector constants live in
 [`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py);
 the `VERIFIED_ON` string in that file must match this header.
+
+Selectors that diverge cosmetically between staging and production are
+written as **CSS unions** (e.g. `button:has-text("Select"), a:has-text("Select")`)
+so a single string matches both surfaces. Where the underlying *flow*
+differs (Debug Filters dropdown vs per-card "Show Info"), the
+divergence lives in the page-object logic and is documented per-section
+below under "Production override".
 
 ---
 
@@ -48,19 +56,36 @@ Route blocking is transparent to the FlightHub application — all first-party J
 
 ## 2. Search Results Page (`/flight/search?...`)
 
-| Element | Selector |
+| Element | Selector (union — staging + production) |
 |---------|----------|
-| Select button | `button:has-text("Select")` |
+| Select button | `button:has-text("Select"), a:has-text("Select")` |
 | Bundle modal | `[role="dialog"]` or `#modal_box` |
-| Dismiss bundle | `.continue-with-flight-only-btn` |
+| Dismiss bundle | `.continue-with-flight-only-btn, a:has-text("Continue with flight only")` |
 | Fare loading indicator | `text=Fetching fare information` |
-| Continue to checkout | `button:has-text("Continue to checkout")` |
+| Continue to checkout | `button:has-text("Continue to checkout"), button:has-text("Checkout"):not(:has-text("Continue"))` |
+| Cookie banner accept / reject | `button:has-text('Accept All'), button:has-text('Reject All'), button:has-text('Reject Non-Essential')` |
+| Debug Filters toggle (both envs) | `.debug-filters-header-toggle` |
+| Debug Filters source select (both envs) | `select#gds` |
+| Show Info per-card toggle (both envs; fallback path) | `button:has-text("Show Info"), button:has-text("Hide Info")` |
 
 **Flow (3-step SPA, URL unchanged until step 3):**
-1. Wait for `button:has-text("Select")` → click first one
-2. Bundle modal opens → click `.continue-with-flight-only-btn`
-3. Fare family loads inline → wait for `text=Fetching fare information` state=hidden (up to 30s)
-4. Click `button:has-text("Continue to checkout")` → navigates to `/checkout/billing/flight/...`
+1. Wait for the Select CTA (button on staging, anchor on prod) → click first one.
+2. Bundle modal opens → click the dismiss CTA (class on staging, anchor on prod).
+3. Fare family resolves: staging shows it inline (wait for
+   `text=Fetching fare information` state=hidden, up to 30s), production
+   opens a fare-family modal that ends in a `Checkout` button.
+4. Click the Continue/Checkout CTA → navigates to `/checkout/billing/flight/...`.
+
+**Content-source pinning (both envs as of 2026-04-26).** The Debug
+Filters dropdown (`select#gds`) is the primary path on both staging
+and production: open the filter, set the GDS, wait for the search to
+re-run, click Select on the Nth surviving card. The per-card "Show
+Info" reveal is implemented as a fallback — if a future deploy drops
+the dropdown, `ResultsPage._select_by_show_info` reveals the inline
+`gds => <source>` panel on every card, matches case-insensitively
+(with `-` ignored), and clicks Select on the Nth matching card.
+`--package-index` shifts the pick within the matching subset on
+either path.
 
 **search_hash** is resolved post-booking via `ota.bookings.debug_transaction_id`.
 
@@ -68,24 +93,53 @@ Route blocking is transparent to the FlightHub application — all first-party J
 
 ## 3. Checkout Page (`/checkout/billing/flight/{package_id}/{hash_key}?`)
 
-| Element | Selector |
+| Element | Selector (union — staging + production) |
 |---------|----------|
-| Autofill link | `a:has-text("Autofill")` → get href → `page.goto(href)` |
+| Autofill link | `a:has-text("Autofill")` → click → URL gets `?af=78FF47` (or equivalent) |
 | Submit button | `#submit_booking` (text: "Confirm and Book") |
+| Continue to payment (two-stage) | `button:has-text("Continue to payment"), a:has-text("Continue to payment")` |
 | Insurance decline | JS `label.find(:has-text("No thanks")).click()` |
-| Card number | `#cc_number` |
-| Card expiry | `#cc_expiry` |
-| Card CVV | `#cc_cvv` |
-| Cardholder name | `#cc_name` |
-| Passenger 1 first name | `#p1_first_name` |
-| Passenger 1 last name | `#p1_last_name` |
+| BagAssist decline | `label:has-text("willing to risk losing my baggage")` |
+| Card number / expiry / CVV / name | `#cc_number` / `#cc_expiry` / `#cc_cvv` / `#cc_name` |
+| Passenger 1 first/last name | `#p1_first_name` / `#p1_last_name` |
 | Passenger 1 DOB | `#p1_dob` |
+| Debug Options — Disable Optimizer/Repricer | `<select>` next to label `Disable Optimizer` (walked from text) |
+| Debug Options — Booking Failure Reason | `<select>` next to label `Booking Failure Reason` (walked from text) |
+| Cookie banner accept / reject | `button:has-text('Accept All'), button:has-text('Reject All'), button:has-text('Reject Non-Essential')` |
 
 **URL change from plan:** Now `/checkout/billing/flight/{package_id}/{hash_key}?` — not `/checkout/billing/flight?...`
 
-**Autofill:** `?af=1` does NOT work. Get href from `a:has-text("Autofill")` and navigate to it directly. This uses the staging test user code `?af=78FF47`.
+**Autofill (staging + production):** the `Autofill` link appends a
+testing query param (e.g. `?af=78FF47`) and triggers full pre-fill of
+passenger details, card, and passport. The same anchor works on
+production — it sets `is_test=1` server-side for the resulting
+`ota.bookings` row, so production E2E runs are picked up by the same
+`CancelTestBookings` cron that catches staging leaks. Override
+individual card fields via `qa-book --cc-*` flags if needed.
 
-**Insurance gate:** Must explicitly decline Cancellation Protection before submit; otherwise "Please select an option to proceed" blocks submission.
+**Insurance gate:** Must explicitly decline Cancellation Protection
+(travel) and BagAssist (baggage) before submit; otherwise
+"Please select an option to proceed" blocks submission. Both pages do
+this automatically via `CheckoutPage.decline_insurance`.
+
+**Debugging Options panel (both envs):** the panel renders at the
+bottom of stage 1 on both staging and production — verified
+2026-04-26. Two controls matter to `qa-book`:
+
+* `Disable Optimizer/Repricer = Yes` is forced when `--content-source`
+  is passed, so the optimizer can't reroute the candidate to another
+  provider at book time.
+* `Booking Failure Reason = <label>` is the **opt-in
+  failure-injection knob**. By default `qa-book` does not touch
+  this select on either staging or production — every default run
+  goes end-to-end through the supplier and the payment gateway.
+  Pass `--booking-failure-reason "CC Decline"` (or any other
+  Debugging Options label — `Fraud`, `Fare Increase`,
+  `Flight Not Available`, `CC 3DS Failed`, `Issue with this card`)
+  to make the booker short-circuit before contacting the supplier
+  or the payment gateway: the card is never authorised, no PNR is
+  created, and the payment stage re-renders with the user-facing
+  alert that matches the chosen label.
 
 ---
 
@@ -177,8 +231,9 @@ redirects to the same path — bypass it).
   (`bookings.debug_transaction_id`) age out fast — most are already
   `Search not found` by the time you run the inspector.
 - Summit production env (`https://summit.flighthub.com`) is **not**
-  covered by this section — the prod end-to-end runbook lives on
-  [`weaSgLaj`](https://trello.com/c/weaSgLaj).
+  covered by this section — production search/checkout/results selectors
+  are unified via `pages/selectors.py` (see sections 1–4 above and the
+  unioned constants in `selectors.py`).
 
 ---
 
