@@ -15,6 +15,47 @@ a bug.
   Usually this means a backend API returned 500 for the chosen package;
   retry or pick another package.
 
+## Third-party route blocker must allowlist payment SDKs (production)
+
+- `qa_automation/browser.py` aborts third-party `script` /
+  `document` requests so the homepage search-form submit can't be
+  hijacked by hotel-ad redirectors (ClickTripz / TripAdvisor / Hopper
+  ads). The blocker is necessary — without it `qa-search` lands on
+  ad-network landing pages instead of `/flight/search`.
+- The blocker also has to **explicitly allow** the payment-services
+  hosts the storefront depends on, otherwise production checkout
+  cannot mount and surfaces as `checkout_render_timeout`. The current
+  allowlist (`PAYMENT_HOST_SUFFIXES` in `browser.py`):
+    - `braintreegateway.com` — Braintree client SDK + PayPal Checkout
+      SDK. Required: the storefront's
+      `Mv.AlternatePaymentMethods.PayPalCheckoutPaymentMethod.createPaypalSdkClient`
+      calls `braintree.client.create()` directly. Block it and
+      production throws `ReferenceError: braintree is not defined`,
+      the payment-method registration loop crashes, the React payment
+      stage never mounts `#submit_booking`.
+    - `paypalobjects.com` — PayPal CDN (`checkout.js` + image assets).
+    - `paypal.com` — PayPal API (loaded by the SDK after init).
+    - `evervault.com` — card-data encryption widget; the storefront
+      tokenises the PAN through Evervault before submit on prod.
+    - `riskified.com` — fraud-detection beacon; the submit button is
+      gated on a Riskified session fingerprint for some BIN ranges.
+    - `affirm.com` / `affirm.ca` — BNPL SDK; the payment-method
+      registration loop iterates every supported method and a missing
+      Affirm SDK leaves the loop in the same broken state as a
+      missing Braintree.
+- If a future deploy moves any of these SDKs to a new host, expect
+  `checkout_render_timeout` again with a `ReferenceError` in the
+  trace's network log under `_failureText: "net::ERR_FAILED"`.
+  Inspect `unzip -p <scenario>/trace.zip trace.network | grep
+  net::ERR_FAILED` — every blocked host is a candidate; cross-check
+  against the page console for the symbol it complains about
+  (`braintree`, `paypal`, `evervault`, `riskified`).
+- Tracking / analytics / ads (Google Tag Manager, Bing Ads,
+  Facebook, Criteo, Reddit, Hopper ads, Osano consent, TrackJS,
+  Microsoft Clarity, Cloudflare Insights, ClickTripz) are
+  **deliberately blocked** and must stay blocked — adding them back
+  re-opens the homepage-hijack path.
+
 ## Staging2 always returns USD
 
 - `staging2.flighthub.com` ignores `--pos` and `--currency` and shows
@@ -58,34 +99,35 @@ a bug.
   best-effort at the scenario level — a cancel failure should be
   surfaced but rarely blocks the run.
 
-## Production safety rail (qa-book)
+## Failure injection (qa-book)
 
-- `qa-book` defaults to injecting a `CC Decline` failure via the
-  Debugging Options panel on every production run. The booker
-  short-circuits before contacting the supplier or the payment
-  gateway, so the card is never actually charged, no PNR is
-  created, and **no `ota.bookings` row is persisted** — instead the
-  payment stage re-renders with the user-facing
-  "Credit Card check failed" alert.
+- `qa-book` defaults to **no injection** on both staging and
+  production. Every default run goes end-to-end through the
+  supplier and the payment gateway. Production safety in that case
+  is the platform's job — see "is_test=1 backstop (staging +
+  production)" above and the platform's own test-card detection /
+  CC decline at the gateway.
+- To deliberately exercise a failure path, pass
+  `--booking-failure-reason <Label>` where `<Label>` is one of the
+  Debugging Options panel values: `CC Decline`, `Fraud`,
+  `Fare Increase`, `Flight Not Available`, `CC 3DS Failed`,
+  `Issue with this card`. The booker short-circuits before
+  contacting the supplier or the payment gateway, so no card is
+  authorised and **no `ota.bookings` row is persisted** — the
+  payment stage re-renders with the user-facing alert that matches
+  the chosen label.
 - The runner detects that alert post-submit and emits
   `booking_failed_by_injection` (with
   `failure_origin="qa_injection"`, `front_end_message=<banner>`,
-  `front_end_markers=["cc_decline"]`). This is the expected
-  outcome of every production safety-rail run — treat it as a
-  successful end-to-end exercise of the prod pipeline, not a
-  failure to clean up.
-- To run a real booking attempt against the supplier on production,
-  pass `--booking-failure-reason none --i-know-this-charges-real-money`.
-  Without the ack flag the runner emits `production_safety_rail` and
-  exits before launching a browser. The platform's own protections
-  (test-card detection / CC decline at the gateway) are the only
-  remaining safety net once the injection is disabled.
+  `front_end_markers=[...]`). That is the expected outcome of any
+  injection run — treat it as a successful exercise of the
+  short-circuit, not a regular booking failure to retry.
 - A run-summary banner is printed to **stderr** before submit on
   every `qa-book` invocation: env, host, content_source,
-  package_index, booking_failure_reason, and (if `--cc-*` was passed)
-  a masked card preview. Capture stderr alongside stdout when running
-  on production so the audit trail for "what we submitted" lives next
-  to the JSON report.
+  package_index, booking_failure_reason, and (if `--cc-*` was
+  passed) a masked card preview. Capture stderr alongside stdout
+  when running on production so the audit trail for "what we
+  submitted" lives next to the JSON report.
 
 ## Production vs staging differences
 

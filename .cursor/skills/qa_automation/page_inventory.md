@@ -129,16 +129,17 @@ bottom of stage 1 on both staging and production — verified
 * `Disable Optimizer/Repricer = Yes` is forced when `--content-source`
   is passed, so the optimizer can't reroute the candidate to another
   provider at book time.
-* `Booking Failure Reason = <label>` is **the production safety
-  knob**. Picking `CC Decline` (the prod default) makes the booker
-  short-circuit before contacting the supplier or the payment
-  gateway — the card is never charged, no PNR is created, and
-  `ota.bookings.process_status` carries a clean `BOOKING_FAILED` row
-  the agent can validate. Other accepted labels: `Fraud`,
-  `Fare Increase`, `Flight Not Available`, `CC 3DS Failed`,
-  `Issue with this card`. Pass `--booking-failure-reason none` plus
-  `--i-know-this-charges-real-money` to disable the injection on
-  production; staging defaults to `none`.
+* `Booking Failure Reason = <label>` is the **opt-in
+  failure-injection knob**. By default `qa-book` does not touch
+  this select on either staging or production — every default run
+  goes end-to-end through the supplier and the payment gateway.
+  Pass `--booking-failure-reason "CC Decline"` (or any other
+  Debugging Options label — `Fraud`, `Fare Increase`,
+  `Flight Not Available`, `CC 3DS Failed`, `Issue with this card`)
+  to make the booker short-circuit before contacting the supplier
+  or the payment gateway: the card is never authorised, no PNR is
+  created, and the payment stage re-renders with the user-facing
+  alert that matches the chosen label.
 
 ---
 

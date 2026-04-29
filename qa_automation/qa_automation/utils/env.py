@@ -43,10 +43,12 @@ def env_from_url(url: str) -> Env:
       * ``www.flighthub.com`` / ``www.justfly.com`` (production)
 
     Anything that doesn't start with ``staging`` is treated as production —
-    we'd rather over-engage the production safety rail than skip it on a
-    URL we don't recognise. ``ResPro`` (``reservations.voyagesalacarte.ca``)
-    is shared between envs and is not classified by this helper; callers
-    must pass ``Env`` explicitly for ResPro.
+    we'd rather classify an unknown host as production (so the agent
+    sees ``env=production`` in the run summary and can react accordingly)
+    than silently call it staging. ``ResPro``
+    (``reservations.voyagesalacarte.ca``) is shared between envs and is
+    not classified by this helper; callers must pass ``Env`` explicitly
+    for ResPro.
     """
     host = (urlparse(url).hostname or "").lower()
     if host.startswith("staging"):

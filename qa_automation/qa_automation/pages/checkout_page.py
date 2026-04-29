@@ -42,10 +42,38 @@ class CheckoutPage(BasePage):
                 url=self._page.url,
                 detail="page never navigated to /checkout/billing/flight/**",
             ) from exc
-        self.wait_for("checkout.autofill_link", CHECKOUT.autofill_link, timeout=30_000)
+        try:
+            self.wait_for("checkout.autofill_link", CHECKOUT.autofill_link, timeout=30_000)
+        except SelectorNotFound:
+            # Production sometimes fails to render the visible "Autofill"
+            # debug link in the trip-summary toolbar even though the
+            # autofill URL is exposed in the page's
+            # ``Mv.CheckoutApp.spiAdd`` JS variable. Navigating to that
+            # URL is equivalent to clicking the link.
+            af_url = self._extract_spi_add_url()
+            if af_url is None:
+                raise
+            self.screenshot("autofill-link-missing-using-spiadd-fallback")
+            self._page.goto(af_url, wait_until="domcontentloaded", timeout=_CHECKOUT_LOAD_TIMEOUT)
+            try:
+                self._page.wait_for_url("**?af=*", timeout=30_000)
+            except Exception:
+                pass
         self._page.wait_for_timeout(1_000)
         self._dismiss_cookie_banner()
         self.screenshot("checkout-loaded")
+
+    def _extract_spi_add_url(self) -> str | None:
+        """Read ``Mv.CheckoutApp.spiAdd`` from the page JS.
+
+        Returns the URL or ``None`` if the variable is missing/unreadable.
+        """
+        try:
+            return self._page.evaluate(
+                "() => { try { return (window.Mv && window.Mv.CheckoutApp && window.Mv.CheckoutApp.spiAdd) || null; } catch (e) { return null; } }"
+            )
+        except Exception:
+            return None
 
     def _dismiss_cookie_banner(self) -> None:
         try:
@@ -57,12 +85,41 @@ class CheckoutPage(BasePage):
             pass
 
     def autofill(self) -> None:
-        """Click the staging Autofill link to pre-fill passenger + payment data."""
-        self.click("checkout.autofill_link", CHECKOUT.autofill_link)
-        try:
-            self._page.wait_for_url("**?af=*", timeout=30_000)
-        except Exception:
-            pass
+        """Click the staging Autofill link to pre-fill passenger + payment data.
+
+        If we already arrived at the checkout page with autofill already
+        active in the URL (because ``wait_for_load`` used the ``spiAdd``
+        fallback), skip the click — autofill is already in effect.
+        Production's ``Mv.CheckoutApp.spiAdd`` exposes URLs of the form
+        ``...?spi=<code>`` while the visible Autofill link navigates to
+        ``...?af=<code>``; both trigger the same server-side autofill,
+        so we treat either query param as "already autofilled".
+        """
+        url = self._page.url or ""
+        already_autofilled = "af=" in url or "spi=" in url
+        if not already_autofilled:
+            try:
+                self.click("checkout.autofill_link", CHECKOUT.autofill_link)
+                try:
+                    self._page.wait_for_url("**?af=*", timeout=30_000)
+                except Exception:
+                    pass
+            except Exception:
+                # The visible Autofill link is present but the click was
+                # intercepted (cookie / ad overlay, animated banner) or
+                # otherwise non-interactable. Same workaround as
+                # ``wait_for_load`` — read the spiAdd URL from page JS
+                # and navigate directly. The server-side autofill effect
+                # is identical.
+                af_url = self._extract_spi_add_url()
+                if af_url is None:
+                    raise
+                self.screenshot("autofill-link-click-failed-using-spiadd-fallback")
+                self._page.goto(af_url, wait_until="domcontentloaded", timeout=_CHECKOUT_LOAD_TIMEOUT)
+                try:
+                    self._page.wait_for_url("**?af=*", timeout=30_000)
+                except Exception:
+                    pass
         self._page.wait_for_timeout(2_000)
         self._dismiss_cookie_banner()
         self.screenshot("checkout-after-autofill")

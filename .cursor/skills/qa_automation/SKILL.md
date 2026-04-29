@@ -6,8 +6,10 @@ description: >-
   Drives the booking flow with a Playwright-backed set of stateless CLI
   tools (qa-search → qa-search-telemetry → qa-book → qa-validate →
   qa-cleanup) and lets the agent decide retries and pass/fail based on
-  evidence dumps and a documented checklist. Production runs default to a
-  controlled CC Decline injection so cards are never charged.
+  evidence dumps and a documented checklist. Every run goes end-to-end
+  through the supplier and the payment gateway by default; failure
+  injection (CC Decline / Fraud / Fare Increase / etc.) is opt-in via
+  --booking-failure-reason.
 ---
 
 # QA Automation
@@ -27,18 +29,31 @@ absorbed inside the page objects and runners; callers simply pass
 `qa-book`. See [`references/known_issues.md`](references/known_issues.md)
 "Production vs staging differences" for the full inventory.
 
-**Production safety**: `qa-book` defaults to injecting a
-`CC Decline` failure via the Debugging Options panel on every
-production run. The booker pipeline short-circuits before contacting
-the supplier or the payment gateway — the card is never charged.
-The runner detects the user-facing CC-decline alert post-submit
-and emits `booking_failed_by_injection` (with
-`failure_origin=qa_injection`); that is the **expected outcome of
-every production safety-rail run**. To run a real production
-booking against a supplier you must explicitly pass
-`--booking-failure-reason none --i-know-this-charges-real-money`;
-even then, the platform's own protections (test-card detection at
-the gateway) are the only safety net.
+**Failure injection is opt-in**: by default `qa-book` runs every
+booking end-to-end through the supplier and the payment gateway, on
+both staging and production. To exercise a specific failure path,
+pass `--booking-failure-reason "CC Decline"` (or any other
+Debugging Options label — `Fraud`, `Fare Increase`,
+`Flight Not Available`, etc.). When the flag is set the booker
+short-circuits before contacting the supplier or the payment
+gateway, no `ota.bookings` row is persisted, and the runner emits
+`booking_failed_by_injection` with `failure_origin=qa_injection` —
+that is the expected outcome of any injection run.
+
+**Production safety net** (when no injection flag is passed) is
+provided by the platform, not the runner:
+
+- `is_test=1` is set server-side on every `qa-book` booking via the
+  autofill query param, which blocks real ticketing.
+- The platform's own test-card detection / CC decline at the
+  gateway catch obvious test traffic.
+- `CancelTestBookings` is a production cron that cancels any
+  leaked rows whose ResPro cancel didn't complete.
+
+So a default production run *does* hit the supplier and the
+payment gateway; tickets are just blocked from issuing. Use
+`--booking-failure-reason "CC Decline"` whenever the test goal is
+specifically the failure path — not as a routine safety rail.
 
 Five CLI tools, each stateless. Each tool emits a **single JSON object on
 stdout**; errors have an `error` key and a non-zero exit code. Stderr carries
@@ -103,6 +118,45 @@ to this rule. Background on the auto-flip:
 [`references/known_issues.md`](references/known_issues.md)
 "Optimizer reroutes content-source-specific bookings".
 
+## When `--carrier` is specified, it always means the marketing/validating carrier
+
+When the user names a specific carrier ("book on TK", "AC test
+booking", "make it land on UA"), they always mean the
+**marketing/validating carrier** — the airline that issues the
+ticket and whose flight-number prefix appears on the boarding
+pass. They do **not** mean an operating-only codeshare leg. A
+booking where the validating carrier is `UA` and one segment is
+`UA1234 operated by TK` does **not** satisfy a `--carrier TK`
+request.
+
+The `--carrier <IATA>` filter on `qa-book` enforces this on the
+result-page side:
+
+* The flight-number signal (`<IATA><digits>` like `TK17`,
+  `Flight TK 1762`) is the canonical marketing-carrier check —
+  the prefix **is** the marketing carrier.
+* The display-name fallback (`Turkish Airlines` for collapsed
+  Best/Cheapest cards that don't print flight numbers) is
+  scoped to *marketing* mentions only: any occurrence preceded
+  by `"Operated by "` within ~25 chars is rejected. So
+  `"United Airlines, Operated by Turkish Airlines"` matches
+  `--carrier UA` (UA is marketing) and is rejected for
+  `--carrier TK` (TK is operating-only).
+
+After the booking lands, **always confirm with `qa-validate`
+that `mysql.bookings.validating_carrier == <requested code>`** —
+the result-page filter is necessary but not sufficient (the
+booker can still pivot to a different validating carrier on
+re-pricing). If `validating_carrier` does not match, the run
+does not satisfy the request: cancel and retry with a different
+date/route per the retry policy.
+
+If a carrier genuinely cannot be booked on the requested source
+within the retry budget (typical for thin transatlantic
+inventory like TK on Downtowntravel from YYZ origins), report
+that to the user; do not silently land on a different
+marketing carrier.
+
 ## Decision flow
 
 ```mermaid
@@ -164,8 +218,9 @@ cd qa_automation && uv run qa-book \
     --scenario-dir qa_automation/reports/20260423-130000-amadeus-smoke
 ```
 
-For a production E2E (auto-injects `CC Decline` — supplier never sees
-the booking, card is never charged):
+For a production E2E (no injection — real end-to-end booking
+through the supplier and payment gateway; ticketing is blocked
+server-side by `is_test=1`):
 
 ```bash
 cd qa_automation && uv run qa-search --env production \
@@ -177,6 +232,19 @@ cd qa_automation && uv run qa-book \
     --scenario-dir qa_automation/reports/<UTC>-prod-amadeus-smoke
 # qa-book emits a banner to stderr summarising env / failure-reason /
 # resolved card before submitting; capture it for the run report.
+```
+
+For an opt-in failure-path test (booker short-circuits, no supplier
+call, no gateway authorisation):
+
+```bash
+cd qa_automation && uv run qa-book \
+    --search-url "https://www.flighthub.com/flight/search?..." \
+    --content-source amadeus \
+    --booking-failure-reason "CC Decline" \
+    --scenario-dir qa_automation/reports/<UTC>-prod-amadeus-cc-decline
+# Expected outcome: booking_failed_by_injection with
+# failure_origin=qa_injection.
 ```
 
 `qa-validate` needs at least one of `--booking-id`, `--id-hash`,
