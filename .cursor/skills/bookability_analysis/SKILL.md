@@ -49,8 +49,51 @@ All three are the same string. `NULL` / empty `search_hash` rows cannot be corre
 
 For a "standard" ask, run the standard report and offer the deep dive at the end. Do not jump to MongoDB preemptively.
 
+## Report shape: write for content / business, not for the SQL author
+
+Every workflow ends with a single markdown report whose body is a **table with evidence**, not a SQL transcript. The column DNA mirrors the QA skill's validation table — one row per claim, with the proof inline so a reader can reproduce the number without rerunning the conversation.
+
+### Structure
+
+A bookability report has three parts, in this order:
+
+1. **Header paragraph** — content source / carrier / office under analysis, time window, and the headline finding (the one or two sentences that change the reader's next action). One short paragraph, no bullets. Do **not** restate per-section outcomes — anything you would put in a per-section bullet belongs as a row in the table below.
+2. **Findings table(s)** — `Finding | Verdict | Explanation | Proof` rows for the rate / volume / recovery / repeat-client / uncorrelated claims. When the report includes failure signatures (standard report § 3, deep workflow's similar-errors output), render the **failure causes in a second table** with columns `Cause | Verdict | Sessions | Supplier verbatim | ClickHouse SQL | Sample session` so the supplier-side evidence sits next to the count without the row exploding sideways.
+3. **Recommended next step** — one short list of concrete follow-ups ("Reclassify cluster X from payment to bookability", "Open Mongo deep dive on these 20 sessions", "Establish a 30-day recovery baseline for supplier Y"). Skip the section entirely when no action is genuinely needed.
+
+No preamble bullet list, no narrative section between the header and the table. The tables are the report; everything else is the one-sentence header and the one-list footer.
+
+Column contract, verdict vocabulary, and worked examples live in [`references/report_format.md`](references/report_format.md).
+
+### Voice rules
+
+- **Name the business outcome**, not the internal mechanic. "Amadeus failed 312 of 3,421 attempts (9.1%) on flighthub last week" / "Customers recovered on a different supplier in 47% of those failures" / "Top cause is supplier rejecting the fare during price verification" / "All 312 failures share one supplier message: `Failed to reprice`". Not "`bconta.status = 0` count is 312" / "`classification_category = FARE_INCREASES`" / "`booking_step = verifyPriceOperation()`".
+- **Plain English. No internal lexicon in the report body.** Banned in the `Finding` and `Explanation` cells (still fine in the `Proof` column where the SQL has to be runnable, and in the SQL appendix / scenario notes):
+  - Internal field names: `bconta`, `bcusta`, `bbc`, `search_hash`, `search_id`, `transaction_id`, `customer_attempt_id`, `multiticket_part`, `gds_raw`, `is_test`.
+  - Internal classification names: `PAYMENT_ERRORS`, `FARE_INCREASES`, `FLIGHT_AVAILABILITY_ERRORS`, `classification_category`, `main_group_error`, `payment_error`, `loss_limit_fare_increase`, `flight_not_available_other`.
+  - Internal step names: `verifyPriceOperation()`, `bookFlightOperation()`, `Mv_Ota_Air_Booker_*`.
+- **Translate to business-facing names** in the prose: `gds` / `content_source` → "supplier" (or the name); `validating_carrier` → "airline"; `surfer_id` → "client" / "user"; `customer_attempt_id` → "customer booking attempt"; `master` / `slave` → "outbound leg" / "inbound leg"; `verifyPriceOperation` → "price verification step"; `bookFlightOperation` → "booking step"; `loss_limit_fare_increase` → "fare increased past our loss-limit between search and book". The internal token still appears once, in the `Proof` cell, where the SQL or permalink is runnable.
+- **Drop hedging.** No "tentatively", "not sure", "tbd", "we think". If a number is an estimate, say so: "At least 280 distinct sessions; ingestion lag means the true number may be slightly higher." If a row was excluded, say which and why: "Payment-side failures (47 rows) are excluded from the bookability rate."
+- **State counts and shares together.** "312 / 3,421 = 9.1%" beats "9.1%" or "312" alone. Same for recovery: "72 / 153 = 47%".
+- **Failure-injection runs (single-booking workflow on a deliberately-failed booking) are not failures.** A booking the user themselves induced (CC Decline test, fare-increase injection) ends with a `PASS` row saying "behaved as designed" — the verdict reflects whether the scenario matched its intent, not whether a row exists in `bookings`.
+- **`Proof` cells are runnable, not references.** Never write "see the standard report § 1 `summary` CTE" or "see `deep_bookability_analysis.md` for the SQL". Inline a short, runnable query (or a permalink, or a path to a saved dump under `reports/_stdio/`). The reader has to be able to copy the cell, paste it into `mysql_query.py` / `clickhouse_query.py` / `mongo_query.py` and reproduce the number without leaving the report.
+- **`Sample session` URLs land on the exact log entry, not the log-group root.** Every URL in the failure-causes table's `Sample session` column ends with `#<_id>`, where `<_id>` is the Mongo `_id` of the specific log entry whose `Error-Data` / `Response` body appears verbatim in the row's `Supplier verbatim` column. Canonical shape — pin this host, do **not** swap to brand-specific hosts: `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>`. ResPro is shared across brands and `voyagesalacarte.ca` is the canonical ResPro host (same shape used in [`harvest_permalinks.md`](references/harvest_permalinks.md)). The log-group root alone (no `#<_id>`) is not a sample session — it's homework. Get the `_id` by querying Mongo for the cluster's anchor `transaction_id` filtered to the supplier-error context (`Downtowntravel::BookFlight::Error`, `loss-limit-fare-increase`, etc.) and copying the `$oid` from the `--json` output.
+- **The findings table is small.** Mandatory rows are: volumes, bookability rate, customer recovery rate, repeat-client failures. Nothing else. Three rows are explicitly dropped from the mandatory list because they were noise that rarely changed what anyone did: ~~MySQL vs ClickHouse row-count reconciliation~~, ~~MySQL ↔ ClickHouse classification mismatch~~, ~~uncorrelated rows~~. The first never adds information. The second is replaced by a sentence in the `Total failures` row's `Explanation` ("one of those clusters may be misclassified — see failure-causes table"). The third is replaced, when the uncorrelated count actually matters, by an `AMBIGUOUS` row in the failure-causes table.
+- **No duplication between header and tables.** If a finding is in the table, it is **not** also in the header. The header summarises the overall outcome and the headline cluster; everything else lives in rows.
+
+### Where the diagnostics go
+
+The headline report is the deliverable. The agent does not lose the diagnostics; they go to disk:
+
+- **Raw query output** — full SQL and CH dumps, MongoDB JSON exports, captured under `reports/_stdio/<workflow>-<label>.{json,log}`. Internal field names, full `bconta.error` histograms, every row of the signature table — all there.
+- **Saved permalinks** — supplier-side `debug_logs` permalink arrays (Variants A / B / C from [`references/harvest_permalinks.md`](references/harvest_permalinks.md)) live next to the dump, not inline in the report. The report cites one or two as `Proof`.
+- **Trello cards** — when the finding lands on the Content Integration board, the formatting follows [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md) (`⊙ Summary` + `⊙ Numbers/quantity/Examples`). The findings table in this skill is the *source* the Trello formatter pulls from; do not skip the table and write Trello-shaped output directly.
+
+If the report surfaces a single internal artefact, it is a **path** ("Raw signatures dump: `reports/_stdio/standard-amadeus-2026-04-26.json`") so the engineer can drill in. Never paste raw query JSON, full `bconta.error` histograms, or unfiltered `debug_logs` arrays into the report body itself.
+
 ## Cross-cutting references
 
+- **Report format** (canonical findings-table columns, verdict vocabulary, voice rules, worked examples per workflow): [`references/report_format.md`](references/report_format.md).
 - **ClickHouse error table** (signature source for § 3 error bucket + similar-errors groupings): [`db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../db-docs/clickhouse/jupiter_booking_errors_v2.md).
 - **Debug-log query patterns** (effective `$match` shape, evidence hierarchy, prevalence): [`references/debug_logs_query_patterns.md`](references/debug_logs_query_patterns.md).
 - **Permalink harvest pipelines** (Variants A/B/C + URL shape): [`references/harvest_permalinks.md`](references/harvest_permalinks.md).

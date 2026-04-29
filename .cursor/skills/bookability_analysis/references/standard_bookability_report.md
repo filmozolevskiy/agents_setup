@@ -11,6 +11,13 @@ The report pulls from two stores in parallel (see `SKILL.md` § *Data sources an
   failure signatures (real supplier text, `booking_step`, classification); MySQL
   `bconta.error` is a coarse fallback only.
 
+The deliverable is a single markdown report that follows the canonical column shape in
+[`report_format.md`](report_format.md): a header paragraph, per-section outcomes, a
+`Finding | Verdict | Explanation | Proof` table, and a recommended next step. The SQL
+below is the **proof source** — every row in the findings table cites one of these
+queries (or a CH variant) in its `Proof` column. Do not paste raw SQL output into the
+report body; raw output goes to `reports/_stdio/standard-<source>-<UTC>.json`.
+
 After presenting this report, **offer** a Mongo deep dive (see
 [`deep_bookability_analysis.md`](deep_bookability_analysis.md)) when CH's `error_message` is
 too terse (e.g. generic wrappers, truncated NDC payloads) or when you need the full request /
@@ -31,7 +38,43 @@ Every metric in the report must come from the same row set:
 
 ## Report shape (mandatory)
 
-### 1. Summary block
+The report renders as **two tables** per the canonical layout in [`report_format.md`](report_format.md): a findings table for rate / volume / recovery / repeat / classification / uncorrelated rows, and a separate top-failure-causes table for the ClickHouse signature clusters with verbatim supplier evidence.
+
+No preamble bullet list between the header and the tables. No "MySQL vs ClickHouse row-count reconciliation" row.
+
+### Findings table — mandatory rows (in this order)
+
+1. **Volumes** — `Total attempts` and `Total failures`, both `INFO`. One row per day when the report covers more than one day. § 1 SQL. The `Total failures` row's `Explanation` should split bookability vs payment-side and flag *"one of those clusters may be misclassified — see failure-causes table"* when applicable.
+2. **Bookability success rate** — `HEALTHY` / `DEGRADED` / `CRITICAL` against the supplier's documented baseline; `INFO` when no documented baseline exists yet (and an "establish baseline" line goes into the recommended next steps). Always state count and share together ("365 / (365 + 59) = 86.1 %"). § 1 SQL.
+3. **Customer recovery rate after the supplier failed** — same verdict scheme as above, defaulting to `INFO` when no documented baseline. Always include even when no failures occurred — verdict `SKIPPED` with explanation in that case. § 1 SQL.
+4. **Repeat-client failures** — `INFO`. Count of distinct clients (`surfer_id`) with ≥ 2 failing customer attempts in the window, named retriers if interesting. § 2 SQL.
+
+### Optional findings rows
+
+- **Test-flag warning** — `INFO` row when `is_test = 1` rows leaked into a production-only request and were filtered out — state how many.
+
+### Rows we deliberately do **not** include
+
+These rows used to be on every report and rarely changed what anyone did. They are dropped:
+
+- ~~MySQL ↔ ClickHouse classification mismatch~~ — when the failure-causes table uses ClickHouse (which it always does), a sentence in the `Total failures` row's `Explanation` is enough framing. A standalone row was noise.
+- ~~Uncorrelated rows~~ — when the count is small (the common case) the row says nothing; when it's large it surfaces inside the failure-causes table as an `AMBIGUOUS` cluster row instead.
+- ~~MySQL vs ClickHouse row-count reconciliation~~ — see `SKILL.md` voice rules.
+
+### Top failure causes table — mandatory whenever there are bookability failures
+
+Render as a separate markdown table with the columns defined in [`report_format.md`](report_format.md) § *Top failure causes table*: `Cause | Verdict | Sessions over the window | Supplier verbatim | ClickHouse SQL | Sample session`.
+
+- One row per dominant cluster — typically the top 3–5 by session count, or all clusters owning > 5 % of bookability failures. Skip clusters with `< 5` sessions over the window.
+- The `Supplier verbatim` cell quotes the actual `Response` / `Error-Data` body from `debug_logs` for one anchor session per cluster — pull it from Mongo before writing the report (one batched `$in` query over the cluster's sample `search_id`s is enough). Don't paraphrase. Add one sentence of context after the quote when the message alone isn't self-explanatory.
+- The `Sample session` cell carries the `debug_logs` permalink for the anchor session whose verbatim text appears in `Supplier verbatim`.
+- Verdict mirrors share of bookability-failure bucket: `> 50 %` → `CRITICAL`, `15–50 %` → `DEGRADED`, `< 15 %` → `INFO`. Misclassification clusters that meaningfully shift the headline rate ship as `CRITICAL` regardless of share.
+
+If the user explicitly asks for the raw signature dump (full table by row count), produce it separately under `reports/_stdio/standard-<source>-<UTC>.log` and cite that path in the recommended next steps. Do not inline the full `error_message` × `booking_step` × `classification_category` cross product into the report body — it defeats the qa-style table.
+
+Worked example matching this shape lives in [`report_format.md`](report_format.md) § *Worked example 1 — Standard bookability report*.
+
+### § 1 — Definitions for the rate / recovery rows
 
 | Metric | Definition |
 |--------|------------|
@@ -45,9 +88,9 @@ Report the recovery rate as a **percentage** and **counts** (e.g. "72 / 153 = 47
 For **multiple calendar days** (e.g. today vs yesterday), either run the same template **once per
 day** (`WHERE bcusta.date_created >= … AND < …`) or add `DATE(bcusta.date_created) AS report_day`
 to the `base` CTE and `GROUP BY report_day` for each metric (use `COUNT(DISTINCT …)` forms where
-needed).
+needed). One row per day in the findings table; do not concatenate days into one cell.
 
-### 2. Failure-facing details (contestant `status = 0` only)
+### § 2 — Definitions for the failure-facing rows
 
 | Metric | Definition |
 |--------|------------|
@@ -55,38 +98,15 @@ needed).
 | **Repetitive attempts** | Among failing rows: `surfer_id IS NOT NULL` and **≥ 2 distinct `customer_attempt_id`** in the window for that `surfer_id` on this content source (same base filters). List or count those surfers; optionally show `surfer_id` + attempt counts. |
 | **Was it finally booked?** | For **distinct `customer_attempt_id`** that have a failure on this content source: split **`bcusta.status = 1`** vs **`bcusta.status = 0`** (booked vs not). This pairs with **partial** vs **complete** failure language. |
 
-### 3. Error bucket — ClickHouse primary
+### § 3 — Failure signatures (ClickHouse primary, rendered in the top-failure-causes table)
 
-**Primary source:** `jupiter.jupiter_booking_errors_v2`. Carries the real supplier text
-(`error_message`), the step it failed at (`booking_step`), and a classification
-(`classification_category` / `classification_subcategory`, `main_group_error` /
-`sub_group_error`).
+**Primary source:** `jupiter.jupiter_booking_errors_v2`. Carries the real supplier text (`error_message`), the step it failed at (`booking_step`), and a classification (`classification_category` / `classification_subcategory`, `main_group_error` / `sub_group_error`).
 
-Use the same `gds` value as in MySQL (`bconta.gds == jupiter_booking_errors_v2.gds`). Narrow the
-time window with `timestamp`, not `date_created`.
+Use the same `gds` value as in MySQL (`bconta.gds == jupiter_booking_errors_v2.gds`). Narrow the time window with `timestamp`, not `date_created`.
 
-#### § 3 output contract (mandatory)
+Translate the supplier text into a business-voice `Cause` label ("Supplier said the seats are gone on the booking step" instead of `failed: There are no seats left` or `bookFlightOperation()`); the verbatim supplier message goes in the `Supplier verbatim` cell of the top-failure-causes table, not in `Cause`. Pull the verbatim from Mongo per the workflow in § *Pulling Mongo evidence for the failure-causes table* below — never write the report from CH's `error_message` alone, because CH frequently truncates or wraps the supplier body (`Failed to reprice` is the canonical example: CH stores the wrapper, Mongo carries the underlying NDC code).
 
-The report body **must** contain the raw-signature table below. Presenting only the category
-roll-up collapses the whole point of § 3 and is not acceptable. The raw signatures are what turn
-"260 failures" into an actionable read.
-
-Render exactly one markdown table with (at minimum) these columns, ordered by row count desc:
-
-| # | `error_message` | `booking_step` | Category | rows | distinct `search_id` | sample `search_id` |
-
-- `error_message` is the raw supplier / integration text — quote it verbatim, do not rewrite.
-- `booking_step` pinpoints where it broke (verify vs book vs guard).
-- `Category` is `classification_category` — keep it as the last / small column, never the only
-  one.
-- `sample search_id` is 1 value per row; pull 3 from the array when the user might want to spot
-  check.
-
-Collapse `main_group_error` / `sub_group_error` into the table only when they disagree with
-`classification_category` — otherwise they are duplicates and add noise.
-
-The category roll-up is an **optional** one-line sidecar ("FARE_INCREASES dominates, then
-FLIGHT_AVAILABILITY_ERRORS…"), not a replacement for the signatures.
+The category roll-up (`classification_category` → count) belongs in the **classification-mismatch findings row**, not in a separate roll-up section. A one-line framing in the header paragraph ("two flight-availability signatures account for ~50 % of bookability failures") is fine and encouraged.
 
 #### Primary SQL — raw signatures
 
@@ -130,11 +150,6 @@ ORDER BY c DESC
 Report according to the **bookability-rate lens** by default (see `SKILL.md` § *Error
 classification mapping*): all categories count as bookability failures except `PAYMENT_ERRORS`.
 If the user is asking for an integration-health read instead, switch to that lens and say so.
-
-**Row-count reconciliation:** MySQL failure count (§ 1) and CH row count for the same window
-should match within ingestion-lag noise — both count master and slave legs. State the two
-counts side-by-side and move on unless the gap is large (then check for `is_test`, window
-clock skew, or ingestion lag).
 
 **Fallback — MySQL only:** use the `bconta.error` histogram below **only** when CH returns no
 rows for the window (suggests an ingestion lag or an unclassified path). The MySQL codes are
@@ -300,32 +315,61 @@ ORDER BY bcusta.date_created DESC
 LIMIT 1000;
 ```
 
-## Analysis narrative (after the report)
+## Pulling Mongo evidence for the failure-causes table
 
-Use these framings when interpreting the numbers:
+The top-failure-causes table needs **verbatim supplier text plus a sample-session permalink that lands on the exact log entry** — pull both before writing the report. Canonical link shape: `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>`. ResPro is shared across brands and `voyagesalacarte.ca` is the canonical ResPro host — pin this host, do **not** swap to `flighthub.com` / `justfly.com` even when the booking is on those brands. The `_id` is the Mongo document `_id` of the specific log entry containing the supplier error; without `#<_id>` the link goes to the log-group root and is not a sample session.
 
-- **Partial failure:** contestant (this content source) failed but **`customer_status = 1`** —
-  customer recovered on the same customer attempt (another contestant booked).
-- **Complete failure (customer):** contestant failed and **`customer_status = 0`** — customer
-  did not book.
-- For deep dives, include example **`booking_id`** / **`search_hash`** per major error bucket.
+### Step 1 — Pull verbatim and `_id` for one anchor session per cluster
 
-### Offer Mongo deep dive
+For each cluster, pick one sample `search_id` from the ClickHouse signature, then query `debug_logs` filtered to the supplier-error context for that integration. For Downtowntravel the supplier-error contexts are `Downtowntravel::BookFlight::Error` (book step), `Downtowntravel::VerifyPrice::Error` (verify step), and `loss-limit-fare-increase` (post-Sale fare-increase reversal). For other suppliers see § *Supplier-error context cheat-sheet* below.
 
-After the SQL + CH report, **OFFER** a MongoDB deep dive when CH's `error_message` is not enough
-— e.g. the message is a generic wrapper (`Unknown error`, `failed to reprice`), you need the
-raw request / response body, or you want the chronological flow for one `transaction_id`. If the
-user already asked for deep analysis, skip the offer and run
-[`deep_bookability_analysis.md`](deep_bookability_analysis.md) directly.
+```bash
+set -a && source .env && set +a && python3 scripts/mongo_query.py find debug_logs ota \
+  --filter '{"transaction_id":"<sample_search_id>","context":"<SupplierError context>"}' \
+  --sort '{"date_added":1}' --limit 5 --json
+```
 
-Deep dives use **`debug_logs`** (main OTA debug log for all processes). **Do not** reach for
-`optimizer_logs` — that's repricing-only.
+The `--json` output exposes the `_id` field as `{"$oid":"<24-char hex>"}`. Copy:
+- The `Error-Data` (or `Response`) body verbatim — that's the `Supplier verbatim` column.
+- The `$oid` value — that becomes the `#<_id>` fragment of the permalink.
 
-**Example offer:**
+When the cluster doesn't have a clean `*::Error` context (e.g. virtual-card cluster, where the failure is a `loss-limit-fare-increase` event firing post-Sale rather than an explicit error), pick the entry whose timing matches the failure. For the virtual-card cluster the anchor is the **second** `loss-limit-fare-increase` firing — the one immediately after the successful Payhub `Sale` and before `DeferredRefundPaidStatementItemsAction::run`. A timestamp filter or a manual scan of the `loss-limit-fare-increase` rows for that `transaction_id` gets you to the right entry.
 
-> CH shows 8 `verifyPriceOperation()` availability failures on DTT with `Failed to reprice`
-> messages, two of them an `NDC-1454 SHOPPING_OFFER_NOT_SUITABLE` on TK. Want me to pull
-> `debug_logs` for those `search_id`s to see the full NDC response body?
+### Step 2 — Build the permalink
+
+```
+https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>
+```
+
+The host is fixed: ResPro is shared across brands and `voyagesalacarte.ca` is the canonical ResPro host — use it for every booking regardless of which brand the booking was made on. Same shape is documented in [`harvest_permalinks.md`](harvest_permalinks.md#permalink-url-shape).
+
+### Mandatory: Mongo evidence for payment-side clusters
+
+For any cluster whose CH `classification_category = 'PAYMENT_ERRORS'`, pull Mongo before deciding whether the cluster is really a payment failure. CH frequently misclassifies post-Sale fare-increase reversals (`loss-limit-fare-increase` → `DeferredRefundPaidStatementItemsAction::run` → `CancelVirtualCardPipe`) as `payment_error` because the wrapper message looks payment-shaped. The canonical example is the Downtowntravel `Virtual card merchant fare statement items failed` cluster, but the same shape can appear under `Credit Card payment declined` and other payment-shaped wrappers. When the Mongo trace shows a successful Payhub `Sale` followed by `loss-limit-fare-increase`, ship the cluster as a `CRITICAL` row in the failure-causes table with the reclassification consequence ("drops the bookability rate from X to Y") in `Supplier verbatim`.
+
+### Supplier-error context cheat-sheet
+
+| Supplier / step | Mongo `context` for the supplier-error entry |
+|---|---|
+| Downtowntravel — booking step | `Downtowntravel::BookFlight::Error` |
+| Downtowntravel — price-verification step | `Downtowntravel::VerifyPrice::Error` |
+| Downtowntravel — post-Sale loss-limit reversal (virtual card / fare increase) | `loss-limit-fare-increase` (pick the firing immediately after the successful Payhub `Sale`) |
+| Payhub — gateway-side card decline | `payhub_api_response_Momentum\Payhub\Request\Sale` (read the `Response` body for the decline payload) |
+| Amadeus | exact context lives in `db-docs/mongodb/debug_logs.md` content hints — typically `amadeus-redux-api[<carrier>]<operation>`-shaped |
+
+When in doubt, run a single broad `find` for the anchor `transaction_id` (no context filter, `--limit 200 --sort date_added:1 --json`), grep the JSON for `Error` / `failed` / `decline` in `context`, and pick the matching entry.
+
+For raw query mechanics (collection choice, `transaction_id` / `context` filtering, escaping literal periods in `$regex`), see [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md). For permalink harvest pipelines when you need every example for a Trello card, see [`harvest_permalinks.md`](harvest_permalinks.md). For deeper correlation across a window or multiple suppliers, switch to [`deep_bookability_analysis.md`](deep_bookability_analysis.md).
+
+Always use `ota.debug_logs` — `optimizer_logs` is repricing-only and not a bookability source.
+
+## Header paragraph and recommended next steps
+
+The header paragraph is one short paragraph stating the supplier, the window, and the **headline finding** — the one or two sentences that change the reader's next action. Translate internal tokens to business language (`customer_status = 1` → "customer recovered on a different supplier", `multiticket_part = 'master'` → "outbound leg"). Do **not** restate per-section outcomes — anything that would belong in a per-section bullet belongs as a row in one of the two tables.
+
+Recommended next steps are a short numbered list of concrete follow-ups (reclassify a misclassified cluster, open / update a Trello card, escalate to a supplier liaison, establish a missing baseline). Skip the section entirely when no action is genuinely needed.
+
+Internal "partial failure" / "complete failure" framing stays out of both the header and the tables — keep that vocabulary for the scenario notes / dump files.
 
 ## Known content-source notes
 

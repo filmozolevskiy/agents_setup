@@ -10,7 +10,7 @@ did we really fail", "supplier truth for failures", "similar-errors report").
 - **(B) Bookability / supplier-side** — availability, sold-out, fare change, GDS / supplier
   codes, policy.
 
-Then produce a **similar-errors report** — grouped signatures with counts and examples.
+Then produce a **similar-errors report** rendered as the two-table canonical layout from [`report_format.md`](report_format.md): a small **findings table** for total-failure / coverage / classification-mismatch / uncorrelated rows, and a separate **top-failure-causes table** with one row per signature cluster carrying the verbatim supplier `Response` from `debug_logs` next to the ClickHouse SQL and a sample-session permalink. The full signature × `search_id` × `Response` cross product belongs in `reports/_stdio/deep-<source>-<UTC>-{ch,mongo}.json`, not in the report body.
 
 ## Principles
 
@@ -37,11 +37,12 @@ Then produce a **similar-errors report** — grouped signatures with counts and 
    `gds` from `jupiter.jupiter_booking_errors_v2` with their signature fields. This is the
    primary step; the `search_id` array this produces is what you feed to Mongo in step 4.
 2. **MySQL cross-check + enrichment.** Run the standard MySQL base query (same window + `gds` +
-   base filters, `bconta.status = 0`, master + slave both counted). Confirm the failure count
-   agrees with CH within ingestion-lag noise; investigate only if the gap is large (`is_test`
-   flag, window clock skew, `search_hash IS NULL` rows, ingestion lag). Pull MySQL-only fields
-   you need: `customer_attempt_id`, `booking_id`, `surfer_id`, `bcusta.date_created`,
-   `multiticket_part`.
+   base filters, `bconta.status = 0`, master + slave both counted) to pull the MySQL-only
+   fields you need: `customer_attempt_id`, `booking_id`, `surfer_id`, `bcusta.date_created`,
+   `multiticket_part`. Investigate the MySQL-vs-CH gap only when it's large enough to change a
+   verdict (a few percent is normal ingestion-lag noise and is not worth a row in the report).
+   When the gap **is** worth surfacing, ship it as the `MySQL ↔ ClickHouse classification
+   mismatch` findings row, naming the disagreeing buckets — not as a routine reconciliation row.
 3. **Drop unusable keys:** exclude `search_id IS NULL` / `''` (CH side) or `search_hash IS NULL`
    / `''` (MySQL side) from the Mongo pass; report how many failures had no hash.
 4. **MongoDB — `ota.debug_logs`:** when CH's `error_message` is too coarse, query by
@@ -53,18 +54,25 @@ Then produce a **similar-errors report** — grouped signatures with counts and 
 5. **Read supplier evidence first:** for each `transaction_id`, identify log lines with raw
    request / response for the book path; use local exceptions only as supporting context.
    Details: [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md#source-of-truth-supplier-traffic-vs-local-exceptions).
-6. **Similar-errors report (mandatory output):** Group failures by a **stable signature**:
-   - **Primary:** CH `(classification_category, classification_subcategory, booking_step,
-     main_group_error, sub_group_error, error_message)` tuple (or the subset that yields a
-     readable grouping). Normalize `error_message` if it embeds IDs / prices.
-   - **Secondary:** MySQL `bconta.error` when it aligns with CH (or flag **"MySQL vs CH
-     mismatch"** when they diverge — rare but real).
-   - **Escalation evidence:** if Mongo was pulled, attach the raw `Response` body or the
-     supplier-side permalink under the group.
-   - For **each group:** count, **1–3 example `search_id` / `search_hash`**, and **at least one
-     permalink** to the supplier-side log document when Mongo was pulled.
-   - Call out groups that are **purely payment / CC** vs **availability / GDS / fare** so the
-     narrative does not mix causes.
+6. **Similar-errors report (mandatory output)** — rendered as two markdown tables.
+
+   **Findings table** (rate / volume / coverage rows). One row each, all `Proof` cells inline-runnable:
+   - **Total bookability failures** — `INFO`. Count + share-of-total. Inline MySQL SQL. Flag uncorrelated rows in `Explanation` ("1,098 / 1,157 matched a ClickHouse signature; the remaining 59 had no `search_hash` and stayed in the uncorrelated bucket") rather than as a separate row.
+   - **ClickHouse signature coverage** — `INFO`. How many bookability failures matched a CH signature (`X / Y = Z %`).
+   - **Mongo deep-dive coverage** — `INFO`. How many sessions out of the bucket were pulled (e.g. "Mongo pulled for 902 / 1,098 correlated sessions in batches of 100"). Inline `mongo_query.py find ... --filter '{"transaction_id":{"$in":[...]}}'` template as the proof.
+
+   Rows we deliberately do **not** include (same as the standard report — these were noise that rarely changed what anyone did): ~~MySQL ↔ ClickHouse classification mismatch~~, ~~uncorrelated rows~~, ~~MySQL vs ClickHouse row-count reconciliation~~. When a real classification mismatch shifts a verdict, surface it in the failure-causes table as a `CRITICAL` cluster row with the reclassification consequence in `Supplier verbatim` (e.g. "Reclassifying drops the bookability rate from X to Y"). When uncorrelated rows are large enough to matter, surface them as their own row in the failure-causes table with verdict `AMBIGUOUS` and the count in `Sessions over the window`.
+
+   **Top-failure-causes table** (one row per signature cluster, with the columns `Cause | Verdict | Sessions over the window | Supplier verbatim | ClickHouse SQL | Sample session`):
+   - **One row per cluster.** Group by CH `(classification_category, classification_subcategory, booking_step, main_group_error, sub_group_error, error_message)` tuple (or the subset that yields a readable grouping); normalize `error_message` if it embeds offer IDs / prices.
+   - **`Cause`** is the business translation ("Supplier rejected as duplicate booking", "Fare increased past loss-limit between search and book", "NDC offer not suitable on price-verification (TK NDC)"). No supplier strings in `Cause`.
+   - **`Verdict`** by share of the bookability-failure bucket: `> 50 %` → `CRITICAL`, `15–50 %` → `DEGRADED`, `< 15 %` → `INFO`. Misclassification clusters that meaningfully shift the headline rate ship `CRITICAL` regardless of share. Payment-only clusters that survived the (B)-only filter ship as `INFO` with the `Supplier verbatim` cell explaining "excluded from bookability rate" and stating which payment cluster they originally came from.
+   - **`Sessions over the window`** = one number, with the per-day split when relevant ("624 sessions — 54 % of bookability failures").
+   - **`Supplier verbatim`** = the actual `Response` / `Error-Data` body from `debug_logs` for one anchor session per cluster. Quote it. CH alone is not sufficient — wrappers like `Failed to reprice` hide `NDC-1454 SHOPPING_OFFER_NOT_SUITABLE`, and `Virtual card merchant fare statement items failed` hides a post-Sale fare-increase reversal. Always pull Mongo for at least one session per cluster.
+   - **`ClickHouse SQL`** = inline-backticked grouping query that produces the count.
+   - **`Sample session`** = `debug_logs` permalink that lands on the exact log entry whose verbatim text appears in `Supplier verbatim`. Canonical shape — pin this host, do not swap to `flighthub.com` / `justfly.com`: `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>`. ResPro is shared across brands and `voyagesalacarte.ca` is the canonical ResPro host. To get the `_id`, query Mongo for the cluster's anchor session filtered to the supplier-error context (`Downtowntravel::BookFlight::Error`, `loss-limit-fare-increase`, etc. — full cheat-sheet in [`standard_bookability_report.md`](standard_bookability_report.md#supplier-error-context-cheat-sheet)) and copy the `$oid` of the returned document. The log-group root alone (no `#<_id>`) is **not** a sample session.
+
+A worked report matching this two-table shape (Downtowntravel, three clusters, classification-mismatch row, uncorrelated row) lives in [`report_format.md`](report_format.md) § *Worked example 3 — Deep bookability / similar-errors report*. Match its row mix.
 
 ### Reclassification notes
 
@@ -182,7 +190,4 @@ For sharable counts and permalink arrays per signature, use the harvest aggregat
 
 ## Formatting the output for Trello
 
-If the similar-errors report is going on a Content Integration card, follow
-[`trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md) — `⊙ Summary` +
-`⊙ Numbers/ quantity/ Examples:` with `some examples` permalink lines and `mongo_query:` fenced
-blocks per signature. Do not restate those conventions here.
+The findings table from [`report_format.md`](report_format.md) is the **source**. When the same findings post on a Content Integration card, the formatter in [`../../trello_assistant/SKILL.md`](../../trello_assistant/SKILL.md) reshapes the table into `⊙ Summary` + `⊙ Numbers/quantity/Examples` with `some examples` permalink lines and `mongo_query:` fenced blocks per signature. Build the canonical table first; reshape from it. Do not skip the table and write Trello-shaped output directly — the table is the audit trail and the Trello card is the redistribution.
