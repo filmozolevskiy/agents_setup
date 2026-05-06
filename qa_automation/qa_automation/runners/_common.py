@@ -88,6 +88,8 @@ def list_screenshots(scenario_dir: Path) -> list[str]:
 # ---------- JSON I/O ----------
 
 def _coerce(obj: Any) -> Any:
+    from decimal import Decimal
+
     if is_dataclass(obj) and not isinstance(obj, type):
         return {k: _coerce(v) for k, v in asdict(obj).items()}
     if isinstance(obj, Path):
@@ -100,6 +102,10 @@ def _coerce(obj: Any) -> Any:
         return obj.isoformat()
     if isinstance(obj, dt.date):
         return obj.isoformat()
+    if isinstance(obj, Decimal):
+        # Serialize as a JSON string to preserve exact precision; agents and
+        # tests can convert back via ``Decimal(s)``.
+        return str(obj)
     if isinstance(obj, (set, tuple)):
         return [_coerce(v) for v in obj]
     if isinstance(obj, dict):
