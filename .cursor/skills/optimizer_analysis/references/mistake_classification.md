@@ -24,7 +24,7 @@ reclassify.
 
 **When the Mongo payload is not readable** (the common case — `meta.*`
 fields are placeholders; see
-[`../../../../db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#meta-payloads-are-placeholders)),
+[`../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#meta-payloads-are-placeholders)),
 fall back to the **attempt's anchor candidate** as the ground truth for
 "what the Optimizer was matching to" (see *Anchor candidate* below).
 
@@ -358,9 +358,9 @@ for the full list and the override phrase.
   itself an anomaly — record it as `NO_ANCHOR` under MISSED rather than
   trying to reconcile reprice variants in isolation.
 
-## When to escalate to `table_analysis`
+## When to escalate to `db_access`
 
 If the supplier payload (when readable) exposes a field whose semantics
 are unclear (e.g. a supplier-specific score), stop the reconciliation and
-hand off to [`../../table_analysis/SKILL.md`](../../table_analysis/SKILL.md) —
+hand off to [`../../db_access/SKILL.md`](../../db_access/SKILL.md) —
 do not invent a mapping.

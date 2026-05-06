@@ -100,7 +100,7 @@ checkout URL embeds it as `/checkout/billing/flight/<TX>/<package_id>`)
 or from `qa-book`'s JSON output, then run:
 
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id":{"$in":["TX1","TX2","TX3"]},
              "context":{"$in":["post-air-booker",
                                "handling-booking-exception",

@@ -1,36 +1,46 @@
 ---
-name: table-analysis
+name: db-access
 description: >-
-  Find and document ClickHouse, MySQL, or MongoDB tables and collections.
-  Use when the user names a table or collection and wants its purpose, columns,
-  or docs under `db-docs/`; when the user needs data but `db-docs/` does not cover
-  the right table; or for any question like "which table has", "find table",
-  "what table stores", "document the X table", "what does this table do",
-  "explore tables", "check database", "search database". Handles both the
-  exploration side (shortlist candidates from schema + samples) and the
-  documentation side (save a reference doc under `db-docs/`). Works for
-  ClickHouse (`scripts/clickhouse_query.py`), MySQL (`scripts/mysql_query.py`),
-  and MongoDB (`scripts/mongo_query.py`). Other skills (e.g. `bookability_analysis`,
-  `optimizer_analysis`) may invoke this when no documented table matches the
-  question.
+  Shared database infrastructure for ClickHouse, MySQL, and MongoDB. Owns the
+  query CLIs, the schema / collection docs, and the Mongo query mechanics.
+  Load this skill whenever any task needs to query a database, when the user
+  names a table or collection and wants its purpose, columns, or docs; when
+  the user needs data but no documented table fits; or for any question like
+  "which table has", "find table", "what table stores", "document the X
+  table", "what does this table do", "explore tables", "check database",
+  "search database". Other skills (`bookability_analysis`,
+  `optimizer_analysis`, `qa_automation`) load this skill's `## DB foundations`
+  section first before issuing any query.
 ---
 
-# Table Analysis Skill
+# Database Access Skill
+
+All paths in this skill are repo-root absolute (e.g. `.cursor/skills/db_access/scripts/clickhouse_query.py`, `.cursor/skills/db_access/db-docs/mysql/<table>.md`) so shell commands work from repo-root `cwd`. When this SKILL.md uses bare `scripts/` or `db-docs/` in prose, it means the skill's own `scripts/` and `db-docs/` subfolders.
 
 Two entry points, one skill:
 
 - **Explore** — the user needs data but does not know which table holds it. Shortlist candidates, pick the best, then document.
-- **Document** — the user names a table or collection. Inspect structure and sample data, infer purpose, save docs under `db-docs/`.
+- **Document** — the user names a table or collection. Inspect structure and sample data, infer purpose, save docs under `.cursor/skills/db_access/db-docs/`.
 
 When exploration finds a good candidate, continue straight into documentation. Do not hand off or re-enter the skill.
+
+## DB foundations
+
+These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability_analysis`, `optimizer_analysis`, `qa_automation`) inherit them and layer their own query discipline on top.
+
+- **Database CLIs only.** Query MySQL, ClickHouse, and MongoDB only via `.cursor/skills/db_access/scripts/mysql_query.py`, `.cursor/skills/db_access/scripts/clickhouse_query.py`, `.cursor/skills/db_access/scripts/mongo_query.py`. Load `.env` once per session: `set -a && source .env && set +a`. Never invent connection strings, hostnames, or credentials — they come from `.env` via these CLIs. The `## Tooling` section below lists the env vars each CLI needs.
+- **`.cursor/skills/db_access/db-docs/` first.** Before querying a table or collection, look it up under `.cursor/skills/db_access/db-docs/clickhouse/`, `.cursor/skills/db_access/db-docs/mysql/`, or `.cursor/skills/db_access/db-docs/mongodb/`. If undocumented, say so and offer to document it via this skill (template in `.cursor/skills/db_access/db-docs/README.md`). The same rule lives as step `### 2. Check .cursor/skills/db_access/db-docs/ first` inside the Explore workflow below.
+- **Document durable facts.** When you confirm a stable per-table behavior, content-source quirk, or supplier evidence pattern during an investigation, append it to the matching `.cursor/skills/db_access/db-docs/<store>/<table>.md`. Skill `references/` files capture investigation patterns; `.cursor/skills/db_access/db-docs/` captures what the data means. Investigation-time learnings come back here, not into chat-only output.
+- **Ask before guessing the table.** If the user names a metric without naming a table, run the Explore entry point (or scan `.cursor/skills/db_access/db-docs/`) before querying. Do not infer the table from the metric name.
+- **Mongo query mechanics.** When the task touches `ota.debug_logs` or `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filtering, when to switch to mongosh / Compass / pymongo, no-unbounded-scans), load [`references/mongodb_query_mechanics.md`](references/mongodb_query_mechanics.md). The Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) reference the same file directly.
 
 ## Tooling
 
 | Engine     | Script                         | Env vars |
 |------------|--------------------------------|----------|
-| ClickHouse | `scripts/clickhouse_query.py`  | `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DATABASE` |
-| MySQL      | `scripts/mysql_query.py`       | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` |
-| MongoDB    | `scripts/mongo_query.py`       | `MONGODB_URI`, optional `MONGODB_DATABASE` |
+| ClickHouse | `.cursor/skills/db_access/scripts/clickhouse_query.py`  | `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_DATABASE` |
+| MySQL      | `.cursor/skills/db_access/scripts/mysql_query.py`       | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` |
+| MongoDB    | `.cursor/skills/db_access/scripts/mongo_query.py`       | `MONGODB_URI`, optional `MONGODB_DATABASE` |
 
 ClickHouse and MySQL share `tables`, `describe`, `query`. ClickHouse also has `batch` (date-chunked with `{start}` / `{end}`) — use only when sampling or aggregating would time out. MongoDB uses `collections`, `describe` (indexes, estimated count, sample docs), `find` (filter / sort / limit; default limit 100), and `aggregate` (pipeline as JSON array). No SQL `query` on Mongo.
 
@@ -49,7 +59,7 @@ If the engine is not specified, default to ClickHouse. Use MySQL or MongoDB if t
 
 ## Explore
 
-Goal: find which table or collection holds a given concept. Use when `db-docs/` does not already answer.
+Goal: find which table or collection holds a given concept. Use when `.cursor/skills/db_access/db-docs/` does not already answer.
 
 ### 1. Parse the data need
 
@@ -60,9 +70,9 @@ Extract:
 
 If the concept is ambiguous, ask one clarifying question before searching.
 
-### 2. Check `db-docs/` first
+### 2. Check `.cursor/skills/db_access/db-docs/` first
 
-Read files under `db-docs/clickhouse/`, `db-docs/mysql/`, `db-docs/mongodb/`.
+Read files under `.cursor/skills/db_access/db-docs/clickhouse/`, `.cursor/skills/db_access/db-docs/mysql/`, `.cursor/skills/db_access/db-docs/mongodb/`.
 
 - **Full match** → report the table, stop.
 - **Partial match** → note it (e.g. "revenue table has booking IDs but not block reasons") and keep looking.
@@ -88,19 +98,19 @@ If the user is unsure:
 
 ```bash
 # ClickHouse
-python3 scripts/clickhouse_query.py tables [database]
-python3 scripts/clickhouse_query.py describe <table> [database]
-python3 scripts/clickhouse_query.py query "SELECT ... LIMIT 20"
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py tables [database]
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py describe <table> [database]
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py query "SELECT ... LIMIT 20"
 
 # MySQL
-python3 scripts/mysql_query.py tables [database]
-python3 scripts/mysql_query.py describe <table> [database]
-python3 scripts/mysql_query.py query "SELECT ... LIMIT 20"
+python3 .cursor/skills/db_access/scripts/mysql_query.py tables [database]
+python3 .cursor/skills/db_access/scripts/mysql_query.py describe <table> [database]
+python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT ... LIMIT 20"
 
 # MongoDB (collections = listing tables)
-python3 scripts/mongo_query.py collections [database]
-python3 scripts/mongo_query.py describe <collection> [database] --sample 3
-python3 scripts/mongo_query.py find <collection> [database] --limit 20
+python3 .cursor/skills/db_access/scripts/mongo_query.py collections [database]
+python3 .cursor/skills/db_access/scripts/mongo_query.py describe <collection> [database] --sample 3
+python3 .cursor/skills/db_access/scripts/mongo_query.py find <collection> [database] --limit 20
 ```
 
 #### 4a. List all tables or collections
@@ -183,7 +193,7 @@ The summary lets the calling skill (e.g. `bookability_analysis`) or the user con
 
 ### Exploration rules
 
-- Check `db-docs/` first. Do not re-explore documented territory.
+- Check `.cursor/skills/db_access/db-docs/` first. Do not re-explore documented territory.
 - Sample candidates in parallel.
 - Do not over-explore. If a high-confidence candidate shows up early, present it.
 - Column search beats name search. Table names mislead; `system.columns` / `information_schema.COLUMNS` finds what names miss.
@@ -202,9 +212,9 @@ Table or collection name, optionally a database. If no database is given, use th
 Optional discovery when the table name is unknown or uncertain:
 
 ```bash
-python3 scripts/clickhouse_query.py tables [database]
-python3 scripts/mysql_query.py tables [database]
-python3 scripts/mongo_query.py collections [database]
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py tables [database]
+python3 .cursor/skills/db_access/scripts/mysql_query.py tables [database]
+python3 .cursor/skills/db_access/scripts/mongo_query.py collections [database]
 ```
 
 ### 1. Describe the table
@@ -212,19 +222,19 @@ python3 scripts/mongo_query.py collections [database]
 **ClickHouse** — columns, types, default kinds, comments:
 
 ```bash
-python3 scripts/clickhouse_query.py describe <table> [database]
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py describe <table> [database]
 ```
 
 **MySQL** — columns, types, key (PRI/UNI/MUL), default, extra (e.g. `auto_increment`):
 
 ```bash
-python3 scripts/mysql_query.py describe <table> [database]
+python3 .cursor/skills/db_access/scripts/mysql_query.py describe <table> [database]
 ```
 
 **MongoDB** — indexes, estimated document count, random sample docs (default `--sample 3`):
 
 ```bash
-python3 scripts/mongo_query.py describe <collection> [database] [--sample N]
+python3 .cursor/skills/db_access/scripts/mongo_query.py describe <collection> [database] [--sample N]
 ```
 
 MongoDB has no column catalog. Infer fields from `describe` samples and the larger sample in Step 2.
@@ -246,13 +256,13 @@ Use `ORDER BY <sort_column> DESC` (add `NULLS LAST` on ClickHouse when the colum
 **ClickHouse:**
 
 ```bash
-python3 scripts/clickhouse_query.py query "SELECT * FROM [database.]<table> ORDER BY <sort_column> DESC NULLS LAST LIMIT 100"
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py query "SELECT * FROM [database.]<table> ORDER BY <sort_column> DESC NULLS LAST LIMIT 100"
 ```
 
 **MySQL** (with `MYSQL_DATABASE` set, a bare table name works; otherwise `database.table`; wrap reserved words in backticks):
 
 ```bash
-python3 scripts/mysql_query.py query "SELECT * FROM <table> ORDER BY <sort_column> DESC LIMIT 100"
+python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT * FROM <table> ORDER BY <sort_column> DESC LIMIT 100"
 ```
 
 MySQL sorts NULLs first on `DESC`. If that hides real rows:
@@ -261,13 +271,13 @@ MySQL sorts NULLs first on `DESC`. If that hides real rows:
 **MongoDB** — `find` defaults to `--limit 100`. Sort is JSON (`-1` = descending). Use `--json` for Extended JSON (ObjectIds, dates).
 
 ```bash
-python3 scripts/mongo_query.py find <collection> [database] --sort '{"<sort_field>": -1}' --limit 100
+python3 .cursor/skills/db_access/scripts/mongo_query.py find <collection> [database] --sort '{"<sort_field>": -1}' --limit 100
 ```
 
 Add `--filter '{"field": "value"}'` for a subset. For ad hoc analytics use `aggregate`:
 
 ```bash
-python3 scripts/mongo_query.py aggregate <collection> '[{"$match": {...}}, {"$limit": 20}]' [database]
+python3 .cursor/skills/db_access/scripts/mongo_query.py aggregate <collection> '[{"$match": {...}}, {"$limit": 20}]' [database]
 ```
 
 `aggregate` filters are JSON-only (no `ISODate` in the shell string). For date-bounded pipelines on large collections, use mongosh, Compass, or pymongo.
@@ -281,13 +291,13 @@ Watch for: value patterns, NULLs, data freshness, status/flag columns, business 
 **ClickHouse:**
 
 ```bash
-python3 scripts/clickhouse_query.py query "SELECT engine, total_rows, formatReadableSize(total_bytes) AS size FROM system.tables WHERE database = '<database>' AND name = '<table>'"
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py query "SELECT engine, total_rows, formatReadableSize(total_bytes) AS size FROM system.tables WHERE database = '<database>' AND name = '<table>'"
 ```
 
 **MySQL:**
 
 ```bash
-python3 scripts/mysql_query.py query "SELECT ENGINE AS engine, TABLE_ROWS AS total_rows, CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') AS size FROM information_schema.TABLES WHERE TABLE_SCHEMA = '<database>' AND TABLE_NAME = '<table>'"
+python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT ENGINE AS engine, TABLE_ROWS AS total_rows, CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') AS size FROM information_schema.TABLES WHERE TABLE_SCHEMA = '<database>' AND TABLE_NAME = '<table>'"
 ```
 
 For InnoDB, `TABLE_ROWS` in `information_schema` is an estimate. Say so in the doc if you rely on it. For an exact count: `SELECT COUNT(*) FROM <table>` (may be expensive).
@@ -352,14 +362,14 @@ Show the draft. Ask:
 
 Apply feedback before saving.
 
-### 6. Save to `db-docs/`
+### 6. Save to `.cursor/skills/db_access/db-docs/`
 
 Save under the engine matching the script used:
 
-- `scripts/clickhouse_query.py` → `db-docs/clickhouse/<table_name>.md`
-- `scripts/mysql_query.py` → `db-docs/mysql/<table_name>.md`
-- `scripts/mongo_query.py` → `db-docs/mongodb/<collection_name>.md`
+- `.cursor/skills/db_access/scripts/clickhouse_query.py` → `.cursor/skills/db_access/db-docs/clickhouse/<table_name>.md`
+- `.cursor/skills/db_access/scripts/mysql_query.py` → `.cursor/skills/db_access/db-docs/mysql/<table_name>.md`
+- `.cursor/skills/db_access/scripts/mongo_query.py` → `.cursor/skills/db_access/db-docs/mongodb/<collection_name>.md`
 
-Default to `db-docs/clickhouse/` unless the user specified MySQL, MongoDB, or exploration used `mysql_query.py` / `mongo_query.py`.
+Default to `.cursor/skills/db_access/db-docs/clickhouse/` unless the user specified MySQL, MongoDB, or exploration used `mysql_query.py` / `mongo_query.py`.
 
 Filename: table or collection name, lowercase, as-is. After saving, tell the user the path.

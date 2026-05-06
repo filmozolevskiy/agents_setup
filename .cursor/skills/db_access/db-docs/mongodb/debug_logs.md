@@ -4,7 +4,7 @@
 
 **Purpose:** General debug and error logs from various OTA (Online Travel Agency) processes, capturing transaction context, fare families, and server metadata.
 
-This document also holds **investigation context** for this collection: where else to look, glossary terms, and **verified** per–content-source log hints. Append stable facts here when you confirm them; **query behavior and filters** are in `.cursor/rules/mongodb.md`.
+This document also holds **investigation context** for this collection: where else to look, glossary terms, and **verified** per–content-source log hints. Append stable facts here when you confirm them; **query behavior and filters** are in `.cursor/skills/db_access/references/mongodb_query_mechanics.md`.
 
 ---
 
@@ -16,7 +16,7 @@ This document also holds **investigation context** for this collection: where el
 
 - After you confirm something **reusable** and **stable**: log filters, service names, glossary entries, per–content-source rows in the hints table.
 - Do **not** use this file as a scratchpad for one-off hypotheses. Prefer short factual bullets.
-- If a fact belongs in `**db-docs/**` for another table/collection, **link there** instead of pasting schema detail.
+- If a fact belongs in `**.cursor/skills/db_access/db-docs/**` for another table/collection, **link there** instead of pasting schema detail.
 - **How to edit:** append or small patches; correct wrong lines with a brief date in the changelog if useful.
 
 ---
@@ -61,10 +61,10 @@ This document also holds **investigation context** for this collection: where el
 
 | Need                                                  | Where                                                                                            |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Table/collection purpose & columns (other stores)     | `db-docs/` and `scripts/mysql_query.py`, `scripts/mongo_query.py`, `scripts/clickhouse_query.py` |
+| Table/collection purpose & columns (other stores)     | `.cursor/skills/db_access/db-docs/` and `.cursor/skills/db_access/scripts/mysql_query.py`, `.cursor/skills/db_access/scripts/mongo_query.py`, `.cursor/skills/db_access/scripts/clickhouse_query.py` |
 | Bookability SQL workflow                              | `.cursor/skills/bookability_analysis/references/standard_bookability_report.md`                  |
-| MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/rules/mongodb.md`                                                                       |
-| Optimizer-only repricing logs                         | `db-docs/mongodb/optimizer_logs.md`                                                              |
+| MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/skills/db_access/references/mongodb_query_mechanics.md`                            |
+| Optimizer-only repricing logs                         | `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`                                                              |
 
 
 ---

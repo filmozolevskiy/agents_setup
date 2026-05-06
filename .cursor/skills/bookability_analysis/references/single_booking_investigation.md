@@ -29,18 +29,18 @@ Query `ota.debug_logs` for the `transaction_id`. **Do not** filter by `context` 
 point is to see the whole picture.
 
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id": "YOUR_HASH"}' \
   --sort '{"date_added": 1}' \
   --limit 2000 \
   --json
 ```
 
-(Load `.env` first per `.cursor/rules/global_setup.md`.)
+(Load `.env` first: `set -a && source .env && set +a`. See `CLAUDE.md` § Database Access.)
 
 ### 3. Identify key stages
 
-Use the markers in `db-docs/mongodb/debug_logs.md` to segment the logs:
+Use the markers in `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` to segment the logs:
 
 - **Checkout:** `checkout-deeplink`, `pre-checkout`
 - **Availability:** `Check Availability` scope

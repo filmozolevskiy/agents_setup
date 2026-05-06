@@ -6,8 +6,8 @@ Checks performed for skill <name>:
 1. `.cursor/skills/<name>/SKILL.md` exists, parses YAML frontmatter, has a
    `name:` (kebab-case) and a `description:` that starts with "Use when".
 2. `.claude/commands/<name>.md` exists and points at the SKILL.md.
-3. `CLAUDE.md` § Skill routing contains a row for the skill.
-4. `.cursor/rules/global_setup.md` § Skill routing contains a row for the
+3. `CLAUDE.md` § Skills Index contains a row for the skill.
+4. `.cursor/rules/rules.mdc` § Skills Index contains a row for the
    skill.
 
 Usage::
@@ -132,11 +132,11 @@ def lint(name: str) -> list[str]:
             f"(add to § Skill routing)"
         )
 
-    rules_md = _read(REPO_ROOT / ".cursor" / "rules" / "global_setup.md") or ""
+    rules_md = _read(REPO_ROOT / ".cursor" / "rules" / "rules.mdc") or ""
     if name not in rules_md:
         failures.append(
-            f".cursor/rules/global_setup.md: no routing row mentioning "
-            f"`{name}` (add to § Skill routing)"
+            f".cursor/rules/rules.mdc: no routing row mentioning "
+            f"`{name}` (add to § Skills Index)"
         )
 
     return failures

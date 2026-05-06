@@ -18,7 +18,7 @@ than inventing a rule.
 
 ## `mysql.bookings` (one row)
 
-Background: [`db-docs/mysql/bookings.md`](../../../../db-docs/mysql/bookings.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/bookings.md`](../../../../.cursor/skills/db_access/db-docs/mysql/bookings.md).
 
 | Field | Expected right after `qa-book` | Notes |
 |---|---|---|
@@ -35,7 +35,7 @@ Background: [`db-docs/mysql/bookings.md`](../../../../db-docs/mysql/bookings.md)
 
 ## `mysql.booking_contestants` (list)
 
-Background: [`db-docs/mysql/booking_contestants.md`](../../../../db-docs/mysql/booking_contestants.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/booking_contestants.md`](../../../../.cursor/skills/db_access/db-docs/mysql/booking_contestants.md).
 
 - **PASS**: at least one row for `booking_id`, with `content_source` matching
   `bookings.content_source`.
@@ -46,7 +46,7 @@ Background: [`db-docs/mysql/booking_contestants.md`](../../../../db-docs/mysql/b
 
 ## `mysql.booking_passengers` (list)
 
-Background: [`db-docs/mysql/booking_passengers.md`](../../../../db-docs/mysql/booking_passengers.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/booking_passengers.md`](../../../../.cursor/skills/db_access/db-docs/mysql/booking_passengers.md).
 
 - **PASS**: count matches `adt + chd + inf` passed to `qa-search`.
 - **FAIL**: off-by-one or missing passenger type.
@@ -55,7 +55,7 @@ Background: [`db-docs/mysql/booking_passengers.md`](../../../../db-docs/mysql/bo
 
 ## `mysql.booking_segments` (list)
 
-Background: [`db-docs/mysql/booking_segments.md`](../../../../db-docs/mysql/booking_segments.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/booking_segments.md`](../../../../.cursor/skills/db_access/db-docs/mysql/booking_segments.md).
 
 - **PASS**: at least one segment per leg (1 for oneway, 2+ for roundtrip), and
   origin/destination of the first segment match what `qa-search` asked for.
@@ -68,7 +68,7 @@ Background: [`db-docs/mysql/booking_segments.md`](../../../../db-docs/mysql/book
 
 ## `mysql.booking_statement_items` (list)
 
-Background: [`db-docs/mysql/booking_statement_items.md`](../../../../db-docs/mysql/booking_statement_items.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/booking_statement_items.md`](../../../../.cursor/skills/db_access/db-docs/mysql/booking_statement_items.md).
 
 - **PASS**: at least one row. Sum of signed amounts approximates the displayed
   total from `qa-book` (`total_shown_at_checkout`).
@@ -78,7 +78,7 @@ Background: [`db-docs/mysql/booking_statement_items.md`](../../../../db-docs/mys
 
 ## `mysql.booking_tasks` (list)
 
-Background: [`db-docs/mysql/booking_tasks.md`](../../../../db-docs/mysql/booking_tasks.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/booking_tasks.md`](../../../../.cursor/skills/db_access/db-docs/mysql/booking_tasks.md).
 
 - Informational. Look for `task_type = 'book'` rows with `status = 'done'`.
 - `status = 'failed'` is a **FAIL** signal even if the portal said
@@ -88,7 +88,7 @@ Background: [`db-docs/mysql/booking_tasks.md`](../../../../db-docs/mysql/booking
 
 ## `mysql.bookability_contestant_attempts_for_search`
 
-Background: [`db-docs/mysql/bookability_contestant_attempts.md`](../../../../db-docs/mysql/bookability_contestant_attempts.md).
+Background: [`.cursor/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md`](../../../../.cursor/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md).
 
 - **PASS**: at least one row with `state` indicating a successful book
   (e.g. `completed`, `succeeded`; reconcile with db-doc wording).
@@ -109,7 +109,7 @@ Background: see `bookability_analysis` skill and its ClickHouse references.
 
 ## `clickhouse.search_telemetry_rows` (`search_api_stats.gds_raw`)
 
-Background: [`db-docs/clickhouse/search_api_stats_gds_raw.md`](../../../../db-docs/clickhouse/search_api_stats_gds_raw.md).
+Background: [`.cursor/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md`](../../../../.cursor/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md).
 
 `qa-validate` emits the raw `gds_raw` rows for this `search_id`, clipped by
 `search_telemetry_window_hours` (default 24). The checklist is:

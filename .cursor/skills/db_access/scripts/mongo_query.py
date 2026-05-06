@@ -2,11 +2,11 @@
 """CLI tool for querying MongoDB. Used by Claude Code skills.
 
 Usage:
-    python scripts/mongo_query.py collections [database]
-    python scripts/mongo_query.py describe <collection> [database]
-    python scripts/mongo_query.py find <collection> [--filter JSON] [--projection JSON]
+    python .cursor/skills/db_access/scripts/mongo_query.py collections [database]
+    python .cursor/skills/db_access/scripts/mongo_query.py describe <collection> [database]
+    python .cursor/skills/db_access/scripts/mongo_query.py find <collection> [--filter JSON] [--projection JSON]
         [--sort JSON] [--limit N] [--json]
-    python scripts/mongo_query.py aggregate <collection> '<pipeline-json-array>' [--json]
+    python .cursor/skills/db_access/scripts/mongo_query.py aggregate <collection> '<pipeline-json-array>' [--json]
 
 Credentials are read from environment variables:
     MONGODB_URI — connection string (e.g. from MongoDB Compass export)

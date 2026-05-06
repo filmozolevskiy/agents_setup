@@ -2,10 +2,10 @@
 
 Parameterized, index-friendly variants of the canonical contestants-with-tags
 query. Pick the template that matches the user's input, replace `{placeholders}`,
-and run via `scripts/mysql_query.py`:
+and run via `.cursor/skills/db_access/scripts/mysql_query.py`:
 
 ```bash
-set -a && source .env && set +a && python3 scripts/mysql_query.py query "<SQL>"
+set -a && source .env && set +a && python3 .cursor/skills/db_access/scripts/mysql_query.py query "<SQL>"
 ```
 
 All templates share the same two-CTE shape (`base` → `tags_agg`). Only the
@@ -16,14 +16,14 @@ unbounded.
 ## Mandatory guardrails
 
 - **Always bound `oc.created_at`.** `optimizer_candidates` is ~45M rows (see
-  [`db-docs/mysql/optimizer_candidates.md`](../../../../db-docs/mysql/optimizer_candidates.md)).
+  [`.cursor/skills/db_access/db-docs/mysql/optimizer_candidates.md`](../../../../.cursor/skills/db_access/db-docs/mysql/optimizer_candidates.md)).
   Even when filtering by `attempt_id` the `created_at` bound is a cheap
   safety net.
 - **Keep `tags_agg` scoped to the narrow `base` CTE.** Do not join
   `optimizer_candidate_tags` in the main `SELECT`; it inflates row count and
   breaks index usage.
 - **Do not fetch `oa.package`** unless the user explicitly asks — it is a
-  large JSON blob (see `db-docs/mysql/optimizer_attempts.md`).
+  large JSON blob (see `.cursor/skills/db_access/db-docs/mysql/optimizer_attempts.md`).
 - **Exclude routine policy filtering by default.** Drop
   `Exception` values matching `Blocked by Supplier Rules%` (and siblings
   — see [`SKILL.md` → Default scope](../SKILL.md#default-scope--routine-policy-exclusions))
@@ -49,7 +49,7 @@ Stable tag names currently handled below:
 - `Risky` — boolean presence.
 
 If a new stable tag surfaces during an investigation, extend this list and
-update [`db-docs/mysql/optimizer_tags.md`](../../../../db-docs/mysql/optimizer_tags.md).
+update [`.cursor/skills/db_access/db-docs/mysql/optimizer_tags.md`](../../../../.cursor/skills/db_access/db-docs/mysql/optimizer_tags.md).
 A full `tag_pairs` dump is included as a `-- debug` line for first-run
 troubleshooting; comment it in only when the named columns are insufficient.
 
@@ -174,7 +174,7 @@ Replace the `WHERE` clause on `base`:
 
 For the date window pick a conservative range around
 `bookings.date_created` (e.g. 24h before to 24h after) — the booking row
-itself lives in [`db-docs/mysql/bookings.md`](../../../../db-docs/mysql/bookings.md).
+itself lives in [`.cursor/skills/db_access/db-docs/mysql/bookings.md`](../../../../.cursor/skills/db_access/db-docs/mysql/bookings.md).
 
 ## Template: `by_gds_window`
 

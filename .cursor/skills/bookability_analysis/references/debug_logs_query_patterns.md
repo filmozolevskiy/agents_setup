@@ -2,11 +2,11 @@
 
 Shared reference for both the single-booking flow investigation and the deep bookability analysis.
 For raw query mechanics (collection choice, `transaction_id` / `context` filtering, JSON-only CLI
-limitation), see [`.cursor/rules/mongodb.md`](../../../rules/mongodb.md). For permalink harvest
+limitation), see [`../../db_access/references/mongodb_query_mechanics.md`](../../db_access/references/mongodb_query_mechanics.md). For permalink harvest
 pipelines, see [`harvest_permalinks.md`](harvest_permalinks.md).
 
 **Before reaching for Mongo:** check
-[`db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../../db-docs/clickhouse/jupiter_booking_errors_v2.md).
+[`.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../../.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md).
 CH already carries the supplier `error_message`, `booking_step`, and a classification for the
 booking-failure path. Query Mongo when you need the raw request / response body, chronological
 flow for one `transaction_id`, or a field CH does not capture (full NDC payload, 3DS / Payhub
@@ -30,7 +30,7 @@ Use patterns that stay **index-friendly** and match **where the text actually li
    `.` in the pattern (`unique\.`) unless you intentionally want "any character".
 5. **Counts:** reuse the same filter as a single `$match` (or `countDocuments`) and add `{
    "$count": "n" }` in aggregation.
-6. **Tools:** `scripts/mongo_query.py` takes **JSON only** — no `ISODate(...)` in the pipeline
+6. **Tools:** `.cursor/skills/db_access/scripts/mongo_query.py` takes **JSON only** — no `ISODate(...)` in the pipeline
    string. For date-bounded aggregations, use **mongosh**, **MongoDB Compass**, or a **small
    Python** script with `pymongo` + `datetime` after `source .env` (same env vars as the CLI).
 

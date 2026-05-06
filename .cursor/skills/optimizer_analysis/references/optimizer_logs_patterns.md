@@ -3,7 +3,7 @@
 How to reliably pull the supplier-side fare payload from MongoDB
 `ota.optimizer_logs` and reconcile it with MySQL candidates. For core Mongo
 safety rules (JSON-only CLI, no `ISODate(...)` in pipelines, which collection
-to use when) read [`.cursor/rules/mongodb.md`](../../../rules/mongodb.md)
+to use when) read [`../../db_access/references/mongodb_query_mechanics.md`](../../db_access/references/mongodb_query_mechanics.md)
 first.
 
 ## Join key
@@ -11,10 +11,10 @@ first.
 **`optimizer_logs.transaction_id` ↔ `optimizer_attempts.search_id`** —
 confirmed 2026-04-21 on DTT reprice traffic. Same convention as
 `debug_logs.transaction_id` ↔ MySQL `search_hash`
-([`db-docs/mongodb/debug_logs.md`](../../../../db-docs/mongodb/debug_logs.md)).
+([`.cursor/skills/db_access/db-docs/mongodb/debug_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/debug_logs.md)).
 
 If a new content source ever uses a different mapping (e.g. `checkout_id`),
-update this file and [`db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md)
+update this file and [`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md)
 immediately — do not silently adapt the query.
 
 ## Canonical queries
@@ -28,7 +28,7 @@ set -a && source .env && set +a
 ### Single transaction (confirm shape, spot-check)
 
 ```bash
-python3 scripts/mongo_query.py find optimizer_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find optimizer_logs ota \
   --filter '{"transaction_id": "YOUR_SEARCH_ID"}' \
   --sort '{"date_added": -1}' \
   --limit 50 \
@@ -45,7 +45,7 @@ Use this to:
 ### Batch — many transactions (Workflow B)
 
 ```bash
-python3 scripts/mongo_query.py find optimizer_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find optimizer_logs ota \
   --filter '{"transaction_id": {"$in": ["SEARCH_ID_1", "SEARCH_ID_2", "..."]}, "context": {"$regex": "<integration_or_step>", "$options": "i"}}' \
   --sort '{"date_added": -1}' \
   --limit 500 \
@@ -64,7 +64,7 @@ python3 scripts/mongo_query.py find optimizer_logs ota \
 If `fares` is large and you only need a subset for reconciliation:
 
 ```bash
-python3 scripts/mongo_query.py find optimizer_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find optimizer_logs ota \
   --filter '{"transaction_id": "YOUR_SEARCH_ID"}' \
   --projection '{"_id": 1, "transaction_id": 1, "context": 1, "date_added": 1, "fares": 1}' \
   --limit 10 \
@@ -72,12 +72,12 @@ python3 scripts/mongo_query.py find optimizer_logs ota \
 ```
 
 Adjust `--projection` to narrow to specific `fares` sub-paths once you have
-confirmed them. `scripts/mongo_query.py` accepts standard Mongo projection
+confirmed them. `.cursor/skills/db_access/scripts/mongo_query.py` accepts standard Mongo projection
 syntax, so nested paths like `"fares.total": 1` also work.
 
 ### Date-bounded aggregations
 
-`scripts/mongo_query.py` does not accept `ISODate(...)` inside a JSON
+`.cursor/skills/db_access/scripts/mongo_query.py` does not accept `ISODate(...)` inside a JSON
 pipeline string (same limitation as for `debug_logs`). For date-bounded
 aggregations — e.g. "count matching signatures in the last 7 days" — use
 **mongosh**, **MongoDB Compass**, or a **short `pymongo` script** after
@@ -119,7 +119,7 @@ which one you're looking at before trying to read JSON:
    unififi and pkfare reprice traffic 2026-04-22.
 
    Read them with `json.loads(doc["Response"])` /
-   `json.loads(doc["1"])` from `pymongo` — the `scripts/mongo_query.py find`
+   `json.loads(doc["1"])` from `pymongo` — the `.cursor/skills/db_access/scripts/mongo_query.py find`
    CLI returns them unchanged.
 
    Examples of top-level-content contexts:
@@ -145,7 +145,7 @@ content field (`Response`, `1`, `packages`, …) is a string, try
 need the permalink.
 
 Use the `context` hints table in
-[`db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints)
+[`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints)
 as the primary source of truth; extend it during post-run learning.
 
 ### Multi-ticket operand iteration (mandatory for leak audits)
@@ -196,7 +196,7 @@ Normalize both sides before comparing:
 ### When the payload body is not accessible
 
 For `meta.*` placeholder-shaped contexts (see
-[`optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#meta-payloads-are-placeholders)),
+[`optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#meta-payloads-are-placeholders)),
 fall back to:
 
 - **Structural evidence**: which contexts fired for a `transaction_id`,

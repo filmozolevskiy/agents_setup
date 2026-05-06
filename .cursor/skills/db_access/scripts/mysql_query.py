@@ -2,9 +2,9 @@
 """CLI tool for querying MySQL. Used by Claude Code skills.
 
 Usage:
-    python scripts/mysql_query.py query "SELECT * FROM my_table LIMIT 10"
-    python scripts/mysql_query.py tables [database]
-    python scripts/mysql_query.py describe <table> [database]
+    python .cursor/skills/db_access/scripts/mysql_query.py query "SELECT * FROM my_table LIMIT 10"
+    python .cursor/skills/db_access/scripts/mysql_query.py tables [database]
+    python .cursor/skills/db_access/scripts/mysql_query.py describe <table> [database]
 
 Credentials are read from environment variables:
     MYSQL_HOST, MYSQL_PORT, MYSQL_USER,

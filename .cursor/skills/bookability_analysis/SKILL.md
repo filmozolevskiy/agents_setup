@@ -15,7 +15,16 @@ description: >-
 
 Diagnose why specific fares or bookings cannot be finalized. Every investigation follows one shape: SQL overview first (MySQL rates + ClickHouse failure signatures), then an optional MongoDB deep dive driven by what SQL surfaced.
 
-**Before digging:** read `db-docs/mongodb/debug_logs.md` (investigation sections, glossary, content-source hints) and `db-docs/clickhouse/jupiter_booking_errors_v2.md` (error signature table, classification taxonomy). For raw Mongo query mechanics (`transaction_id` / `context` / `Response` filtering, JSON-only CLI, when to switch to mongosh / Compass / pymongo), load [`.cursor/rules/mongodb.md`](../../rules/mongodb.md). Update the matching doc when you confirm durable observability facts.
+**Before digging:** read `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` (investigation sections, glossary, content-source hints) and `.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md` (error signature table, classification taxonomy). For raw Mongo query mechanics (`transaction_id` / `context` / `Response` filtering, JSON-only CLI, when to switch to mongosh / Compass / pymongo), load [`../db_access/references/mongodb_query_mechanics.md`](../db_access/references/mongodb_query_mechanics.md). Update the matching doc when you confirm durable observability facts.
+
+## Query discipline
+
+These rules apply to every query in this skill — MySQL, ClickHouse, and MongoDB. Skip them and the report stops being trustable.
+
+- **CTE shape (mandatory).** Every MySQL / ClickHouse aggregation or example query starts with a CTE that names the slice once (filters, window, joins). The outer statement is either an aggregate (`COUNT`, `SUM`, rate expression) or an example listing (`ORDER BY … LIMIT N`); include the counterpart as a commented-out outer `SELECT` from the same CTE so reviewers can swap count ↔ examples without re-validating the filter. For Mongo, the leading `$match` plays the same role — name the slice there once, then branch between `$group` aggregation and the permalink projection variants in [`references/harvest_permalinks.md`](references/harvest_permalinks.md).
+- **Reuse denominators.** Do not redefine rate / count / dedup expressions between queries in the same investigation. Pick the existing formula from [`references/standard_bookability_report.md`](references/standard_bookability_report.md) (manual rate, leak rate, contestant success rate) and reuse it. Reviewers cannot trust comparisons across silently re-defined denominators.
+- **State window and timezone.** Every number in the report names its window and timezone. When comparing two periods, name both windows and the timezone in the same line.
+- **No unbounded scans.** Never run `find {}` on `debug_logs` / `optimizer_logs` (rotated window, expensive); never run `SELECT *` without a filter + `LIMIT` against `bookability_*` or `jupiter_booking_errors_v2`. Indexed filters or a tight `date_added` / `created_at` window are mandatory. The same rule lives in `../db_access/references/mongodb_query_mechanics.md` for the Mongo CLI specifically.
 
 ## Data sources and join key
 
@@ -24,7 +33,7 @@ Every workflow uses all three stores. Each has a fixed job — do not substitute
 | Store | Table / collection | What it gives you | What it cannot give you |
 |---|---|---|---|
 | **MySQL** `ota` | `bookability_customer_attempts` ← `bookability_contestant_attempts` ← `bookability_built_contestant` (+ `bookings`) | Denominators (total attempts, successes), **contestant bookability success rate**, **customer recovery rate**, `surfer_id` repeats, multi-ticket `master` / `slave` split, single-booking ID resolution (`booking_id` → `search_hash`). | Real supplier error text. `bconta.error` is a coarse code (e.g. `flight_not_available_other`) — treat as fallback only. |
-| **ClickHouse** `jupiter` | [`jupiter_booking_errors_v2`](../../../db-docs/clickhouse/jupiter_booking_errors_v2.md) | **Failure signatures**: raw `error_message` from supplier or integration, `booking_step`, `main_group_error` / `sub_group_error`, `classification_category` / `subcategory`, validating_carrier, route. Primary source for the § 3 error bucket and the similar-errors groupings. | Success rows, customer attempt grain, `surfer_id`, `booking_id`. Do not compute rates from this table. |
+| **ClickHouse** `jupiter` | [`jupiter_booking_errors_v2`](../../../.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md) | **Failure signatures**: raw `error_message` from supplier or integration, `booking_step`, `main_group_error` / `sub_group_error`, `classification_category` / `subcategory`, validating_carrier, route. Primary source for the § 3 error bucket and the similar-errors groupings. | Success rows, customer attempt grain, `surfer_id`, `booking_id`. Do not compute rates from this table. |
 | **MongoDB** `ota.debug_logs` | OTA debug log for the full flow (search → book → ticket) | Raw request/response payloads, chronological flow for one `transaction_id`, supplier fields not captured by CH (e.g. NDC correlation IDs, full Response bodies). | Cross-source aggregate counts (expensive, rotated window). |
 
 **Join key — one value in three shapes:**
@@ -94,11 +103,11 @@ If the report surfaces a single internal artefact, it is a **path** ("Raw signat
 ## Cross-cutting references
 
 - **Report format** (canonical findings-table columns, verdict vocabulary, voice rules, worked examples per workflow): [`references/report_format.md`](references/report_format.md).
-- **ClickHouse error table** (signature source for § 3 error bucket + similar-errors groupings): [`db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../db-docs/clickhouse/jupiter_booking_errors_v2.md).
+- **ClickHouse error table** (signature source for § 3 error bucket + similar-errors groupings): [`.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md).
 - **Debug-log query patterns** (effective `$match` shape, evidence hierarchy, prevalence): [`references/debug_logs_query_patterns.md`](references/debug_logs_query_patterns.md).
 - **Permalink harvest pipelines** (Variants A/B/C + URL shape): [`references/harvest_permalinks.md`](references/harvest_permalinks.md).
 - **Trello formatting** (posting findings to the Content Integration board): [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
-- **Exploring or documenting tables** (table / collection not in `db-docs/`, or needs fresh docs): [`../table_analysis/SKILL.md`](../table_analysis/SKILL.md).
+- **Exploring or documenting tables** (table / collection not in `.cursor/skills/db_access/db-docs/`, or needs fresh docs): [`../db_access/SKILL.md`](../db_access/SKILL.md).
 
 ## Key data points (MySQL `ota`)
 

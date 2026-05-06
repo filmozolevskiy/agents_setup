@@ -7,17 +7,17 @@ description: >-
   workflow has stabilised enough that it deserves its own
   `.cursor/skills/<name>/` folder. Covers the full motion: SKILL.md +
   `.claude/commands/<name>.md` wrapper + routing rows in
-  `CLAUDE.md` § Skill routing and `.cursor/rules/global_setup.md` § Skill
-  routing. Project-local only — cross-project skills go under
-  `~/.cursor/skills/` and use the global `create-skill` skill instead.
+  `CLAUDE.md` § Skills Index and `.cursor/rules/rules.mdc` § Skills Index.
+  Project-local only — cross-project skills go under `~/.cursor/skills/`
+  and use the global `create-skill` skill instead.
 ---
 
 # Skill Creator
 
 Scaffolds a new project skill so it lands in the right place, with the
 right shape, and is reachable from both routing tables. The motion is
-small but easy to get half-right (`.cursor/rules/global_setup.md` row
-missing, slash command wrapper missing, frontmatter `description`
+small but easy to get half-right (`.cursor/rules/rules.mdc` row missing,
+slash command wrapper missing, frontmatter `description`
 summarising the workflow instead of stating triggers). This skill exists
 so the agent gets it whole every time.
 
@@ -51,7 +51,7 @@ so the agent gets it whole every time.
 | Entry point | `.cursor/skills/<name>/SKILL.md` |
 | Long-form docs | `.cursor/skills/<name>/references/<topic>.md` |
 | Helpers | `.cursor/skills/<name>/scripts/<name>.py` |
-| Routing | both `CLAUDE.md` § Skill routing **and** `.cursor/rules/global_setup.md` § Skill routing |
+| Routing | both `CLAUDE.md` § Skills Index **and** `.cursor/rules/rules.mdc` § Skills Index |
 
 Existing skills to mirror for tone and shape: `trello_assistant/SKILL.md`
 (rich, multi-section), `table_analysis/SKILL.md` (narrower, two entry
@@ -94,9 +94,9 @@ For a new skill named `<name>` (snake_case folder, kebab-case `name:`):
    Load and follow `.cursor/skills/<name>/SKILL.md`.
    ```
 
-3. **`CLAUDE.md` § Skill routing** — append row in **Pick when** format:
+3. **`CLAUDE.md` § Skills Index** — append row in **Pick when** format:
    `| /<name> | <one sentence: pick when …> |`. Keep alphabetical.
-4. **`.cursor/rules/global_setup.md` § Skill routing** — append matching
+4. **`.cursor/rules/rules.mdc` § Skills Index** — append matching
    row with a markdown link to the SKILL.md (not the slash command):
    `| [`<name>`](../skills/<name>/SKILL.md) | <one sentence …> |`. Keep
    alphabetical and synchronised with the row in `CLAUDE.md`.
@@ -142,7 +142,7 @@ Match the in-repo style. Skip sections that do not apply:
 6. **References** — link to sibling files for long-form material. Keep
    one level deep.
 
-Writing style is governed by `.cursor/rules/global_setup.md` § Writing
+Writing style is governed by `.cursor/rules/rules.mdc` § MUST → Writing
 style: plain, direct, imperative. No "I'll", "Let me", "Sure". Cut
 adjectives that do not change meaning. Lead with the answer.
 
@@ -166,8 +166,8 @@ Aim for under ~500 lines. Spill anything longer into
    Concrete paths, IDs, commands. No narrative.
 5. **Add the slash command wrapper.** Two-line wrapper that points at
    `SKILL.md`. Mirror `.claude/commands/qa_automation.md`.
-6. **Update both routing tables.** `CLAUDE.md` § Skill routing **and**
-   `.cursor/rules/global_setup.md` § Skill routing. The rows must agree
+6. **Update both routing tables.** `CLAUDE.md` § Skills Index **and**
+   `.cursor/rules/rules.mdc` § Skills Index. The rows must agree
    on the **Pick when** sentence; only the link target differs (slash
    command vs. SKILL.md path). Out-of-sync rows are the most common
    defect when a skill is added by hand.
@@ -208,8 +208,8 @@ Aim for under ~500 lines. Spill anything longer into
 - Global skill-authoring guidance:
   `~/.cursor/skills-cursor/create-skill/SKILL.md`. Use it for skills
   that live outside this repo.
-- Routing tables to mirror: `CLAUDE.md` § Skill routing and
-  `.cursor/rules/global_setup.md` § Skill routing.
+- Routing tables to mirror: `CLAUDE.md` § Skills Index and
+  `.cursor/rules/rules.mdc` § Skills Index.
 - Slash command pattern: `.claude/commands/qa_automation.md`,
   `.claude/commands/optimizer_analysis.md`.
 - In-repo style examples: `.cursor/skills/trello_assistant/SKILL.md`,
