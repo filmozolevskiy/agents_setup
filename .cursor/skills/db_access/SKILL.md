@@ -1,16 +1,15 @@
 ---
 name: db-access
 description: >-
-  Shared database infrastructure for ClickHouse, MySQL, and MongoDB. Owns the
-  query CLIs, the schema / collection docs, and the Mongo query mechanics.
-  Load this skill whenever any task needs to query a database, when the user
-  names a table or collection and wants its purpose, columns, or docs; when
-  the user needs data but no documented table fits; or for any question like
-  "which table has", "find table", "what table stores", "document the X
+  Use when any task needs to query ClickHouse, MySQL, or MongoDB; when the
+  user names a table or collection and wants its purpose, columns, or docs;
+  when the user needs data but no documented table fits; or for any question
+  like "which table has", "find table", "what table stores", "document the X
   table", "what does this table do", "explore tables", "check database",
-  "search database". Other skills (`bookability_analysis`,
-  `optimizer_analysis`, `qa_automation`) load this skill's `## DB foundations`
-  section first before issuing any query.
+  "search database". Carries the shared DB infrastructure — query CLIs, the
+  schema / collection docs, and the Mongo query mechanics — that other skills
+  (`bookability_analysis`, `optimizer_analysis`, `qa_automation`) load first
+  before issuing any query.
 ---
 
 # Database Access Skill
