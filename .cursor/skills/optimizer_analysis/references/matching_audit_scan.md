@@ -74,7 +74,7 @@ Use the `$in` pattern from
 Batch 25–100 `search_id`s per call.
 
 If `context` narrowing is known for the content source (from a previous run
-or from `db-docs/mongodb/optimizer_logs.md`), apply it — otherwise run wide
+or from `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`), apply it — otherwise run wide
 on the first batch and inspect distinct `context` values before narrowing.
 
 ## Step 5 — Reconcile each attempt
@@ -187,15 +187,15 @@ snippet in [`optimizer_logs_patterns.md`](optimizer_logs_patterns.md#date-bounde
 - [ ] Trello cards (one per signature worth a ticket) — hand off to
   `trello_assistant`.
 - [ ] Re-run on {gds} in 7d to check regression.
-- [ ] Update `db-docs/mongodb/optimizer_logs.md` with newly confirmed
+- [ ] Update `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md` with newly confirmed
   `context` strings and `fares[]` paths (post-run learning).
 ```
 
 ## Step 9 — Post-run learning
 
 Same rule as Workflow A: append confirmed facts to
-`db-docs/mongodb/optimizer_logs.md` (new `context` strings, confirmed
-`fares[]` paths, stable permalink URL shape) and to `db-docs/mysql/` when
+`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md` (new `context` strings, confirmed
+`fares[]` paths, stable permalink URL shape) and to `.cursor/skills/db_access/db-docs/mysql/` when
 tag or column meaning becomes clearer. Commit with a short message (no
 editor attribution trailer).
 

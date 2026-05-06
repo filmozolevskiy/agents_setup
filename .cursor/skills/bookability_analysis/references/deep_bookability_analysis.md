@@ -49,7 +49,7 @@ Then produce a **similar-errors report** rendered as the two-table canonical lay
    **`transaction_id`** using the hashes from step 1. Prefer **batches** with `$in` on
    `transaction_id` (25–100 hashes per batch to stay under `--limit` and readable). **Always**
    narrow by that supplier's **`context`** (exact string when known, else case-insensitive
-   `$regex` on the integration name — see `../../table_analysis/references/mongodb_query_mechanics.md`). Sort by `date_added` for
+   `$regex` on the integration name — see `../../db_access/references/mongodb_query_mechanics.md`). Sort by `date_added` for
    timeline; use `--json` for permalinks.
 5. **Read supplier evidence first:** for each `transaction_id`, identify log lines with raw
    request / response for the book path; use local exceptions only as supporting context.
@@ -153,7 +153,7 @@ Load `.env` once per session (`set -a && source .env && set +a`, see
 `CLAUDE.md` § Database Access), then:
 
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id": {"$in": ["HASH1", "HASH2"]}, "context": {"$regex": "SupplierName", "$options": "i"}}' \
   --sort '{"date_added": -1}' \
   --limit 500 \
@@ -161,13 +161,13 @@ python3 scripts/mongo_query.py find debug_logs ota \
 ```
 
 Replace `SupplierName` with the integration substring for `{content_source}`; use **exact
-`context`** when documented in `db-docs/mongodb/debug_logs.md` (content hints) or established from
+`context`** when documented in `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` (content hints) or established from
 prior art.
 
 Single-transaction spot-check:
 
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id": "YOUR_SEARCH_HASH"}' \
   --sort '{"date_added": -1}' \
   --limit 1000 \

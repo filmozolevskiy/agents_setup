@@ -5,10 +5,10 @@ Table- and collection-level documentation organized by engine. Each file covers 
 ## Structure
 
 ```text
-db-docs/
-├── clickhouse/   # Tables queried via scripts/clickhouse_query.py
-├── mysql/        # Tables queried via scripts/mysql_query.py
-└── mongodb/      # Collections queried via scripts/mongo_query.py
+.cursor/skills/db_access/db-docs/
+├── clickhouse/   # Tables queried via .cursor/skills/db_access/scripts/clickhouse_query.py
+├── mysql/        # Tables queried via .cursor/skills/db_access/scripts/mysql_query.py
+└── mongodb/      # Collections queried via .cursor/skills/db_access/scripts/mongo_query.py
 ```
 
 The access tool determines the folder. Use `clickhouse/` for `clickhouse_query.py`, `mysql/` for
@@ -19,7 +19,7 @@ Note: MongoDB exploration is currently limited to the **`OTA`** database and the
 
 ## Adding Table Documentation
 
-Use the **table-analysis** skill (`.cursor/skills/table_analysis/SKILL.md`), or follow this template:
+Use the **db_access** skill (`.cursor/skills/db_access/SKILL.md`), or follow this template:
 
 **Database:** `database_name`
 **Purpose:** One-line description of what this table stores.

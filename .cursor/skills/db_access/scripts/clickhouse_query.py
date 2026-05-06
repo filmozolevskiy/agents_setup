@@ -2,10 +2,10 @@
 """CLI tool for querying ClickHouse. Used by Claude Code skills.
 
 Usage:
-    python scripts/clickhouse_query.py query "SELECT count() FROM my_table"
-    python scripts/clickhouse_query.py tables [database]
-    python scripts/clickhouse_query.py describe <table> [database]
-    python scripts/clickhouse_query.py batch --start 2026-03-01 --end 2026-03-20 --chunk-days 1 "SELECT SUM(x) FROM t WHERE day_added BETWEEN '{start}' AND '{end}'"
+    python .cursor/skills/db_access/scripts/clickhouse_query.py query "SELECT count() FROM my_table"
+    python .cursor/skills/db_access/scripts/clickhouse_query.py tables [database]
+    python .cursor/skills/db_access/scripts/clickhouse_query.py describe <table> [database]
+    python .cursor/skills/db_access/scripts/clickhouse_query.py batch --start 2026-03-01 --end 2026-03-20 --chunk-days 1 "SELECT SUM(x) FROM t WHERE day_added BETWEEN '{start}' AND '{end}'"
 
 Credentials are read from environment variables:
     CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USER,

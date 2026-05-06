@@ -7,7 +7,7 @@ AI agents setup for Flighthub employees. Turns common data-investigation work (b
 The repo wires three things together:
 
 1. **CLI wrappers** (`scripts/`) — talk to ClickHouse, MySQL (genesis), and MongoDB (ota) using credentials from `.env`.
-2. **Table docs** (`db-docs/`) — tell the agent which table / collection holds what, before it writes any query.
+2. **Table docs** (`.cursor/skills/db_access/db-docs/`) — tell the agent which table / collection holds what, before it writes any query.
 3. **Skills** (`.cursor/skills/<name>/SKILL.md`, exposed as slash commands via `.claude/commands/`) — encode the investigation recipes: which tables to join, which filters to apply, how to classify results, what format to return.
 
 Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps, queries via the CLIs, and writes output (reports, findings, Trello cards, table docs) back into the repo.
@@ -17,7 +17,7 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 - **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
 - **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
 - **`/qa_automation`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
-- **`/table_analysis`** — find which table or collection holds the data you need (when `db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `db-docs/`.
+- **`/db_access`** — find which table or collection holds the data you need (when `.cursor/skills/db_access/db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `.cursor/skills/db_access/db-docs/`.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
 
 Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
@@ -35,7 +35,7 @@ scripts/
 ├── mongo_query.py        # MongoDB CLI (collections / describe / find / aggregate)
 └── sync_genesis.sh       # Optional pull of the genesis codebase
 qa_automation/      # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …)
-db-docs/
+.cursor/skills/db_access/db-docs/
 ├── clickhouse/     # Documented CH tables
 ├── mysql/          # Documented MySQL tables
 └── mongodb/        # Documented Mongo collections
@@ -143,9 +143,9 @@ In Cursor: open the MCP panel (Settings → MCP) and confirm each server shows *
 ```bash
 set -a && source .env && set +a
 
-python3 scripts/clickhouse_query.py query "SELECT 1"
-python3 scripts/mysql_query.py      query "SELECT 1"
-python3 scripts/mongo_query.py      collections ota
+python3 .cursor/skills/db_access/scripts/clickhouse_query.py query "SELECT 1"
+python3 .cursor/skills/db_access/scripts/mysql_query.py      query "SELECT 1"
+python3 .cursor/skills/db_access/scripts/mongo_query.py      collections ota
 ```
 
 If all three print results, the setup is ready.

@@ -81,7 +81,7 @@ tags_agg AS (
     SELECT
         oct.candidate_id,
 
-        /* Keep this mapping in sync with db-docs/mysql/optimizer_tags.md */
+        /* Keep this mapping in sync with .cursor/skills/db_access/db-docs/mysql/optimizer_tags.md */
         GROUP_CONCAT(DISTINCT CASE WHEN ot.name = 'Exception'       THEN oct.value END
                      ORDER BY oct.value SEPARATOR ', ') AS exception_values,
         GROUP_CONCAT(DISTINCT CASE WHEN ot.name = 'Demoted'         THEN oct.value END

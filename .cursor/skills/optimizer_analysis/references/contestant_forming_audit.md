@@ -44,7 +44,7 @@ Record the final scope choice in the report header.
 ## Why leg-by-leg — the multi-ticket gotcha
 
 A single attempt may have **multiple operand logs**, one per leg of a
-multi-ticket (SMT) bundle. `scripts/mongo_query.py find --sort` with a
+multi-ticket (SMT) bundle. `.cursor/skills/db_access/scripts/mongo_query.py find --sort` with a
 single-document limit will only surface one of them and will silently
 mis-attribute the failure cause. Always iterate over every
 `{Source}::Reprice-original-operands` document whose `transaction_id`
@@ -65,7 +65,7 @@ Ask the user (or state in the report header):
 - **`gds`** — required. One of `unififi`, `pkfare`, `downtowntravel`,
   `amadeus`, … The query patterns below assume the `{source}` token maps to
   the context prefix documented in
-  [`../../../db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
+  [`../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
   For new sources, populate that table first (short pass with
   [`./single_attempt_investigation.md`](single_attempt_investigation.md) on
   one failing attempt to confirm the context strings).
@@ -95,7 +95,7 @@ ORDER BY oc.attempt_id DESC
 LIMIT {cap};
 ```
 
-Run via `scripts/mysql_query.py query`. Capture `(search_id,
+Run via `.cursor/skills/db_access/scripts/mysql_query.py query`. Capture `(search_id,
 validating_carrier)` tuples as input to Step 3.
 
 Also run the candidacy-distribution sanity query so the report has the
@@ -121,7 +121,7 @@ For each `search_id`, pull three context families in a single pass:
 | `Reprice <type>+{ACCOUNT}+{visibility}` | The wrapper for the whole reprice pass on that leg. Carries the thrown exception (class + message + file:line). | `exception` lives at the top level (sometimes a JSON string, sometimes a dict). |
 
 Exact context strings per source are in
-[`../../../db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
+[`../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
 Use equality on `context` when known. See
 [`./optimizer_logs_patterns.md` — *Top-level content vs meta placeholders*](optimizer_logs_patterns.md#top-level-content-vs-meta-placeholders).
 
@@ -174,7 +174,7 @@ WHERE oc.gds='{GDS}'
 ORDER BY oc.attempt_id DESC
 LIMIT {CAP}
 """
-r = subprocess.run(["python3","scripts/mysql_query.py","query", sql],
+r = subprocess.run(["python3",".cursor/skills/db_access/scripts/mysql_query.py","query", sql],
                    capture_output=True, text=True, env={**os.environ})
 
 pairs = []
@@ -266,7 +266,7 @@ Adapt `SOURCE_PREFIX`, `API_CONTEXTS`, `WRAP_REGEX`, and the `routings[]`
 accessors for non-unififi sources — the data shape is almost identical for
 PKFare (context `pkfare-no-matching-itineraries`, different payload keys)
 but must be confirmed against the per-source context table in
-[`../../../db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
+[`../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md#per-content-source-context-hints).
 
 ## Step 5 — Attempt-level verdict
 
@@ -391,7 +391,7 @@ separate relaxation on legacy carriers. Flag as follow-up; do not bundle.
 
 ## Step 8 — Post-run learning
 
-Update `db-docs/mongodb/optimizer_logs.md` when:
+Update `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md` when:
 
 - A new source's `{Source}::Reprice-original-operands` / `{source}-api[...]`
   / `Reprice <type>+{ACCOUNT}+{visibility}` context is confirmed.
@@ -399,7 +399,7 @@ Update `db-docs/mongodb/optimizer_logs.md` when:
   `body` vs `Response`).
 - The `_scopes` multi-ticket naming changes for a source.
 
-Update `db-docs/mysql/optimizer_candidates.md` if new `candidacy` values or
+Update `.cursor/skills/db_access/db-docs/mysql/optimizer_candidates.md` if new `candidacy` values or
 `reprice_type` values show up during the audit.
 
 ## Step 9 — Trello follow-up

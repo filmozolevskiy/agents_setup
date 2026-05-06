@@ -316,7 +316,7 @@ ever drops the `select#gds` dropdown.
   per (`search_id`, `content_source`, `api_call`) with the actual
   `response`, `response_time`, and per-call package counts. Schema is
   documented in
-  [`db-docs/clickhouse/search_api_stats_gds_raw.md`](../../../../db-docs/clickhouse/search_api_stats_gds_raw.md).
+  [`.cursor/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md`](../../../../.cursor/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md).
 - **Always pass a time window.** `gds_raw` is a Distributed table with no
   partition key or sorting key. Without a `date_added` predicate, queries
   full-scan the shards (tens of seconds to minutes). The runner defaults

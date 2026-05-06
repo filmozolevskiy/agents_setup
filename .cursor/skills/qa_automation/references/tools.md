@@ -71,7 +71,7 @@ No booking is initiated.
 
 ClickHouse lookup: which content sources responded during a search.
 Defaults to
-[`search_api_stats.gds_raw`](../../../db-docs/clickhouse/search_api_stats_gds_raw.md)
+[`search_api_stats.gds_raw`](../../../.cursor/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md)
 — one row per (`search_id`, `content_source`, `api_call`). Override via
 `QA_CH_SEARCH_TELEMETRY_TABLE` or `--sql` if the schema changes.
 

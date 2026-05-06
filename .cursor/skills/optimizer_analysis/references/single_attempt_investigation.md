@@ -71,7 +71,7 @@ sample one `fares[0]` document fully and confirm the paths listed in
 [`optimizer_logs_patterns.md`](optimizer_logs_patterns.md#fares-extraction).
 If the real paths differ from the defaults, document the mapping in your
 working notes **and** queue a post-run update to
-`db-docs/mongodb/optimizer_logs.md`.
+`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`.
 
 ## Step 5 — Reconcile fares against candidates
 
@@ -145,13 +145,13 @@ explicitly.
 - [ ] File Trello card on Content Integration board (hand off to
   `trello_assistant` skill)
 - [ ] Run Workflow B scan for {gds} over last 7d to check prevalence
-- [ ] Update `db-docs/` with any new stable facts (see SKILL.md post-run)
+- [ ] Update `.cursor/skills/db_access/db-docs/` with any new stable facts (see SKILL.md post-run)
 ```
 
 ## Step 7 — Post-run learning
 
-Per the SKILL.md rule, update `db-docs/mongodb/optimizer_logs.md` and any
-MySQL `db-docs/` entries you had to clarify during the investigation.
+Per the SKILL.md rule, update `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md` and any
+MySQL `.cursor/skills/db_access/db-docs/` entries you had to clarify during the investigation.
 Commit the change with a short message (no editor attribution trailer).
 
 ## Step 8 — Follow-ups

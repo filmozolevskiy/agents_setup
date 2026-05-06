@@ -1,6 +1,6 @@
 # MongoDB query mechanics
 
-Reference for the [`table_analysis`](../SKILL.md) skill. How to query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** safely via `scripts/mongo_query.py`. Loaded by the Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) when an investigation needs raw collection access; for the field-level catalogues see [`db-docs/mongodb/debug_logs.md`](../../../../db-docs/mongodb/debug_logs.md) and [`db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md) (append durable facts there per the `table_analysis` SKILL).
+Reference for the [`db_access`](../SKILL.md) skill. How to query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** safely via `.cursor/skills/db_access/scripts/mongo_query.py`. Loaded by the Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) when an investigation needs raw collection access; for the field-level catalogues see [`.cursor/skills/db_access/db-docs/mongodb/debug_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/debug_logs.md) and [`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md) (append durable facts there per the `db_access` SKILL).
 
 ---
 
@@ -8,8 +8,8 @@ Reference for the [`table_analysis`](../SKILL.md) skill. How to query **`debug_l
 
 | Collection | Use |
 |------------|-----|
-| **`debug_logs`** | Full OTA flow (search through booking, supplier calls, etc.). **Start here** for investigations. Excludes optimizer-only repricing calls. Field list: `db-docs/mongodb/debug_logs.md`. |
-| **`optimizer_logs`** | **Only** repricing / optimizer activity. Same `transaction_id` as `debug_logs` when both apply. Field list: `db-docs/mongodb/optimizer_logs.md`. |
+| **`debug_logs`** | Full OTA flow (search through booking, supplier calls, etc.). **Start here** for investigations. Excludes optimizer-only repricing calls. Field list: `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md`. |
+| **`optimizer_logs`** | **Only** repricing / optimizer activity. Same `transaction_id` as `debug_logs` when both apply. Field list: `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`. |
 
 Use `optimizer_logs` only when the question is repricing or fare mismatch after optimization.
 
@@ -32,34 +32,34 @@ Use `optimizer_logs` only when the question is repricing or fare mismatch after 
 ```
 
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID", "context": {"$regex": "Downtowntravel", "$options": "i"}}' --limit 200
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID", "context": {"$regex": "Downtowntravel", "$options": "i"}}' --limit 200
 ```
 
 For aggregations, put the same `$match` fields in the first pipeline stage. Include **`transaction_id`** and/or **`date_added`** in filters when possible (indexed; see `db-docs` for each collection).
 
 ---
 
-## `scripts/mongo_query.py` examples
+## `.cursor/skills/db_access/scripts/mongo_query.py` examples
 
 #### List collections
 ```bash
-python3 scripts/mongo_query.py collections ota
+python3 .cursor/skills/db_access/scripts/mongo_query.py collections ota
 ```
 
 #### Recent logs
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota --sort '{"date_added": -1}' --limit 10
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota --sort '{"date_added": -1}' --limit 10
 ```
 
 #### By `transaction_id` (debug first; add optimizer only if repricing)
 ```bash
-python3 scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
-python3 scripts/mongo_query.py find optimizer_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
+python3 .cursor/skills/db_access/scripts/mongo_query.py find optimizer_logs ota --filter '{"transaction_id": "YOUR_TRANSACTION_ID"}' --limit 200
 ```
 
 #### Aggregate by context and level
 ```bash
-python3 scripts/mongo_query.py aggregate debug_logs '[{"$match": {"context": "BookingProcess"}}, {"$group": {"_id": "$level", "count": {"$sum": 1}}}]' ota
+python3 .cursor/skills/db_access/scripts/mongo_query.py aggregate debug_logs '[{"$match": {"context": "BookingProcess"}}, {"$group": {"_id": "$level", "count": {"$sum": 1}}}]' ota
 ```
 
 ---

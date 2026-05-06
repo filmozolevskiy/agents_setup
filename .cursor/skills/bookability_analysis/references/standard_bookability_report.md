@@ -324,7 +324,7 @@ The top-failure-causes table needs **verbatim supplier text plus a sample-sessio
 For each cluster, pick one sample `search_id` from the ClickHouse signature, then query `debug_logs` filtered to the supplier-error context for that integration. For Downtowntravel the supplier-error contexts are `Downtowntravel::BookFlight::Error` (book step), `Downtowntravel::VerifyPrice::Error` (verify step), and `loss-limit-fare-increase` (post-Sale fare-increase reversal). For other suppliers see § *Supplier-error context cheat-sheet* below.
 
 ```bash
-set -a && source .env && set +a && python3 scripts/mongo_query.py find debug_logs ota \
+set -a && source .env && set +a && python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
   --filter '{"transaction_id":"<sample_search_id>","context":"<SupplierError context>"}' \
   --sort '{"date_added":1}' --limit 5 --json
 ```
@@ -355,7 +355,7 @@ For any cluster whose CH `classification_category = 'PAYMENT_ERRORS'`, pull Mong
 | Downtowntravel — price-verification step | `Downtowntravel::VerifyPrice::Error` |
 | Downtowntravel — post-Sale loss-limit reversal (virtual card / fare increase) | `loss-limit-fare-increase` (pick the firing immediately after the successful Payhub `Sale`) |
 | Payhub — gateway-side card decline | `payhub_api_response_Momentum\Payhub\Request\Sale` (read the `Response` body for the decline payload) |
-| Amadeus | exact context lives in `db-docs/mongodb/debug_logs.md` content hints — typically `amadeus-redux-api[<carrier>]<operation>`-shaped |
+| Amadeus | exact context lives in `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` content hints — typically `amadeus-redux-api[<carrier>]<operation>`-shaped |
 
 When in doubt, run a single broad `find` for the anchor `transaction_id` (no context filter, `--limit 200 --sort date_added:1 --json`), grep the JSON for `Error` / `failed` / `decline` in `context`, and pick the matching entry.
 

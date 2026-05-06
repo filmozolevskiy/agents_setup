@@ -56,7 +56,7 @@ Many contexts' `meta.*` leaves are **type placeholders**:
 When you see that shape, the full body is stored out of band and is only
 viewable via the storefront debug UI. Consequences for tooling:
 
-- `scripts/mongo_query.py find --projection '{"meta.Response":1}'` will
+- `.cursor/skills/db_access/scripts/mongo_query.py find --projection '{"meta.Response":1}'` will
 return the placeholder, not the JSON body — useful to confirm the
 context / step exists, **not** to compare supplier values.
 - Content-level comparison (e.g. fare-basis / booking-class reconciliation)
@@ -150,7 +150,7 @@ db.optimizer_logs.find({
 
 ```bash
 set -a && source .env && set +a
-python3 scripts/mongo_query.py find optimizer_logs ota \
+python3 .cursor/skills/db_access/scripts/mongo_query.py find optimizer_logs ota \
   --filter '{"transaction_id": "TRANS-123", "context": "Downtowntravel::Reprice-matching-packages"}' \
   --sort '{"date_added": -1}' --limit 50 --json
 ```
@@ -169,5 +169,5 @@ already have rotated out.
 skill for per-attempt drill-downs and matching-error audits.
 - Use `optimizer_logs` only for repricing / Optimizer-specific questions.
 Full flight-booking debug traffic lives in `debug_logs`. See
-`[.cursor/skills/table_analysis/references/mongodb_query_mechanics.md](../../.cursor/skills/table_analysis/references/mongodb_query_mechanics.md)`.
+`[.cursor/skills/db_access/references/mongodb_query_mechanics.md](../../.cursor/skills/db_access/references/mongodb_query_mechanics.md)`.
 

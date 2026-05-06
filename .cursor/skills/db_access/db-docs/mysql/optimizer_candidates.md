@@ -49,7 +49,7 @@
 **Common queries:**
 ```sql
 -- All candidates for one attempt, with tags rolled up (the canonical join pattern)
--- See db-docs/mysql/optimizer_join_pattern.md for the full template.
+-- See .cursor/skills/db_access/db-docs/mysql/optimizer_join_pattern.md for the full template.
 SELECT oc.id, oc.candidacy, oc.reprice_type, oc.reprice_index, oc.total, oc.revenue,
        oc.fare_bases, oc.booking_classes
 FROM ota.optimizer_candidates oc

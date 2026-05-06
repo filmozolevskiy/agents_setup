@@ -6,7 +6,7 @@ blocks. Both `bookability_analysis/SKILL.md` and `trello_assistant/SKILL.md`
 link here.
 
 Run these in **mongosh**, **MongoDB Compass**, or **Python + pymongo** — the repo's
-`scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` inside a JSON
+`.cursor/skills/db_access/scripts/mongo_query.py aggregate` does **not** accept `ISODate(...)` inside a JSON
 pipeline string.
 
 **Feeding the harvest with a `transaction_id` shortlist:** the `search_id` list for `$in`
@@ -25,7 +25,7 @@ This skips the MySQL hash extraction when you only need supplier-side context.
 - **`date_added`:** always bound with `$gte` / `$lte` (or `$lt`). Harvests without a date
   bound scan the whole capped collection.
 
-For full filter rationale see `../../table_analysis/references/mongodb_query_mechanics.md` and
+For full filter rationale see `../../db_access/references/mongodb_query_mechanics.md` and
 [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md) (*Effective queries on debug_logs*).
 
 ## Variant A — Full harvest (every matching log line → one array of links)
