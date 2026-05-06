@@ -169,5 +169,5 @@ already have rotated out.
 skill for per-attempt drill-downs and matching-error audits.
 - Use `optimizer_logs` only for repricing / Optimizer-specific questions.
 Full flight-booking debug traffic lives in `debug_logs`. See
-`[.cursor/rules/mongodb.md](../../.cursor/rules/mongodb.md)`.
+`[.cursor/skills/table_analysis/references/mongodb_query_mechanics.md](../../.cursor/skills/table_analysis/references/mongodb_query_mechanics.md)`.
 

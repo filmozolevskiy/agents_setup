@@ -49,7 +49,7 @@ Then produce a **similar-errors report** rendered as the two-table canonical lay
    **`transaction_id`** using the hashes from step 1. Prefer **batches** with `$in` on
    `transaction_id` (25–100 hashes per batch to stay under `--limit` and readable). **Always**
    narrow by that supplier's **`context`** (exact string when known, else case-insensitive
-   `$regex` on the integration name — see `.cursor/rules/mongodb.md`). Sort by `date_added` for
+   `$regex` on the integration name — see `../../table_analysis/references/mongodb_query_mechanics.md`). Sort by `date_added` for
    timeline; use `--json` for permalinks.
 5. **Read supplier evidence first:** for each `transaction_id`, identify log lines with raw
    request / response for the book path; use local exceptions only as supporting context.

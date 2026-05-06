@@ -3,7 +3,7 @@
 How to reliably pull the supplier-side fare payload from MongoDB
 `ota.optimizer_logs` and reconcile it with MySQL candidates. For core Mongo
 safety rules (JSON-only CLI, no `ISODate(...)` in pipelines, which collection
-to use when) read [`.cursor/rules/mongodb.md`](../../../rules/mongodb.md)
+to use when) read [`../../table_analysis/references/mongodb_query_mechanics.md`](../../table_analysis/references/mongodb_query_mechanics.md)
 first.
 
 ## Join key

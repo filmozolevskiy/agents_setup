@@ -25,7 +25,7 @@ This skips the MySQL hash extraction when you only need supplier-side context.
 - **`date_added`:** always bound with `$gte` / `$lte` (or `$lt`). Harvests without a date
   bound scan the whole capped collection.
 
-For full filter rationale see `.cursor/rules/mongodb.md` and
+For full filter rationale see `../../table_analysis/references/mongodb_query_mechanics.md` and
 [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md) (*Effective queries on debug_logs*).
 
 ## Variant A — Full harvest (every matching log line → one array of links)

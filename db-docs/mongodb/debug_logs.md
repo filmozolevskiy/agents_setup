@@ -4,7 +4,7 @@
 
 **Purpose:** General debug and error logs from various OTA (Online Travel Agency) processes, capturing transaction context, fare families, and server metadata.
 
-This document also holds **investigation context** for this collection: where else to look, glossary terms, and **verified** per–content-source log hints. Append stable facts here when you confirm them; **query behavior and filters** are in `.cursor/rules/mongodb.md`.
+This document also holds **investigation context** for this collection: where else to look, glossary terms, and **verified** per–content-source log hints. Append stable facts here when you confirm them; **query behavior and filters** are in `.cursor/skills/table_analysis/references/mongodb_query_mechanics.md`.
 
 ---
 
@@ -63,7 +63,7 @@ This document also holds **investigation context** for this collection: where el
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Table/collection purpose & columns (other stores)     | `db-docs/` and `scripts/mysql_query.py`, `scripts/mongo_query.py`, `scripts/clickhouse_query.py` |
 | Bookability SQL workflow                              | `.cursor/skills/bookability_analysis/references/standard_bookability_report.md`                  |
-| MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/rules/mongodb.md`                                                                       |
+| MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/skills/table_analysis/references/mongodb_query_mechanics.md`                            |
 | Optimizer-only repricing logs                         | `db-docs/mongodb/optimizer_logs.md`                                                              |
 
 

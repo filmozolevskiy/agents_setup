@@ -34,7 +34,7 @@ Audit the Optimizer — the service that turns a content source's raw fare paylo
 
 Investigations follow the two-stage shape used in `bookability_analysis`: MySQL overview first, then MongoDB deep-dive against context-specific supplier evidence in `optimizer_logs`.
 
-**Before digging:** read [`db-docs/mysql/optimizer_candidates.md`](../../../db-docs/mysql/optimizer_candidates.md), [`db-docs/mysql/optimizer_attempts.md`](../../../db-docs/mysql/optimizer_attempts.md), [`db-docs/mysql/optimizer_candidate_tags.md`](../../../db-docs/mysql/optimizer_candidate_tags.md), [`db-docs/mysql/optimizer_tags.md`](../../../db-docs/mysql/optimizer_tags.md), [`db-docs/mongodb/optimizer_logs.md`](../../../db-docs/mongodb/optimizer_logs.md). For Mongo query mechanics, load [`.cursor/rules/mongodb.md`](../../rules/mongodb.md). Update `db-docs/mongodb/optimizer_logs.md` and `db-docs/mysql/optimizer_attempt_bookings.md` when you confirm durable facts (see **Post-run learning**).
+**Before digging:** read [`db-docs/mysql/optimizer_candidates.md`](../../../db-docs/mysql/optimizer_candidates.md), [`db-docs/mysql/optimizer_attempts.md`](../../../db-docs/mysql/optimizer_attempts.md), [`db-docs/mysql/optimizer_candidate_tags.md`](../../../db-docs/mysql/optimizer_candidate_tags.md), [`db-docs/mysql/optimizer_tags.md`](../../../db-docs/mysql/optimizer_tags.md), [`db-docs/mongodb/optimizer_logs.md`](../../../db-docs/mongodb/optimizer_logs.md). For Mongo query mechanics, load [`../table_analysis/references/mongodb_query_mechanics.md`](../table_analysis/references/mongodb_query_mechanics.md). Update `db-docs/mongodb/optimizer_logs.md` and `db-docs/mysql/optimizer_attempt_bookings.md` when you confirm durable facts (see **Post-run learning**).
 
 ## Query discipline
 
@@ -42,7 +42,7 @@ These rules apply to every query in this skill — MySQL on `optimizer_*` tables
 
 - **CTE shape (mandatory).** Every MySQL aggregation or example query starts with a CTE that names the slice once (`attempt_id` set, `created_at` window, joins to `optimizer_candidate_tags` / `optimizer_tags`). The outer statement is either the aggregate or an example `LIMIT N` listing; include the counterpart as a commented-out outer `SELECT` from the same CTE. Templates in [`references/optimizer_sql_templates.md`](references/optimizer_sql_templates.md) follow this shape — copy them, do not re-author from scratch. For Mongo, the leading `$match` plays the same role — name the slice once (`transaction_id` from MySQL, `context` regex), then branch between aggregation and the permalink projection.
 - **Always bound on `attempt_id` or `created_at`.** `optimizer_candidates` is ~45M rows. Every query (count or example) must include either an `attempt_id IN (…)` filter populated from the audit's MySQL slice, or a `created_at` window of at most a few hours. Unbounded queries time out and waste credits.
-- **No unbounded Mongo scans.** Never run `find {}` on `optimizer_logs` — same rule as `.cursor/rules/mongodb.md`. Always anchor on `transaction_id` (single value or `$in` from MySQL) plus a `context` regex narrowed to the supplier or operation under audit.
+- **No unbounded Mongo scans.** Never run `find {}` on `optimizer_logs` — same rule as `../table_analysis/references/mongodb_query_mechanics.md`. Always anchor on `transaction_id` (single value or `$in` from MySQL) plus a `context` regex narrowed to the supplier or operation under audit.
 - **Reuse the anchor as ground truth.** When reconciling reprice variants, the attempt's `reprice_type = 'original'` / `reprice_index = 'master_0'` candidate is the reconciliation reference. Do not redefine the anchor between queries within an investigation.
 
 ## Glossary
@@ -69,7 +69,7 @@ If the user gives a single ID but also asks "and then see if this is widespread"
 - **SQL templates** (parameterized by `attempt_id` / `search_id` / `booking_id` / `gds`+window): [`references/optimizer_sql_templates.md`](references/optimizer_sql_templates.md).
 - **Mongo query patterns for `optimizer_logs`** (`transaction_id` ↔ `search_id`, `fares[]` extraction, permalinks): [`references/optimizer_logs_patterns.md`](references/optimizer_logs_patterns.md).
 - **Mistake classification** (missed / wrong-tag / price-rank-candidacy mismatch, tolerances, SQL-vs-Mongo flag): [`references/mistake_classification.md`](references/mistake_classification.md).
-- **Mongo safety / `scripts/mongo_query.py` rules:** [`../../rules/mongodb.md`](../../rules/mongodb.md).
+- **Mongo safety / `scripts/mongo_query.py` rules:** [`../table_analysis/references/mongodb_query_mechanics.md`](../table_analysis/references/mongodb_query_mechanics.md).
 - **Exploring or documenting tables / collections** (find the right one, or write up a newly understood one): [`../table_analysis/SKILL.md`](../table_analysis/SKILL.md).
 - **Trello card formatting for follow-up tickets:** [`../trello_assistant/SKILL.md`](../trello_assistant/SKILL.md).
 

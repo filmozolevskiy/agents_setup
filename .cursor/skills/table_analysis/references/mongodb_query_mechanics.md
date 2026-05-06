@@ -1,13 +1,6 @@
----
-description: "How to query MongoDB `ota.debug_logs` and `ota.optimizer_logs` safely via `scripts/mongo_query.py` — collection choice, `transaction_id` / `context` / `Response` filtering, and aggregation guidance. Load whenever the task touches MongoDB, debug logs, optimizer logs, or `transaction_id` correlation."
-alwaysApply: false
----
+# MongoDB query mechanics
 
-# MongoDB Query Rules
-
-Query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** using `scripts/mongo_query.py`.
-
-**Documentation:** Collection reference, glossary, observability pointers, and **verified** per–content-source hints live in **`db-docs/mongodb/debug_logs.md`** (append stable facts there). **`db-docs/`** holds schemas for other stores; this rule covers **how to query** safely.
+Reference for the [`table_analysis`](../SKILL.md) skill. How to query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** safely via `scripts/mongo_query.py`. Loaded by the Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) when an investigation needs raw collection access; for the field-level catalogues see [`db-docs/mongodb/debug_logs.md`](../../../../db-docs/mongodb/debug_logs.md) and [`db-docs/mongodb/optimizer_logs.md`](../../../../db-docs/mongodb/optimizer_logs.md) (append durable facts there per the `table_analysis` SKILL).
 
 ---
 
@@ -75,4 +68,4 @@ python3 scripts/mongo_query.py aggregate debug_logs '[{"$match": {"context": "Bo
 
 - **Never** run unbounded full collection scans (e.g. `find {}` without a time/index-friendly filter and limit).
 - **`--json`** when you need BSON types (ObjectIds, dates) in output.
-- **Credentials:** `set -a && source .env && set +a` before running the script.
+- **Credentials:** `set -a && source .env && set +a` before running the script (per the `## DB foundations` rule in [`SKILL.md`](../SKILL.md)).

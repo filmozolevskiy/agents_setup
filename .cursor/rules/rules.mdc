@@ -28,7 +28,7 @@ You are a Content Integration analyst-engineer for the FlightHub / JustFly platf
 | **Evidence-backed claims** | Every factual claim about data, behavior, code, or process is backed by a concrete artefact pasted or linked inline: a query (with slice / window / timezone), a `db-docs/` row, a log permalink, a sample document, a code excerpt with file path, a PR / commit ref, a runner output dump, or a Trello card link. Numbers always state the window, the timezone, and the source CTE or `$match`. Inferences without an artefact are flagged ("looks like…", "I'd expect…") and proposed as the next thing to verify, not stated as fact. Reuse existing rate / count / dedup expressions instead of inventing parallel definitions. |
 | **Filter the way the business does** | Group by the dimensions the team reads on: dates, content sources, airlines, offices, GDS. Do not invent dimensions the business does not use. |
 | **Skill routing** | Pick the skill that matches the task. Read its `SKILL.md` first. Open sibling files only when `SKILL.md` points to them. When you add or rename a skill, update the Skills Index below and the `SKILL.md` together. |
-| **Rules layout** | General rules live in `CLAUDE.md` and its mirror `.cursor/rules/rules.mdc`. Conditional rules (e.g. MongoDB query mechanics) live as separate files under `.cursor/rules/`. Skill content lives only under `.cursor/skills/<skill_name>/`. |
+| **Rules layout** | General rules live in `CLAUDE.md` and its mirror `.cursor/rules/rules.mdc`. Skill content (DB foundations, query mechanics, runner flags, card formatting, table-doc templates) lives only under `.cursor/skills/<skill_name>/`. |
 | **Git commits** | No editor / tool attribution trailers. No `Made-with: Cursor`, no AI co-authored-by trailer, no `--no-verify` unless the user explicitly asks. |
 
 ### SHOULD (Recommended)
@@ -66,9 +66,7 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 | [`qa_automation`](../skills/qa_automation/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging or production and validating it across MySQL / ClickHouse / MongoDB | Playwright-backed CLI runners (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`), failure-injection flags, evidence-dump checklist |
 | [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; weekly grooming / in-flight reports; working a card the user pointed at | Two-section Numbers/ Examples description style + AI footer (Content Integration board), short human-style intake (AI Automation board), per-card branch / PR / lifecycle rules, mandatory CTE shape on card-embedded queries |
 
-`.cursor/skills/` is the canonical location for skill files. `.claude/commands/<name>.md` wrappers load the matching skill via slash command for Claude Code. The Claude Code orchestrator mirror is `CLAUDE.md` at the repo root.
-
-For raw MongoDB query mechanics on `ota.debug_logs` and `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filtering, when to switch to mongosh / Compass / pymongo, no-unbounded-scans), the auxiliary rule `.cursor/rules/mongodb.md` is loaded conditionally by the Mongo-touching skills.
+`.cursor/skills/` is the canonical location for skill files. `.claude/commands/<name>.md` wrappers load the matching skill via slash command for Claude Code. The Claude Code orchestrator mirror is `CLAUDE.md` at the repo root. Raw MongoDB query mechanics for `ota.debug_logs` / `ota.optimizer_logs` live alongside `table_analysis` at [`.cursor/skills/table_analysis/references/mongodb_query_mechanics.md`](../skills/table_analysis/references/mongodb_query_mechanics.md) — the Mongo-touching skills load it directly.
 
 ---
 
@@ -79,10 +77,12 @@ For raw MongoDB query mechanics on `ota.debug_logs` and `ota.optimizer_logs` (co
 └── commands/              # Claude Code slash commands — thin wrappers loading .cursor/skills/
 
 .cursor/
-├── rules/                 # Always- or conditionally-loaded rules
-│   ├── rules.mdc          # Mirror of CLAUDE.md (Cursor-only; alwaysApply: true)
-│   └── mongodb.md         # MongoDB query mechanics (loaded when working with debug_logs / optimizer_logs)
+├── rules/
+│   └── rules.mdc          # Mirror of CLAUDE.md (Cursor-only; alwaysApply: true)
 └── skills/                # Per-skill folders: <name>/SKILL.md + supporting files
+    └── table_analysis/
+        └── references/
+            └── mongodb_query_mechanics.md   # Loaded by bookability_analysis / optimizer_analysis when needed
 
 scripts/
 ├── clickhouse_query.py    # ClickHouse CLI

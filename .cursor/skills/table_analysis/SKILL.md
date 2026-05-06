@@ -32,6 +32,7 @@ These rules apply to every DB-touching task in this repo, not just `table_analys
 - **`db-docs/` first.** Before querying a table or collection, look it up under `db-docs/clickhouse/`, `db-docs/mysql/`, or `db-docs/mongodb/`. If undocumented, say so and offer to document it via this skill (template in `db-docs/README.md`). The same rule lives as step `### 2. Check db-docs/ first` inside the Explore workflow below.
 - **Document durable facts.** When you confirm a stable per-table behavior, content-source quirk, or supplier evidence pattern during an investigation, append it to the matching `db-docs/<store>/<table>.md`. Skill `references/` files capture investigation patterns; `db-docs/` captures what the data means. Investigation-time learnings come back here, not into chat-only output.
 - **Ask before guessing the table.** If the user names a metric without naming a table, run the Explore entry point (or scan `db-docs/`) before querying. Do not infer the table from the metric name.
+- **Mongo query mechanics.** When the task touches `ota.debug_logs` or `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filtering, when to switch to mongosh / Compass / pymongo, no-unbounded-scans), load [`references/mongodb_query_mechanics.md`](references/mongodb_query_mechanics.md). The Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) reference the same file directly.
 
 ## Tooling
 

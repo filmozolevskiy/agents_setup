@@ -2,7 +2,7 @@
 
 Shared reference for both the single-booking flow investigation and the deep bookability analysis.
 For raw query mechanics (collection choice, `transaction_id` / `context` filtering, JSON-only CLI
-limitation), see [`.cursor/rules/mongodb.md`](../../../rules/mongodb.md). For permalink harvest
+limitation), see [`../../table_analysis/references/mongodb_query_mechanics.md`](../../table_analysis/references/mongodb_query_mechanics.md). For permalink harvest
 pipelines, see [`harvest_permalinks.md`](harvest_permalinks.md).
 
 **Before reaching for Mongo:** check
