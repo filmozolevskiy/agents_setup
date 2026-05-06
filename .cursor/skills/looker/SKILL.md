@@ -36,6 +36,12 @@ authoring is git-based; data sanity-checks defer to `table_analysis`.
   the orchestration sits here.
 - The user points the agent at an existing LookML repo registered in
   `projects.md` and asks for changes.
+- The user asks to **make a Looker project / dashboard / explore
+  faster** ("speed up", "optimize", "performance is bad", "this tile
+  takes 30s"). Route this to the optimization subflow (see
+  [`references/optimizing_existing_projects.md`](./references/optimizing_existing_projects.md))
+  — that subflow has its own safety contract about not changing tile
+  values without consent.
 
 If the user just wants to query a table and is not actually asking about
 Looker, send them to `table_analysis` (or the relevant DB CLI under
@@ -186,6 +192,33 @@ Two layers:
 When schema or numeric layer disagrees, do not silently fix the LookML —
 report the discrepancy with both numbers and let the user decide.
 
+### 5. Optimize an existing project / dashboard (`references/optimizing_existing_projects.md`)
+
+Goal: make a registered project faster without breaking dashboards
+that depend on it.
+
+**Two-tier safety contract:**
+
+- **Tier 1 (default, apply without asking)** — every public dimension
+  and measure must keep returning identical values for the same
+  filters. Field names, types, and result sets unchanged. Examples:
+  add an `aggregate_table:` to the explore, attach a `datagroup:` +
+  `max_cache_age:`, narrow a `relationship:` only when verified that
+  the join had no real fan-out, hide noisy join fields, push
+  duplicated SQL into a hidden helper dimension.
+- **Tier 2 (gated, must ask first)** — anything that could change a
+  tile's value or break it: rename / remove fields, change a measure
+  type, add `always_filter:` to a previously unbounded explore, fix a
+  `sql_distinct_key:` on a measure that currently fans out (the new
+  numbers are right, but they shift on every existing tile), split a
+  view, swap connection. Use the proposal template in the reference
+  doc, listing per-dashboard impact, before applying.
+
+Diagnostics first (`query_sql` + `db_access` timing on the warehouse,
+not "looks slow to me"). Verification protocol after every change,
+both tiers — exact-match numbers on the top tile of every affected
+dashboard, before vs after.
+
 ## Files in this skill
 
 - [`SKILL.md`](./SKILL.md) — this file.
@@ -201,6 +234,9 @@ report the discrepancy with both numbers and let the user decide.
   — concrete worked examples of the dashboard / tile MCP flow.
 - [`references/data_verification.md`](./references/data_verification.md) —
   how to back LookML claims with `table_analysis` + DB CLI runs.
+- [`references/optimizing_existing_projects.md`](./references/optimizing_existing_projects.md)
+  — performance optimization on registered projects, with the
+  Tier 1 / Tier 2 safety contract and verification protocol.
 - [`references/manual_handoffs.md`](./references/manual_handoffs.md) —
   verbatim "Your next step" blocks the agent must paste at the end of
   any reply that creates a new project, pushes LookML, or leaves Looker
