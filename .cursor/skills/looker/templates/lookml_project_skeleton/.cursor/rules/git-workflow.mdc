@@ -1,0 +1,58 @@
+---
+alwaysApply: true
+---
+# Git Workflow and Standards
+
+## Branch Naming
+Use descriptive feature branch names with prefixes:
+- `feature/` - for new features
+- `fix/` - for bug fixes
+- `docs/` - for documentation updates
+- `refactor/` - for code refactoring
+
+Example: `feature/code-review-improvements`
+
+## Commit Messages
+Write clear, descriptive commit messages that explain:
+- What changed
+- Why it changed
+- Any breaking changes or dependencies
+
+### Professional Commit Standards
+**NEVER mention:**
+- "AI", "Cursor", "assistant", or automation tools
+- The method or tool used to create the changes
+- References to code generation or assistance
+
+**Write commits as direct developer actions:**
+- ✅ Good: "Add tag aggregation dimension with exception handling"
+- ✅ Good: "Refactor tag grouping logic in derived table"
+- ✅ Good: "Update group labels for better organization"
+- ✅ Good: "Add measure for counting distinct contestants"
+- ❌ Bad: "AI generated tag dimension"
+- ❌ Bad: "Cursor added error handling"
+- ❌ Bad: "Used assistant to update labels"
+
+**Focus on WHAT and WHY, not HOW it was created**
+
+## File Change Review
+Before committing changes:
+1. Review all modified files with `git status`
+2. Use `git diff` to review specific changes
+3. Stage files intentionally with `git add`
+4. Ensure all changes align with the intended feature/fix
+
+## Working with LookML Files
+- Test changes in Looker before committing
+- Validate SQL syntax for derived tables
+- Ensure field references are correct
+- Check that explores load without errors
+
+## Pre-Commit Checklist
+- [ ] All LookML syntax is valid
+- [ ] No hardcoded values that should be parameters
+- [ ] Group labels and organization are consistent
+- [ ] Documentation is updated if needed
+- [ ] Code review document created (if applicable)
+- [ ] Commit message contains no references to AI, Cursor, or automation tools
+- [ ] Code comments are professional and tool-agnostic

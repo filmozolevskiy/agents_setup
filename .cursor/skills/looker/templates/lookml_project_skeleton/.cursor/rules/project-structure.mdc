@@ -1,0 +1,31 @@
+---
+alwaysApply: true
+---
+# __PROJECT_NAME__ — Project Structure
+
+## Project Overview
+
+This is a Looker project for `__PROJECT_NAME__`. It connects to the
+`__CONNECTION__` Looker connection and exposes data from
+`__SQL_TABLE_NAME__` (and any joined tables added later).
+
+## Project Structure
+
+- **models/**: LookML model files
+  - [`__PROJECT_NAME__.model.lkml`](mdc:models/__PROJECT_NAME__.model.lkml) — declares the connection and the explore.
+- **views/**: LookML view files
+  - [`__PROJECT_NAME__.view.lkml`](mdc:views/__PROJECT_NAME__.view.lkml) — primary view over `__SQL_TABLE_NAME__`.
+- **scripts/**: CLI helpers for ad-hoc queries against the backing DB.
+
+## Database Connection
+
+- **Connection Name**: `__CONNECTION__`
+- **Primary Table**: `__SQL_TABLE_NAME__`
+
+## File Organization
+
+- Model files declare the connection and define explores.
+- View files own primary keys, dimensions, dimension groups, and
+  measures over a single `sql_table_name`.
+- Add joined views in their own files (one view per file) when the
+  project grows.

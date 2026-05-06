@@ -1,0 +1,49 @@
+---
+globs: *.lkml
+---
+# LookML Coding Standards
+
+## Naming Conventions
+- Use **snake_case** for all field names (dimensions, measures, parameters)
+- Use descriptive names that reflect business logic
+- Prefix boolean dimensions with `is_` (e.g., `is_multicurrency`, `is_original`)
+- Use `group_label` to organize related dimensions
+
+## Dimension Organization
+Follow the existing group label pattern:
+- **"1. Time"**: Time-based dimensions (date groups)
+- **"General"**: Core categorical dimensions (candidacy, gds, fare_type, etc.)
+- **"Tags"**: Tag-related dimensions
+- Use `hidden: yes` for helper dimensions that shouldn't appear in field pickers
+
+## SQL Basics
+- Always use `${TABLE}.field_name` syntax in SQL
+- Reference dimensions using `${dimension_name}` syntax
+- Use `{% parameter parameter_name %}` for parameter references
+- For detailed SQL patterns, see [lookml-sql-patterns.mdc](mdc:.cursor/rules/lookml-sql-patterns.mdc)
+- For MySQL 8.0 syntax reference, see [mysql-8-syntax.mdc](mdc:.cursor/rules/mysql-8-syntax.mdc)
+
+## Derived Tables
+- Use CTEs (WITH clauses) for complex aggregations
+- Keep tag aggregation logic in separate CTEs for clarity
+- Include comments explaining complex logic (e.g., "Keep this mapping updated!!!")
+- Use LEFT JOINs to preserve all candidates even when related data is missing
+
+## Measures
+- Use `count_distinct` for counting unique entities
+- Reference dimensions using `${dimension_name}` syntax
+- Add descriptive labels and descriptions
+
+## Parameters
+- Use date parameters with default values for filtering
+- Reference parameters in WHERE clauses: `WHERE oc.created_at > {% parameter start_date %}`
+
+## Code Style
+- Use `;;` to terminate SQL blocks
+- Add section comments with `# -------------------------`
+- Group related dimensions together
+- Add TODO comments (e.g., `## add some measures`) for future work
+
+## Reference Files
+- See [content_integration_optimizer.view.lkml](mdc:views/content_integration_optimizer.view.lkml) for examples
+- See [content_integration_optimizer.model.lkml](mdc:models/content_integration_optimizer.model.lkml) for model structure

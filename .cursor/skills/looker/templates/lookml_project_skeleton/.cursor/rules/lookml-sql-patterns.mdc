@@ -1,0 +1,134 @@
+---
+globs: "*.view.lkml"
+---
+# LookML SQL Patterns and Best Practices (MySQL 8.0.43-34)
+
+## Field References
+Always use Looker field references instead of hardcoded column names:
+
+```lkml
+# Good
+sql: ${TABLE}.column_name ;;
+sql: ${dimension_name} ;;
+
+# Bad
+sql: table.column_name ;;
+```
+
+## NULL Handling
+
+### Division by Zero Prevention
+Always use `NULLIF` when dividing:
+```lkml
+measure: rate {
+  type: number
+  sql: ${numerator} / NULLIF(${denominator}, 0) ;;
+}
+```
+
+### NULL in Conditions
+```lkml
+dimension: is_populated {
+  type: yesno
+  sql: (NULLIF(TRIM(${TABLE}.field), '') IS NOT NULL) ;;
+}
+```
+
+## String Normalization (MySQL 8.0)
+For case-insensitive filtering and consistency:
+```lkml
+dimension: currency {
+  sql:
+    CASE
+      WHEN UPPER(TRIM(${TABLE}.currency)) IN ('USD','CAD','GBP')
+        THEN UPPER(TRIM(${TABLE}.currency))
+      ELSE 'Other'
+    END ;;
+}
+```
+
+### MySQL String Functions
+- Use `UPPER()` or `LOWER()` for case conversion (not `upperUTF8`)
+- Use `TRIM()` for removing whitespace
+- Use `CONCAT()` for string concatenation
+- Use `SUBSTRING()` or `LEFT()`/`RIGHT()` for substring extraction
+- Use `REPLACE()` for string replacement
+
+## Derived Tables
+
+### Parameters in SQL
+Use Looker parameters with `{% %}` syntax:
+```lkml
+derived_table: {
+  sql:
+    SELECT *
+    FROM table
+    WHERE date_column > {% parameter start_date %}
+    ;;
+}
+```
+
+### SQL Formatting
+- Use proper indentation for readability
+- Add comments for complex logic
+- Break long CASE statements into multiple lines
+
+## CASE Statement Patterns
+
+### Boolean Logic
+```lkml
+dimension: is_condition {
+  type: yesno
+  sql: (${field1} = 'value' AND NOT ${is_other_condition}) ;;
+}
+```
+
+### Multi-Condition Mapping
+```lkml
+dimension: category {
+  sql:
+    CASE
+      WHEN ${field1} IN ('A','B') THEN 'Type1'
+      WHEN ${field2} = 'C' THEN 'Type2'
+      ELSE ${field3}
+    END ;;
+}
+```
+
+## JSON Extraction (MySQL 8.0)
+For MySQL 8.0 JSON fields:
+```lkml
+dimension: json_field {
+  sql: JSON_UNQUOTE(JSON_EXTRACT(${TABLE}.json_column, '$.key_name')) ;;
+}
+
+# Or using the -> and ->> operators (MySQL 5.7+):
+dimension: json_field_short {
+  sql: ${TABLE}.json_column->>'$.key_name' ;;
+}
+```
+
+### MySQL JSON Functions
+- `JSON_EXTRACT()` - Extract JSON value (returns JSON type)
+- `JSON_UNQUOTE()` - Remove quotes from JSON string
+- `->` - Extract JSON value (returns JSON type)
+- `->>` - Extract JSON value and unquote (returns text)
+- `JSON_OBJECT()` - Create JSON object
+- `JSON_ARRAY()` - Create JSON array
+
+## MySQL 8.0 Features
+For comprehensive MySQL 8.0.43-34 syntax reference, see [mysql-8-syntax.mdc](mdc:.cursor/rules/mysql-8-syntax.mdc)
+
+Key features available:
+- **Window Functions**: `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, `LAG()`, `LEAD()`, etc.
+- **CTEs (Common Table Expressions)**: Fully supported with `WITH` clause
+- **JSON Support**: Native JSON data type with JSON functions
+- **Date Functions**: `DATE_ADD()`, `DATE_SUB()`, `DATEDIFF()`, `DATE_FORMAT()`
+- **Interval Arithmetic**: `now() - interval 10 day` syntax
+
+## Performance Considerations
+- Filter early in derived tables to reduce data volume
+- Use appropriate indexes in the base table (though we have read-only access)
+- Consider caching strategies for expensive queries
+- Use persistent derived tables when appropriate
+- MySQL 8.0 supports CTEs which can improve query readability and performance
