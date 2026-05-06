@@ -7,6 +7,27 @@ adding it before doing any other work.
 Each row is **one Looker project ↔ one GitHub repo**. Adding a new project
 means adding the row in the same change as the work that introduces it.
 
+## Testing changes to this skill
+
+Use **`looker_skill_smoketest_bookings`** as the test bed for any change
+to this skill — new bootstrap-subflow steps, edits to
+`references/lookml_best_practices.md`, new manual-handoff blocks, etc.
+It is the only project in the registry whose explicit purpose is
+"break-things-and-find-out", so:
+
+- Push experimental LookML there, not into a production project.
+- Exercise dashboard-edit changes on dashboard **1742**
+  ("Looker skill smoketest — Bookings"); revert tile additions you do
+  not want to keep.
+- The data layer is `ota.bookings`, which is documented under
+  `.cursor/skills/db_access/db-docs/mysql/bookings.md`, so numeric
+  cross-checks are cheap.
+
+If a change to the skill fundamentally cannot be exercised on this
+project (e.g. a feature that only matters for ClickHouse-backed
+projects), say so explicitly and propose a separate smoke-test project
+before merging.
+
 ## Active projects
 
 The **GitHub repo basename** and the **Looker project name** are equal
