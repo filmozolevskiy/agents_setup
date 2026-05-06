@@ -36,6 +36,15 @@ Investigations follow the two-stage shape used in `bookability_analysis`: MySQL 
 
 **Before digging:** read [`db-docs/mysql/optimizer_candidates.md`](../../../db-docs/mysql/optimizer_candidates.md), [`db-docs/mysql/optimizer_attempts.md`](../../../db-docs/mysql/optimizer_attempts.md), [`db-docs/mysql/optimizer_candidate_tags.md`](../../../db-docs/mysql/optimizer_candidate_tags.md), [`db-docs/mysql/optimizer_tags.md`](../../../db-docs/mysql/optimizer_tags.md), [`db-docs/mongodb/optimizer_logs.md`](../../../db-docs/mongodb/optimizer_logs.md). For Mongo query mechanics, load [`.cursor/rules/mongodb.md`](../../rules/mongodb.md). Update `db-docs/mongodb/optimizer_logs.md` and `db-docs/mysql/optimizer_attempt_bookings.md` when you confirm durable facts (see **Post-run learning**).
 
+## Query discipline
+
+These rules apply to every query in this skill — MySQL on `optimizer_*` tables and MongoDB on `ota.optimizer_logs`. Skip them and the audit stops being reproducible.
+
+- **CTE shape (mandatory).** Every MySQL aggregation or example query starts with a CTE that names the slice once (`attempt_id` set, `created_at` window, joins to `optimizer_candidate_tags` / `optimizer_tags`). The outer statement is either the aggregate or an example `LIMIT N` listing; include the counterpart as a commented-out outer `SELECT` from the same CTE. Templates in [`references/optimizer_sql_templates.md`](references/optimizer_sql_templates.md) follow this shape — copy them, do not re-author from scratch. For Mongo, the leading `$match` plays the same role — name the slice once (`transaction_id` from MySQL, `context` regex), then branch between aggregation and the permalink projection.
+- **Always bound on `attempt_id` or `created_at`.** `optimizer_candidates` is ~45M rows. Every query (count or example) must include either an `attempt_id IN (…)` filter populated from the audit's MySQL slice, or a `created_at` window of at most a few hours. Unbounded queries time out and waste credits.
+- **No unbounded Mongo scans.** Never run `find {}` on `optimizer_logs` — same rule as `.cursor/rules/mongodb.md`. Always anchor on `transaction_id` (single value or `$in` from MySQL) plus a `context` regex narrowed to the supplier or operation under audit.
+- **Reuse the anchor as ground truth.** When reconciling reprice variants, the attempt's `reprice_type = 'original'` / `reprice_index = 'master_0'` candidate is the reconciliation reference. Do not redefine the anchor between queries within an investigation.
+
 ## Glossary
 
 - **Contestant** (user term) = **candidate** (schema term) = a row in `ota.optimizer_candidates`. Interchangeable; prefer "candidate" in report output to match the schema.

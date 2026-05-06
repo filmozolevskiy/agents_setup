@@ -17,6 +17,15 @@ Diagnose why specific fares or bookings cannot be finalized. Every investigation
 
 **Before digging:** read `db-docs/mongodb/debug_logs.md` (investigation sections, glossary, content-source hints) and `db-docs/clickhouse/jupiter_booking_errors_v2.md` (error signature table, classification taxonomy). For raw Mongo query mechanics (`transaction_id` / `context` / `Response` filtering, JSON-only CLI, when to switch to mongosh / Compass / pymongo), load [`.cursor/rules/mongodb.md`](../../rules/mongodb.md). Update the matching doc when you confirm durable observability facts.
 
+## Query discipline
+
+These rules apply to every query in this skill — MySQL, ClickHouse, and MongoDB. Skip them and the report stops being trustable.
+
+- **CTE shape (mandatory).** Every MySQL / ClickHouse aggregation or example query starts with a CTE that names the slice once (filters, window, joins). The outer statement is either an aggregate (`COUNT`, `SUM`, rate expression) or an example listing (`ORDER BY … LIMIT N`); include the counterpart as a commented-out outer `SELECT` from the same CTE so reviewers can swap count ↔ examples without re-validating the filter. For Mongo, the leading `$match` plays the same role — name the slice there once, then branch between `$group` aggregation and the permalink projection variants in [`references/harvest_permalinks.md`](references/harvest_permalinks.md).
+- **Reuse denominators.** Do not redefine rate / count / dedup expressions between queries in the same investigation. Pick the existing formula from [`references/standard_bookability_report.md`](references/standard_bookability_report.md) (manual rate, leak rate, contestant success rate) and reuse it. Reviewers cannot trust comparisons across silently re-defined denominators.
+- **State window and timezone.** Every number in the report names its window and timezone. When comparing two periods, name both windows and the timezone in the same line.
+- **No unbounded scans.** Never run `find {}` on `debug_logs` / `optimizer_logs` (rotated window, expensive); never run `SELECT *` without a filter + `LIMIT` against `bookability_*` or `jupiter_booking_errors_v2`. Indexed filters or a tight `date_added` / `created_at` window are mandatory. The same rule lives in `.cursor/rules/mongodb.md` for the Mongo CLI specifically.
+
 ## Data sources and join key
 
 Every workflow uses all three stores. Each has a fixed job — do not substitute one for another.
