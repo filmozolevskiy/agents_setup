@@ -191,3 +191,16 @@ The single-value count must match
 `python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT COUNT(*) FROM ota.bookings WHERE is_test = 0 AND booking_date > NOW() - INTERVAL 30 DAY"`
 ±0 (or ±a few rows for in-flight inserts during the run). Big drift =
 something is wrong; flag it instead of silently moving on.
+
+## Closing the reply
+
+Dashboard / tile changes via the MCP go live the moment the API call
+returns — no Looker admin step needed. Close the reply with the
+**Block A** ("Refresh only") template from
+[`manual_handoffs.md`](./manual_handoffs.md), filled in with the
+dashboard URL.
+
+If the same reply also pushed LookML (e.g. the very first dashboard
+on a brand-new project, or a tile that references a new measure you
+just pushed), use **Block B** or **Block C** instead — those are
+strictly stronger and already imply the dashboard refresh.

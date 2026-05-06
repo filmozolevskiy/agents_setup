@@ -124,40 +124,25 @@ The skeleton already includes:
 Add a row to `.cursor/skills/looker/projects.md` with name, repo URL,
 Looker project name (= `<project_name>`), connection, owner, purpose.
 
-## Step 6 — Hand off Looker connection to a human admin
+## Step 6 — Hand off to the user
 
-The MCP cannot create a Looker project from a GitHub repo. Tell the
-user, in the closing PR comment, what the admin needs to do:
+The MCP cannot create a Looker project from a GitHub repo and cannot
+trigger a Pull / Deploy on an external-git project. End the reply
+with the **Block C** template from
+[`manual_handoffs.md`](./manual_handoffs.md) verbatim (placeholders:
+`<project_name>`, `<repo_url>`, `<connection>`, `<initial_commit_sha>`).
 
-1. Looker → **Develop → Manage LookML Projects → New LookML Project**.
-2. Name: `<project_name>`. Starting Point: **Blank Project** with
-   **Git Connection: External Git Repository**.
-3. Repository URL: `https://github.com/<owner>/<project_name>.git`.
-4. Save. For **public** repos accessed over HTTPS, Looker may not
-   prompt for a deploy key — that is fine. For **private** repos
-   Looker generates a deploy key; add it under
-   `Settings → Deploy keys` on the GitHub repo with write access, then
-   paste it back into Looker's **Configure Git**.
-5. Pull latest → confirm the model and view show up in **Develop**.
+That block covers the one-time Looker project creation, the first
+pull+deploy, and (optionally) model permissioning. Do not paraphrase
+it; users skim, and the validate-before-deploy gate is load-bearing.
 
-Do not pretend the agent did this; it didn't.
+For any **subsequent** LookML push to the same project (after it is
+connected), use **Block B** instead — the connection bit is no longer
+relevant and the user just needs to pull + deploy the new commit.
 
-## Step 6b — Redeploy after every LookML change
-
-External-git Looker projects do **not** auto-deploy. After every
-`git push` to the project repo (initial scaffold or later edits),
-the admin / owner must:
-
-1. Looker → toggle **Develop Mode** on.
-2. Open the project → click the git icon in the toolbar.
-3. **Pull from Production** (or **Pull Latest**).
-4. **Validate LookML** — must report 0 errors.
-5. **Deploy to Production**.
-
-The agent has no MCP tool to trigger this. Always tell the user
-explicitly that LookML edits are inert until they pull+deploy. Run
-`get_explores` / `get_measures` to confirm the new fields show up
-before adding tiles that reference them.
+Do not pretend the agent did the manual steps; it didn't. Wait for
+the user's confirmation ("connected" or "deployed") before running
+`get_explores` / `get_measures` / `run_dashboard` to verify.
 
 ## Step 7 — Smoke test once the admin has connected the repo
 

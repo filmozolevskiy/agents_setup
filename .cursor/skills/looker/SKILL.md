@@ -68,6 +68,17 @@ SQL.
    any repo `.env`.
 6. **LookML best practices apply to every generated file.** See
    [`references/lookml_best_practices.md`](./references/lookml_best_practices.md).
+7. **Always end with a manual-handoff block.** Many Looker operations
+   require a human admin or Develop-Mode action that no MCP tool can
+   perform: connecting a new GitHub repo to Looker, pulling + deploying
+   LookML changes, granting model permissions, etc. Every reply that
+   creates a new project, pushes LookML, or otherwise leaves work
+   pending in Looker MUST end with a "Your next step" block taken
+   verbatim from
+   [`references/manual_handoffs.md`](./references/manual_handoffs.md).
+   Never close out by saying "done" if a deploy is pending — list the
+   deploy steps explicitly and tell the user the agent will verify
+   after they confirm.
 
 ## Subflows
 
@@ -190,6 +201,10 @@ report the discrepancy with both numbers and let the user decide.
   — concrete worked examples of the dashboard / tile MCP flow.
 - [`references/data_verification.md`](./references/data_verification.md) —
   how to back LookML claims with `table_analysis` + DB CLI runs.
+- [`references/manual_handoffs.md`](./references/manual_handoffs.md) —
+  verbatim "Your next step" blocks the agent must paste at the end of
+  any reply that creates a new project, pushes LookML, or leaves Looker
+  work in a pending state.
 - [`templates/lookml_project_skeleton/`](./templates/lookml_project_skeleton/)
   — file-by-file skeleton (LookML, scripts, configs, cursor rules) used
   by the bootstrap subflow. Copy-substitute placeholders, push via
