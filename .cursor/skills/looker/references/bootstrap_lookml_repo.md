@@ -100,24 +100,25 @@ Substitute these placeholders before pushing:
 | `__PROJECT_NAME__` | `<project_name>` |
 | `__CONNECTION__` | Looker connection name (e.g. `ota`) |
 | `__SQL_TABLE_NAME__` | Fully-qualified `<db>.<table>` |
-| `__OWNER__` | GitHub login of the owner |
-| `__PURPOSE__` | One-line purpose for the README |
 
 Push everything in one commit with a message like
 `Initial LookML scaffold for <project_name>`.
 
-The skeleton already includes:
+The skeleton is intentionally minimal — LookML and a `.gitignore`,
+nothing else:
 
 - `models/__PROJECT_NAME__.model.lkml`
 - `views/__PROJECT_NAME__.view.lkml`
-- `.cursor/rules/lookml-standards.mdc`,
-  `.cursor/rules/lookml-view-standards.mdc`,
-  `.cursor/rules/lookml-sql-patterns.mdc`,
-  `.cursor/rules/lookml-best-practices.mdc`,
-  `.cursor/rules/project-structure.mdc`,
-  `.cursor/rules/git-workflow.mdc`
-- `scripts/mysql_query.py`, `scripts/README.md`
-- `.env.example`, `.gitignore`, `README.md`, `requirements.txt`
+- `.gitignore`
+
+Project repos are not standalone agent environments. They hold LookML
+that Looker pulls; they do not carry their own scripts, requirements,
+README, env templates, or Cursor rules. LookML standards apply at
+authoring time from this skill's
+[`lookml_best_practices.md`](./lookml_best_practices.md); data
+verification uses
+[`db_access`](../../db_access/) inside the agents_setup repo (the only
+place DB credentials live).
 
 ## Step 5 — Register in `projects.md`
 

@@ -52,9 +52,9 @@ SQL.
    `/Users/filippmozolevskiy/.cursor/projects/Users-filippmozolevskiy-Repositories-agents-setup/mcps/project-0-agents_setup-looker/tools/<tool>.json`
    before each call.
 2. **One Looker project → one dedicated GitHub repo.** Never co-host two
-   projects in one repo, even small ones. Each repo has its own
-   `.env.example`, `README.md`, `requirements.txt`, and CI hook for LookML
-   validation.
+   projects in one repo, even small ones. The repo holds LookML and
+   nothing else; data verification, env handling, and CI all live in
+   `agents_setup` (this repo) — never duplicate them per project.
 3. **Registry-gated.** The agent only touches repos / projects listed in
    [`projects.md`](./projects.md). Adding a new project = adding the entry
    in the same change. If the user names a project that is not registered,
@@ -117,21 +117,20 @@ Outline (full procedure in the reference doc):
    README — `push_files` writes the initial scaffold.
 3. **Push the scaffold** with `push_files`. Files come from
    [`templates/lookml_project_skeleton/`](./templates/lookml_project_skeleton/);
-   substitute `<project_name>`, `<connection>`, `<sql_table_name>`,
-   `<owner>` placeholders. The skeleton is modeled on
-   [filmozolevskiy/content_integration_optimizer](https://github.com/filmozolevskiy/content_integration_optimizer)
-   and includes:
+   substitute `<project_name>`, `<connection>`, `<sql_table_name>`
+   placeholders. The skeleton is intentionally minimal — LookML only,
+   no scripts, no rules, no per-project docs:
    - `models/<project_name>.model.lkml` — declares the connection and one
      explore.
    - `views/<project_name>.view.lkml` — one view with `sql_table_name`,
      primary key, a `dimension_group: date`, a few dimensions and measures.
-   - `.cursor/rules/*.mdc` — LookML standards, SQL patterns,
-     project-structure docs (copied from the reference repo, scoped to
-     this project).
-   - `scripts/mysql_query.py` (or `clickhouse_query.py` /
-     `mongo_query.py`) — same shape as the reference repo, so the
-     project's own agent can sanity-check data.
-   - `.env.example`, `.gitignore`, `requirements.txt`, `README.md`.
+   - `.gitignore` — `.env`, `.DS_Store`.
+
+   Data verification runs from `db_access` in this repo (see
+   `.cursor/skills/db_access/scripts/`); LookML standards live in
+   [`references/lookml_best_practices.md`](./references/lookml_best_practices.md)
+   and apply at authoring time. Project repos are not standalone agent
+   environments — they exist only to hold LookML for Looker to pull.
 4. **Register the project** in [`projects.md`](./projects.md) with name,
    GitHub URL, Looker project name, owner, and short purpose. Same change.
 5. **Hand off to a Looker admin** to connect the repo to Looker. The
@@ -176,9 +175,10 @@ Two layers:
 
 - **Schema layer** — does the column / table referenced in `sql_table_name`
   / `sql:` actually exist? Delegate to **`table_analysis`** in
-  `db_access` (or the relevant DB CLI: `scripts/clickhouse_query.py`,
-  `scripts/mysql_query.py`, `scripts/mongo_query.py`). Never assume column
-  names from the LookML alone.
+  `db_access` (or the relevant DB CLI under
+  `.cursor/skills/db_access/scripts/`: `clickhouse_query.py`,
+  `mysql_query.py`, `mongo_query.py`). Never assume column names from
+  the LookML alone.
 - **Numeric layer** — does the LookML measure agree with a hand-written
   query? Run the LookML measure with `query` (Looker MCP), run the
   equivalent SQL via the DB CLI, compare.
@@ -236,8 +236,10 @@ schema in
 - `table_analysis` — schema discovery, finding the right table for a
   proposed LookML view. Mandatory partner for the data verification
   subflow.
-- `db_access` (`scripts/mysql_query.py`, `scripts/clickhouse_query.py`,
-  `scripts/mongo_query.py`) — actual numeric checks against the live DB.
+- `db_access` (`.cursor/skills/db_access/scripts/mysql_query.py`,
+  `clickhouse_query.py`, `mongo_query.py`) — actual numeric checks
+  against the live DB. The only place DB credentials live; project
+  repos never carry their own.
 
 ## What not to do
 

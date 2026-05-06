@@ -2,9 +2,9 @@
 
 Distilled from
 [filmozolevskiy/content_integration_optimizer/.cursor/rules/](https://github.com/filmozolevskiy/content_integration_optimizer/tree/master/.cursor/rules).
-Every generated `.model.lkml` / `.view.lkml` follows these rules. Mirror
-them inside each project repo's own `.cursor/rules/` so the project's
-local agent picks them up too.
+Every generated `.model.lkml` / `.view.lkml` follows these rules.
+Project repos hold only LookML — these standards live here in the
+`looker` skill, not duplicated per project.
 
 ## Project layout
 
@@ -14,24 +14,11 @@ local agent picks them up too.
 │   └── <project_name>.model.lkml
 ├── views/
 │   └── <project_name>.view.lkml
-├── schemas/
-│   └── README.md            # optional, pasted DESCRIBE output
-├── scripts/
-│   ├── README.md
-│   └── mysql_query.py       # or clickhouse_query.py / mongo_query.py
-├── .cursor/
-│   └── rules/
-│       ├── lookml-standards.mdc
-│       ├── lookml-view-standards.mdc
-│       ├── lookml-sql-patterns.mdc
-│       ├── lookml-best-practices.mdc
-│       ├── project-structure.mdc
-│       └── git-workflow.mdc
-├── .env.example
-├── .gitignore
-├── README.md
-└── requirements.txt
+└── .gitignore
 ```
+
+Anything else (data verification, scripts, env, CI) belongs in
+`agents_setup`, not in the project repo.
 
 ## Model file
 
@@ -92,8 +79,9 @@ local agent picks them up too.
 - PDTs (`derived_table` with `persist_for` / `sql_trigger_value`)
   unless explicitly requested by the user — they cost real connection
   time and rarely pay back at the smoke-test stage.
-- Secrets in `.env`, in any LookML file, or in `manifest.lkml`.
-  `.env` is `.gitignore`d; `.env.example` ships with empty values.
+- Secrets in any LookML file or in `manifest.lkml`. There is no `.env`
+  in a project repo at all (deliberately) — credentials live in
+  `agents_setup`'s `db_access` CLIs only.
 
 ## File-level conventions
 
@@ -105,10 +93,11 @@ local agent picks them up too.
 
 ## Testing
 
-- Use the project's local DB CLI (`scripts/mysql_query.py` / etc.) to
-  sanity-check at least one measure before pushing — count of rows in
-  the underlying table should match the count measure modulo any
-  filters you applied.
+- Use the `db_access` CLIs in this repo
+  (`.cursor/skills/db_access/scripts/mysql_query.py` /
+  `clickhouse_query.py` / `mongo_query.py`) to sanity-check at least
+  one measure before pushing — count of rows in the underlying table
+  should match the count measure modulo any filters you applied.
 - After pushing, run a Looker MCP `query` against the new explore to
   confirm Looker resolves the LookML and the connection works.
 - Compare `query` numbers with `query_sql` (which returns the generated

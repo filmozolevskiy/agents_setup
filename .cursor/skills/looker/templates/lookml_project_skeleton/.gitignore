@@ -1,10 +1,5 @@
 # Environment & secrets
 .env
 
-# Python
-__pycache__/
-.venv/
-*.pyc
-
 # macOS
 .DS_Store
