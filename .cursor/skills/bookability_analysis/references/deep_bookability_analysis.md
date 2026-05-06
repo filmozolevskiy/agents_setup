@@ -150,7 +150,7 @@ ORDER BY bcusta.date_created DESC;
 ## MongoDB: batch `transaction_id` (`$in`)
 
 Load `.env` once per session (`set -a && source .env && set +a`, see
-`.cursor/rules/global_setup.md`), then:
+`CLAUDE.md` § Database Access), then:
 
 ```bash
 python3 scripts/mongo_query.py find debug_logs ota \

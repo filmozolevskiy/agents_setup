@@ -36,7 +36,7 @@ python3 scripts/mongo_query.py find debug_logs ota \
   --json
 ```
 
-(Load `.env` first per `.cursor/rules/global_setup.md`.)
+(Load `.env` first: `set -a && source .env && set +a`. See `CLAUDE.md` § Database Access.)
 
 ### 3. Identify key stages
 
