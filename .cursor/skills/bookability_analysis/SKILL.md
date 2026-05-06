@@ -15,7 +15,7 @@ description: >-
 
 Diagnose why specific fares or bookings cannot be finalized. Every investigation follows one shape: SQL overview first (MySQL rates + ClickHouse failure signatures), then an optional MongoDB deep dive driven by what SQL surfaced.
 
-**Before digging:** read `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` (investigation sections, glossary, content-source hints) and `.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md` (error signature table, classification taxonomy). For raw Mongo query mechanics (`transaction_id` / `context` / `Response` filtering, JSON-only CLI, when to switch to mongosh / Compass / pymongo), load [`../db_access/references/mongodb_query_mechanics.md`](../db_access/references/mongodb_query_mechanics.md). Update the matching doc when you confirm durable observability facts.
+**Before digging:** read `.cursor/skills/db_access/db-docs/mongodb/debug_logs.md` (investigation sections, glossary, content-source hints) and `.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md` (error signature table, classification taxonomy). For raw Mongo query mechanics (`transaction_id` / `context` / `Response` filtering, JSON-only CLI, when to switch to mongosh / Compass / pymongo), load [`../db_access/references/mongodb_query_mechanics.md`](../db_access/references/mongodb_query_mechanics.md). Then scan [`references/known_pitfalls.md`](references/known_pitfalls.md) for cluster-shape traps recorded from prior misjudgements (e.g. the Downtowntravel virtual-card cluster that looks like a misclassification but usually isn't). Update the matching doc when you confirm durable observability facts; append to `known_pitfalls.md` when a new analyst-side trap is caught and corrected.
 
 ## Query discipline
 
@@ -103,6 +103,7 @@ If the report surfaces a single internal artefact, it is a **path** ("Raw signat
 ## Cross-cutting references
 
 - **Report format** (canonical findings-table columns, verdict vocabulary, voice rules, worked examples per workflow): [`references/report_format.md`](references/report_format.md).
+- **Known pitfalls** (analyst-side traps recorded from prior misjudgements — read at the start of any payment-shaped cluster investigation): [`references/known_pitfalls.md`](references/known_pitfalls.md).
 - **ClickHouse error table** (signature source for § 3 error bucket + similar-errors groupings): [`.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md`](../../../.cursor/skills/db_access/db-docs/clickhouse/jupiter_booking_errors_v2.md).
 - **Debug-log query patterns** (effective `$match` shape, evidence hierarchy, prevalence): [`references/debug_logs_query_patterns.md`](references/debug_logs_query_patterns.md).
 - **Permalink harvest pipelines** (Variants A/B/C + URL shape): [`references/harvest_permalinks.md`](references/harvest_permalinks.md).
