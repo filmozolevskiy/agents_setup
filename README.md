@@ -14,11 +14,11 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 
 ## Skills
 
-- **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
-- **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
-- **`/qa_automation`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
-- **`/table_analysis`** — find which table or collection holds the data you need (when `db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `db-docs/`.
-- **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
+- `**/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
+- `**/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
+- `**/qa_automation`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
+- `**/table_analysis**` — find which table or collection holds the data you need (when `db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `db-docs/`.
+- `**/trello_assistant**` — create or update cards on the Content Integration Trello board.
 
 Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 
@@ -72,12 +72,14 @@ Some skills talk to external services through MCP (Model Context Protocol) serve
 | MCP                                                | Used by                     | Required            | What it does                                                         |
 | -------------------------------------------------- | --------------------------- | ------------------- | -------------------------------------------------------------------- |
 | **Trello** (`@delorenj/mcp-server-trello`)         | `/trello_assistant`         | Yes, for that skill | Read/create/update cards on the Content Integration board.           |
+| **ClickHouse** (`mcp-clickhouse`, repo-local)      | Ad-hoc CH queries           | Optional            | `run_query`, `list_databases`, `list_tables` against phoenix-db.     |
+| **Looker** (`genai-toolbox --prebuilt looker`, repo-local) | Ad-hoc Looker work  | Optional            | List models / Explores / dimensions, run queries, run saved Looks.   |
 | **GitHub** (`@modelcontextprotocol/server-github`) | Ad-hoc (PR / issue lookups) | Optional            | Read repos, PRs, issues when a skill or question needs code context. |
 | **Atlassian** (`https://mcp.atlassian.com/v1/mcp`) | Ad-hoc (Jira / Confluence)  | Optional            | Query Jira tickets and Confluence pages.                             |
 | **Lucid** (`https://mcp.lucid.app/mcp`)            | Ad-hoc (diagrams)           | Optional            | Read Lucidchart diagrams referenced in tickets.                      |
 
 
-No skill in this repo requires GitHub, Atlassian, or Lucid — add them only if you want them available to the agent generally.
+No skill in this repo requires GitHub, Atlassian, Lucid, ClickHouse-MCP, or Looker — add them only if you want them available to the agent generally. The repo-level `.cursor/mcp.json` already wires up ClickHouse and Looker for everyone who clones the repo (see [Repo-local MCPs (ClickHouse, Looker)](#repo-local-mcps-clickhouse-looker) below).
 
 ### Get credentials
 
@@ -137,6 +139,24 @@ Claude Code reads `.mcp.json` at the repo root (project-level, shareable) and/or
 ### Verify
 
 In Cursor: open the MCP panel (Settings → MCP) and confirm each server shows *Connected*. In Claude Code: run `/mcp` in a session and check the server list. For Trello specifically, ask the agent to `set_active_board 61d5cf784c6396541499e7ce` and `get_lists` — if that returns the Content Integration lists, the MCP is wired up.
+
+### Repo-local MCPs (ClickHouse, Looker)
+
+Two MCP servers are wired up at the repo level via `.cursor/mcp.json`, so anyone who opens the repo in Cursor gets them automatically. Both read credentials from the repo `.env` (gitignored) through small wrapper scripts under `scripts/`:
+
+- `scripts/mcp_clickhouse.sh` → [`mcp-clickhouse`](https://github.com/ClickHouse/mcp-clickhouse) launched via `uvx`. Tools: `run_query`, `list_databases`, `list_tables`. Reads `CLICKHOUSE_HOST`/`PORT`/`USER`/`PASSWORD`/`DATABASE` from `.env`; defaults `CLICKHOUSE_SECURE` based on the port.
+- `scripts/mcp_looker.sh` → Google [`genai-toolbox`](https://googleapis.github.io/genai-toolbox/) `--prebuilt looker`. Tools: `get_models` / `get_explores` / `get_dimensions` / `get_measures` / `query` / `query_sql` / `run_look` / etc. Reads `LOOKER_BASE_URL`/`LOOKER_CLIENT_ID`/`LOOKER_CLIENT_SECRET`/`LOOKER_VERIFY_SSL` from `.env`.
+
+One-time install (downloads the toolbox binary into `bin/`, which is gitignored):
+
+```bash
+./scripts/install_mcp_toolbox.sh
+uvx --from mcp-clickhouse mcp-clickhouse --help  # warms the uvx cache (optional)
+```
+
+Then add the credentials your wrappers need to `.env` (Looker keys; ClickHouse keys are already there if the CLI works) and restart Cursor.
+
+Why these are MCP servers in addition to the existing CLIs (`scripts/clickhouse_query.py` etc.): the CLIs stay the canonical path for queries that get pasted onto Trello cards (the cards need raw SQL, not MCP tool calls). The MCPs save a step when the agent is iterating on schema discovery or wants to chain a few exploratory queries without shelling out each time. Use whichever fits.
 
 ## Quick connection test
 

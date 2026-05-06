@@ -9,6 +9,9 @@ __pycache__/
 reports/
 docs/
 
+# MCP Toolbox binary (downloaded via scripts/install_mcp_toolbox.sh)
+bin/
+
 # macOS
 .DS_Store
 
