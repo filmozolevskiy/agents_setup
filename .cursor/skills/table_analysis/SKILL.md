@@ -24,6 +24,15 @@ Two entry points, one skill:
 
 When exploration finds a good candidate, continue straight into documentation. Do not hand off or re-enter the skill.
 
+## DB foundations
+
+These rules apply to every DB-touching task in this repo, not just `table_analysis`. Other skills (`bookability_analysis`, `optimizer_analysis`, `qa_automation`) inherit them and layer their own query discipline on top.
+
+- **Database CLIs only.** Query MySQL, ClickHouse, and MongoDB only via `scripts/mysql_query.py`, `scripts/clickhouse_query.py`, `scripts/mongo_query.py`. Load `.env` once per session: `set -a && source .env && set +a`. Never invent connection strings, hostnames, or credentials — they come from `.env` via these CLIs. The `## Tooling` section below lists the env vars each CLI needs.
+- **`db-docs/` first.** Before querying a table or collection, look it up under `db-docs/clickhouse/`, `db-docs/mysql/`, or `db-docs/mongodb/`. If undocumented, say so and offer to document it via this skill (template in `db-docs/README.md`). The same rule lives as step `### 2. Check db-docs/ first` inside the Explore workflow below.
+- **Document durable facts.** When you confirm a stable per-table behavior, content-source quirk, or supplier evidence pattern during an investigation, append it to the matching `db-docs/<store>/<table>.md`. Skill `references/` files capture investigation patterns; `db-docs/` captures what the data means. Investigation-time learnings come back here, not into chat-only output.
+- **Ask before guessing the table.** If the user names a metric without naming a table, run the Explore entry point (or scan `db-docs/`) before querying. Do not infer the table from the metric name.
+
 ## Tooling
 
 | Engine     | Script                         | Env vars |
