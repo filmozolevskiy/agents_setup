@@ -188,6 +188,6 @@ explore: `bookings`).
    resolve.
 
 The single-value count must match
-`python3 scripts/mysql_query.py query "SELECT COUNT(*) FROM ota.bookings WHERE is_test = 0 AND booking_date > NOW() - INTERVAL 30 DAY"`
+`python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT COUNT(*) FROM ota.bookings WHERE is_test = 0 AND booking_date > NOW() - INTERVAL 30 DAY"`
 ±0 (or ±a few rows for in-flight inserts during the run). Big drift =
 something is wrong; flag it instead of silently moving on.

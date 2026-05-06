@@ -28,7 +28,7 @@ Both layers are required for any new view, and any time the user says
 
    ```bash
    set -a && source .env && set +a && \
-     python3 scripts/mysql_query.py describe <table> <db>
+     python3 .cursor/skills/db_access/scripts/mysql_query.py describe <table> <db>
    ```
 
    (substitute `clickhouse_query.py` / `mongo_query.py` for non-MySQL).
@@ -53,7 +53,7 @@ Both layers are required for any new view, and any time the user says
 
    ```bash
    set -a && source .env && set +a && \
-     python3 scripts/mysql_query.py query "SELECT COUNT(*) FROM <db>.<table> WHERE ..."
+     python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT COUNT(*) FROM <db>.<table> WHERE ..."
    ```
 
 4. Compare. ± a few rows is normal (in-flight inserts between the two

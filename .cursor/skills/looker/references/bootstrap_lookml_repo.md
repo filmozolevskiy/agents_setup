@@ -47,6 +47,27 @@ If you don't know what the columns are, run `table_analysis` first —
 the smoke test for this skill is on `ota.bookings`, which already has
 docs at `.cursor/skills/db_access/db-docs/mysql/bookings.md`.
 
+### Naming rule (do not deviate)
+
+Looker derives the **model name** from the `.model.lkml` file basename.
+For dashboards built by this skill to work, all four of these MUST
+match exactly:
+
+- GitHub repo name → `<project_name>`
+- Looker project name → `<project_name>`
+- Model file path → `models/<project_name>.model.lkml`
+- The `model:` field referenced from any dashboard tile → `<project_name>`
+
+The view file name does not matter to Looker (only the `view: <name>`
+declaration inside it matters), but for consistency the skeleton names
+it `views/<project_name>.view.lkml` too.
+
+If you create a tile with `model: <project_name>` but your file is
+called `models/<something_else>.model.lkml`, Looker will register a
+model called `<something_else>` and the tile will return
+`error running query` ("LookML error"). Rename the file, do not edit
+the tile.
+
 ## Step 3 — Create the GitHub repo via the GitHub MCP
 
 Tool: `create_repository` on `user-GitHub` MCP.
@@ -112,12 +133,31 @@ user, in the closing PR comment, what the admin needs to do:
 2. Name: `<project_name>`. Starting Point: **Blank Project** with
    **Git Connection: External Git Repository**.
 3. Repository URL: `https://github.com/<owner>/<project_name>.git`.
-4. Save → Looker generates a deploy key. Add it under
-   `Settings → Deploy keys` on the GitHub repo, with write access.
-5. Looker → **Configure Git** → enter the deploy key → connect.
-6. Pull latest → confirm the model and view show up in **Develop**.
+4. Save. For **public** repos accessed over HTTPS, Looker may not
+   prompt for a deploy key — that is fine. For **private** repos
+   Looker generates a deploy key; add it under
+   `Settings → Deploy keys` on the GitHub repo with write access, then
+   paste it back into Looker's **Configure Git**.
+5. Pull latest → confirm the model and view show up in **Develop**.
 
 Do not pretend the agent did this; it didn't.
+
+## Step 6b — Redeploy after every LookML change
+
+External-git Looker projects do **not** auto-deploy. After every
+`git push` to the project repo (initial scaffold or later edits),
+the admin / owner must:
+
+1. Looker → toggle **Develop Mode** on.
+2. Open the project → click the git icon in the toolbar.
+3. **Pull from Production** (or **Pull Latest**).
+4. **Validate LookML** — must report 0 errors.
+5. **Deploy to Production**.
+
+The agent has no MCP tool to trigger this. Always tell the user
+explicitly that LookML edits are inert until they pull+deploy. Run
+`get_explores` / `get_measures` to confirm the new fields show up
+before adding tiles that reference them.
 
 ## Step 7 — Smoke test once the admin has connected the repo
 
@@ -138,8 +178,9 @@ When the admin reports the project is connected:
    ```
 
    Cross-check the returned number against
-   `python3 scripts/mysql_query.py query "SELECT COUNT(*) FROM <db>.<table> ..."`
-   inside the project repo (or the agent-setup `scripts/`).
+   `python3 .cursor/skills/db_access/scripts/mysql_query.py query "SELECT COUNT(*) FROM <db>.<table> ..."`
+   in the agent-setup repo (or the equivalent under `scripts/` inside
+   the project repo, which is a copy of the same script).
 5. If the numbers diverge, do not silently fix the LookML — surface the
    diff to the user.
 
