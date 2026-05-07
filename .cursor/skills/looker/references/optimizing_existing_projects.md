@@ -5,26 +5,35 @@ the dashboards that already depend on it.
 
 ## Safety contract — read first
 
-There are two tiers of optimization, and they are governed by
-different rules:
+**Every LookML edit goes through the approval gate in
+[`../SKILL.md`](../SKILL.md) § Approval gate, regardless of tier.**
+The two tiers below describe the *shape* of the proposal — what
+sections to fill in and how strict the per-tile impact column has to
+be — they do **not** decide whether to ask. Even a Tier 1 change
+that preserves every public field's value still needs the proposal
+in [`refactor_proposal.md`](./refactor_proposal.md) and an explicit
+approval signal (`approve`, `yes`, `lgtm`, `ship it`, `looks good`)
+before any file write.
 
-- **Tier 1 (default)** — changes that leave every public dimension
-  and measure **identical**: same name, same type, same return value
-  for the same filters. Apply these without asking. Every existing
-  dashboard tile must keep returning the exact same numbers.
-- **Tier 2 (gated)** — changes that **could** make a dimension or
-  measure return different values, that rename / remove fields, that
-  add `always_filter:` / `conditionally_filter:` to a previously
+- **Tier 1** — changes that leave every public dimension and measure
+  **identical**: same name, same type, same return value for the
+  same filters. The *Affected* section in the proposal lists each
+  dashboard with "no value change". Every existing dashboard tile
+  must keep returning the exact same numbers.
+- **Tier 2** — changes that **could** make a dimension or measure
+  return different values, that rename / remove fields, that add
+  `always_filter:` / `conditionally_filter:` to a previously
   unbounded explore, or that change cache freshness in a
-  user-visible way. Stop and ask the user, listing concrete impact
-  per dashboard. Do not apply until the user says yes.
+  user-visible way. The proposal's *Affected* section lists per-tile
+  `<old> → <new>` for every affected dashboard — "unknown" is not
+  acceptable; pause and run the queries first.
 
 If you are unsure which tier a given change falls into, treat it as
 Tier 2.
 
 The verification protocol at the bottom of this file is mandatory
-even for Tier 1 changes — "exactly the same numbers" is a claim that
-needs evidence, not a hope.
+for both tiers — "exactly the same numbers" is a claim that needs
+evidence, not a hope.
 
 ## Step 1 — Diagnose, do not guess
 
@@ -48,10 +57,13 @@ Record diagnostic numbers (warehouse query time, rows scanned, the
 generated SQL excerpt) in your reply before proposing fixes. Numbers
 before assertions.
 
-## Step 2 — Tier 1: non-breaking optimizations (apply by default)
+## Step 2 — Tier 1: non-breaking optimizations (still gated)
 
-Each of these is invisible to existing dashboard tiles. Field names
-and result values are unchanged.
+Each of these is invisible to existing dashboard tiles — field names
+and result values are unchanged. They are still gated by the
+approval flow in [`../SKILL.md`](../SKILL.md) § Approval gate; post
+the [`refactor_proposal.md`](./refactor_proposal.md) block and wait
+for an approval signal before applying.
 
 ### A. Add `aggregate_table:` to the explore
 
@@ -154,10 +166,12 @@ already-saved tiles still resolve them by name. Useful when the
 view's surface area is too noisy and confuses analysts. Tile values
 unchanged.
 
-## Step 3 — Tier 2: breaking optimizations (must ask first)
+## Step 3 — Tier 2: breaking optimizations (gated, with per-tile delta)
 
-Stop. Propose. Wait for explicit yes. The proposal must list each
-affected dashboard tile and what its number changes to.
+Same gate as Tier 1; the difference is the proposal must list each
+affected dashboard tile and what its number changes to (a
+non-empty `<old> → <new>` line per tile, no "unknown"). Use the
+[`refactor_proposal.md`](./refactor_proposal.md) template.
 
 Common Tier 2 changes:
 
@@ -183,24 +197,12 @@ Common Tier 2 changes:
 - **Changing `sql_table_name:`** to a partitioned/aggregated source
   with a different row grain.
 
-Format for asking the user (paste verbatim, fill in the blanks):
-
-> ## Proposed Tier 2 optimization
->
-> **Change**: <one-sentence description>
-> **Why**: <why it speeds things up>
-> **Estimated speed-up**: <warehouse seconds before / after>
->
-> **Dashboards / tiles affected** (from `get_dashboards` +
-> `run_dashboard`):
->
-> - Dashboard <id> "<title>" → tile "<title>": <old number> → <new number> (<delta %>)
-> - …
->
-> **Migration plan** (rename + alias, deprecate, etc.): <plan>
->
-> Confirm "yes apply" and I will push the LookML, request your
-> pull+deploy, then re-verify all affected tiles.
+Format for asking the user: the canonical template is in
+[`refactor_proposal.md`](./refactor_proposal.md). For Tier 2, set
+**Tier**: 2 in the block, fill the per-tile `<old> → <new>` deltas
+in *Affected*, and add a migration-plan line under *Rollback* if
+the change involves a rename + alias or deprecation window. The
+estimated warehouse speed-up belongs in *Why*.
 
 If the user asks for the optimization but the impact list is empty
 ("nobody uses that field"), still confirm with `query` against each

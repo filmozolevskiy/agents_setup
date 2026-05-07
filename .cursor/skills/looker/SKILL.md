@@ -48,6 +48,64 @@ Looker, send them to `table_analysis` (or the relevant DB CLI under
 `scripts/`) instead. This skill is explicitly about Looker, not about ad-hoc
 SQL.
 
+## Approval gate (mandatory) — propose, then wait
+
+Before **any edit to a `.lkml` file in a registered project repo**, the
+agent stops and posts a written proposal in chat. No file write, no
+`push_files`, no commit, no PR until the user replies with an approval
+signal. This is non-negotiable, including for Tier 1 changes that
+preserve every public field's value (rule 7 below).
+
+**Triggers the gate (do not act without approval):**
+
+- Editing any existing `.model.lkml`, `.view.lkml`, `.dashboard.lkml`,
+  `manifest.lkml`, or `lkml`-included file in a project listed in
+  [`projects.md`](./projects.md).
+- Pushing those edits with `push_files` (GitHub MCP) or any other
+  write to the project's default branch.
+
+**Does not trigger the gate (proceed normally, but still summarise what
+you did):**
+
+- Read-only Looker MCP discovery (`get_models`, `get_explores`,
+  `get_dimensions`, `get_measures`, `get_filters`, `get_parameters`,
+  `get_dashboards`, `get_looks`).
+- Validation queries (`query`, `query_sql`, `query_url`).
+- `db_access` schema / numeric verification queries.
+- Bootstrapping a brand-new project repo from
+  [`templates/lookml_project_skeleton/`](./templates/lookml_project_skeleton/)
+  — the project is empty, there is no existing surface area to
+  protect; describe the intended shape (connection, table, dimensions,
+  one explore) before pushing the first commit, but no formal gate.
+- Creating new dashboards, filters, or tiles via
+  `make_dashboard` / `add_dashboard_filter` / `add_dashboard_element`
+  — those configure dashboards, they do not change LookML. (Editing
+  an existing dashboard the user owns and depends on is still worth
+  a one-line heads-up, but is outside this gate.)
+
+**Proposal format.** Single Markdown block in chat (no separate file
+under `reports/` unless the user asks). Use the template in
+[`references/refactor_proposal.md`](./references/refactor_proposal.md).
+Keep it lean — Scope, Why, Tier, Change, Affected, Rollback.
+Mentally walk the standards checklist in
+[`references/lookml_best_practices.md`](./references/lookml_best_practices.md)
+before posting; do not dump the per-rule mapping into the block.
+
+**Approval signal.** Any of `approve`, `yes`, `lgtm`, `ship it`,
+`looks good` (case-insensitive) means apply. Anything else — questions,
+partial pushback, silence — means revise the proposal and post it
+again. Quote the trigger word back when announcing the apply step so
+there is no ambiguity ("Got `approve`, applying now.").
+
+**Edits to existing dashboards (non-LookML).** Adding a tile to a
+dashboard the user already depends on, or rewiring a dashboard
+filter, can change what the user sees on a saved board. This is
+outside the LookML approval gate but still warrants a short heads-up
+in chat ("I'm going to add tile `<title>` to dashboard `<id>`,
+sourcing from `<model>.<explore>` — say so if you'd rather I drop it
+in a sandbox folder first."). Read-only and sandbox work needs no
+heads-up.
+
 ## Hard rules
 
 1. **Looker MCP is the only Looker client.** Do not hand-roll Looker REST
@@ -74,7 +132,13 @@ SQL.
    any repo `.env`.
 6. **LookML best practices apply to every generated file.** See
    [`references/lookml_best_practices.md`](./references/lookml_best_practices.md).
-7. **Always end with a manual-handoff block.** Many Looker operations
+7. **Approval gate on existing-LookML edits.** Every edit to a
+   `.lkml` file in a registered project goes through the propose-then-wait
+   flow above (§ Approval gate). Tier 1 / Tier 2 in
+   [`references/optimizing_existing_projects.md`](./references/optimizing_existing_projects.md)
+   describe the *shape* of the proposal, not whether to ask — both
+   tiers must be approved before applying.
+8. **Always end with a manual-handoff block.** Many Looker operations
    require a human admin or Develop-Mode action that no MCP tool can
    perform: connecting a new GitHub repo to Looker, pulling + deploying
    LookML changes, granting model permissions, etc. Every reply that
@@ -241,6 +305,10 @@ dashboard, before vs after.
   verbatim "Your next step" blocks the agent must paste at the end of
   any reply that creates a new project, pushes LookML, or leaves Looker
   work in a pending state.
+- [`references/refactor_proposal.md`](./references/refactor_proposal.md) —
+  Markdown chat-block template for the approval gate. Used on every
+  edit to a `.lkml` file in a registered project, including Tier 1
+  refactors that preserve every public field's value.
 - [`templates/lookml_project_skeleton/`](./templates/lookml_project_skeleton/)
   — file-by-file skeleton (LookML, scripts, configs, cursor rules) used
   by the bootstrap subflow. Copy-substitute placeholders, push via
