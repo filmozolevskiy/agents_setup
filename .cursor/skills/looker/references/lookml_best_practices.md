@@ -282,6 +282,142 @@ This is the agent's last gate before saying the work is verified.
 - No trailing whitespace; LF line endings.
 - LookML files end with a newline.
 
+## Readability standards (refactor checklist)
+
+In addition to the high-impact ten, every refactor — and every new
+view file — must satisfy these readability standards. They have
+zero behaviour impact (no value changes, no field renames) and are
+always Tier 1 in
+[`optimizing_existing_projects.md`](./optimizing_existing_projects.md).
+The approval gate in [`../SKILL.md`](../SKILL.md) § Approval gate
+still applies; the proposal block's *Standards applied* section
+maps each change to the specific item below.
+
+### R1. Field ordering inside a view
+
+Read top-to-bottom in the same shape every time:
+
+1. `dimension: pk` (with `primary_key: yes`, `hidden: yes`).
+2. `dimension_group:` for every timestamp / date column.
+3. String dimensions (sorted by domain — entity identifiers first,
+   business buckets next, free-text last).
+4. Boolean `is_<thing>` flags.
+5. Hidden helper dimensions (`hidden: yes`).
+6. Measures (count / count_distinct first, sums / averages, then
+   filtered or composite measures).
+
+Use `# --- DIMENSIONS ---` / `# --- HIDDEN HELPERS ---` /
+`# --- MEASURES ---` section headers between blocks. A reader
+searching for "where is the `<field>` defined" should know which
+section to scan from the field's name alone.
+
+### R2. `group_label:` on every public field
+
+Every public dimension and measure declares `group_label:` with the
+project's numbered scheme (`"1. DATE"`, `"2. CONTESTANT INFO"`,
+`"3. ATTEMPT METRICS"`, …). Numbered prefixes order the field picker;
+lexical order alone groups "Average" next to "Booking" next to
+"Count" and is not useful. `group_item_label:` is set when the field
+name and the picker label should differ (e.g. `bookings_count` shown
+as "Count").
+
+Hidden fields (`hidden: yes`) skip `group_label:` — they are not in
+the picker.
+
+### R3. `label:` and `description:` mandatory on every public field
+
+Both required, both human-readable:
+
+- `label:` — what the field is, in plain English (`"Validating
+  carrier"`, not `"Validating_Carrier"` or `"vc"`).
+- `description:` — what it means, what edge cases exist, and (when
+  relevant) which underlying column it maps to. One sentence is
+  fine; multi-line is fine. Treat it as the tooltip the analyst
+  reads when picking the field.
+
+The description must mention any non-obvious join behaviour (e.g.
+"may multi-count when joined to `attempts` — use the
+`bookings_count_distinct` measure on that explore"). If the
+description would be empty, the field probably should not be
+public — make it `hidden: yes` or delete it.
+
+### R4. View file size — split with `extends:`
+
+A view file over **~250 lines of LookML** (excluding comments and
+blanks) is a refactor candidate. The usual splits:
+
+- Extract a `view: <name>_base { extension: required … }` carrying
+  the shared dimensions, then `extends: [<name>_base]` from the
+  concrete views (rule 9). Live and test variants sharing the same
+  fields are the canonical case.
+- Extract per-domain views (`<entity>_payments`, `<entity>_finance`)
+  joined to the parent rather than glued via dimensions on one
+  monster view.
+
+If a refactor's *Before → after* keeps the view above 250 lines, the
+proposal explains why (e.g. "splitting would force a Tier 2 rename
+of `pk_<x>` — deferred to a separate card").
+
+### R5. `# Why:` comments are dated and signed
+
+Any non-default LookML choice — `derived_table:` (rule 1 escape
+hatch), hand-rolled `CASE WHEN` (rule 8 exception), `always_filter:`
+that excludes a class of rows, a `sql_distinct_key:` whose
+correctness is non-obvious — carries a comment of the form:
+
+```lkml
+# Why (2026-05-07, FM): Looker dialect lacks LATERAL flattening for
+# the JSON `tags` array; NDT is the only way to expose them as
+# rows without warehouse-side ETL.
+derived_table: { … }
+```
+
+Format: `# Why (YYYY-MM-DD, <initials>): <reason>`. The date lets
+the next reader judge whether the constraint still holds; the
+initials let them ask. Plain `# TODO` / `# HACK` comments are not
+acceptable on shipped LookML — either justify with `# Why:` or
+delete.
+
+### R6. Refactor checklist (use on every refactor proposal)
+
+Walk through each item below and tick what applies in the proposal's
+*Standards applied* section. Items that do not apply are skipped,
+not marked "n/a" — the list is a search prompt, not a form to fill.
+
+- [ ] Rule 1 — `derived_table:` removed where avoidable, or `# Why:`
+  justifies the remaining one.
+- [ ] Rule 2 — no `${TABLE}.col` outside the lowest-level dimension
+  that defines that column.
+- [ ] Rule 3 — every join declares `relationship:` and `type:`
+  explicitly.
+- [ ] Rule 4 — every `primary_key: yes` is verified unique with a
+  `db_access` query (paste the query in the proposal).
+- [ ] Rule 5 — every explore has `always_filter:` or
+  `conditionally_filter:`.
+- [ ] Rule 6 — slow explores have `aggregate_table:` /
+  `datagroup` + `max_cache_age:` where it pays off.
+- [ ] Rule 7 — every additive measure behind a one-to-many join
+  declares `sql_distinct_key:`.
+- [ ] Rule 8 — enumerated dimensions use `case:`, not hand-rolled
+  `CASE WHEN`, unless `# Why:` says otherwise.
+- [ ] Rule 9 — shared field definitions live in an `extension:
+  required` base view, not copy-pasted.
+- [ ] Rule 10 — `query_sql` run after deploy; numbers compared
+  against the LookML measure with `query`.
+- [ ] R1 — fields ordered pk → date_group → string → boolean →
+  hidden helpers → measures, with `# ---` section headers.
+- [ ] R2 — every public field has a numbered `group_label:`.
+- [ ] R3 — every public field has both `label:` and `description:`.
+- [ ] R4 — view files under ~250 LookML lines, or the proposal
+  explains why not.
+- [ ] R5 — every non-default choice has a dated, signed `# Why:`
+  comment.
+
+A change that satisfies all 15 items is a clean refactor. A change
+that fixes 3 of them and leaves the rest untouched is fine —
+incremental refactors are the norm — but the proposal lists which
+were addressed and which were left for a follow-up card.
+
 ## Testing
 
 - Use the `db_access` CLIs in this repo
