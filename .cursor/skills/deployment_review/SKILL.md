@@ -106,6 +106,32 @@ the helper script reads it. One object per PR with at least
 `number`, `title`, `user.login`, `merged_at`, `body`,
 `html_url`, `labels[].name`.
 
+### 2a. (Narrow symptoms) Sanity-check with `search_issues`
+
+When the symptom is a single distinctive token (a supplier name like
+`intelisys`, a unique error code like `NDC-1348`, an unambiguous module
+name) — anything that is unlikely to appear in PR titles outside the
+relevant area — run a GitHub Code Search via the MCP first to bound the
+candidate set:
+
+```javascript
+search_issues({
+  q: "repo:mventures/genesis is:pr is:merged "
+   + "merged:2026-05-05T19:24:00Z..2026-05-07T19:24:00Z intelisys",
+  per_page: 50,
+})
+```
+
+If `total_count` is small (≤ 5) the result is the answer at the
+title/body grain; you can skip step 3 entirely for the PRs not in that
+set, saving one `get_pull_request_files` call per dropped candidate. If
+`total_count` is large or the symptom is generic (`payhub failures`,
+`amadeus errors`), skip this step — the keyword-overlap ranker is the
+right tool for those. Code Search misses silent file-touchers (a PR
+that touches `src/Supplier/Intelisys/...` without saying "intelisys" in
+title or body), but those are rare enough that step 3 + the ranker
+will surface them anyway when needed.
+
 ### 3. Enrich each PR with changed files
 
 For every PR in the window, call `get_pull_request_files` and merge the
