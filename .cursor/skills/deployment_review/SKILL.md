@@ -56,7 +56,7 @@ call once they pick the suspect.
 | Repo | `mventures/genesis` |
 | Production branch (merge target) | `develop` |
 | Deployment proxy | merges into `develop` (no separate Deployments API source) |
-| Local clone (optional) | `$GENESIS_PATH` from `.env` (auto-synced by `scripts/sync_genesis.sh`) |
+| Local clone (optional) | `$GENESIS_PATH` from `.env` (auto-synced by [`codebase_access`](../codebase_access/SKILL.md) — `.cursor/skills/codebase_access/scripts/sync_genesis.sh`) |
 | GitHub MCP | `user-GitHub` (tools `list_pull_requests`, `get_pull_request`, `get_pull_request_files`, `list_commits`) |
 | Ranking helper | `.cursor/skills/deployment_review/scripts/rank_prs.py` |
 | PAT (header use) | `GITHUB_PERSONAL_ACCESS_TOKEN` in `.env` (only when the agent needs the REST API directly; MCP is preferred) |
@@ -226,5 +226,5 @@ failures". Repo: mventures/genesis @ develop.
   `~/.cursor/projects/.../mcps/user-GitHub/tools/list_pull_requests.json`,
   `.../get_pull_request_files.json`,
   `.../list_commits.json`.
-- Optional local clone helper: `scripts/sync_genesis.sh`.
+- Optional local clone helper: [`codebase_access`](../codebase_access/SKILL.md) — `.cursor/skills/codebase_access/scripts/sync_genesis.sh`.
 - Skill conventions: [`../skill_creator/SKILL.md`](../skill_creator/SKILL.md).
