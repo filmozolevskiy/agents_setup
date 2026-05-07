@@ -16,5 +16,5 @@ bin/
 .DS_Store
 
 
-# the genesis repo
-codebase/
+# the genesis repo (local checkout owned by the codebase_access skill)
+.cursor/skills/codebase_access/codebase/

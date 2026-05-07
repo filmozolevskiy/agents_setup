@@ -56,6 +56,7 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 |-------|-----------|----------------|
 | [`db_access`](.cursor/skills/db_access/SKILL.md) | Any DB-touching task starts here for foundations; user names a table or collection and wants its purpose / columns / docs; user needs data but no `.cursor/skills/db_access/db-docs/` entry fits ("which table has…", "find table") | DB foundations (CLI scripts, `.env` loading, "no invented connections", `.cursor/skills/db_access/db-docs/` first, durable-fact write-back, ask before guessing the table); two-phase Explore → Document workflow for ClickHouse / MySQL / MongoDB; saves reference docs under `.cursor/skills/db_access/db-docs/<store>/<name>.md` |
 | [`bookability_analysis`](.cursor/skills/bookability_analysis/SKILL.md) | Bookability questions: failure rates for a content source / carrier / office, single booking flow (`booking_id` / `search_hash` → what went wrong), deep or similar-errors analysis | ClickHouse `jupiter_booking_errors_v2` failure signatures, MySQL bookability rates and surfer / recovery, MongoDB `debug_logs` raw payloads, payment vs supplier attribution, single-booking trace template, query discipline (CTE shape, denominator reuse, no unbounded scans) |
+| [`codebase_access`](.cursor/skills/codebase_access/SKILL.md) | Any task that needs to read genesis application code: tracing a flow, finding a function, confirming runtime behaviour, citing a file path + line range, cross-referencing a DB column to its writer | Owns the local genesis checkout (`GENESIS_PATH`) and the `sync_genesis.sh` script; mandates a fast-forward to `GENESIS_BRANCH` (default `develop`) before any read; gitignored default checkout location at `.cursor/skills/codebase_access/codebase/`; genesis only |
 | [`deployment_review`](.cursor/skills/deployment_review/SKILL.md) | Regression triage: "<symptom> started failing at T", "what changed in genesis between T1 and T2", "which PR caused this", pre-rollback "what to revert first" | Walks merges into `mventures/genesis` `develop` via the GitHub MCP for a regression window, ranks PRs by symptom-keyword overlap against title / changed files / labels / body, surfaces linked Trello cards from the PR body, and returns a top-N markdown table with rationale; genesis only |
 | [`looker`](.cursor/skills/looker/SKILL.md) | Inspecting Looker, scaffolding a new GitHub-backed LookML project, or creating / modifying dashboards and tiles via the Looker MCP; refactoring existing LookML for readability / standards | Looker MCP discovery (`get_models` / `get_explores` / `get_dimensions` / `get_measures`), GitHub-backed LookML scaffolding (one project = one repo) using a placeholder skeleton, dashboard / tile authoring (`make_dashboard` → `add_dashboard_filter` → `add_dashboard_element`), data verification delegated to `db_access` and `table_analysis`, project registry (`projects.md`) gating which repos the agent may touch; **approval gate on every edit to existing `.lkml` files** — propose-then-wait flow with chat-block template (`references/refactor_proposal.md`) and 15-item refactor checklist (`references/lookml_best_practices.md` rules 1–10 + readability R1–R5) |
 | [`optimizer_analysis`](.cursor/skills/optimizer_analysis/SKILL.md) | Optimizer matching audits: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, content-source-wide leak scan | MySQL `optimizer_candidates` + `optimizer_attempts` + `optimizer_candidate_tags` joins, MongoDB `ota.optimizer_logs` supplier evidence, anchor-candidate ground-truth model, multi-ticket reprice variants, query discipline (CTE shape, `attempt_id` / `created_at` bounds, no unbounded scans) |
@@ -77,6 +78,11 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 ├── rules/
 │   └── rules.mdc                      # Mirror of CLAUDE.md (Cursor-only; alwaysApply: true)
 └── skills/                            # Per-skill folders: <name>/SKILL.md + supporting files
+    ├── codebase_access/               # Owns the local genesis clone + sync script
+    │   ├── SKILL.md
+    │   ├── scripts/
+    │   │   └── sync_genesis.sh        # Fast-forwards $GENESIS_BRANCH (default develop) before any code read
+    │   └── codebase/                  # Default genesis checkout (gitignored)
     └── db_access/                     # Shared DB infrastructure — every DB-touching skill loads this first
         ├── SKILL.md                   # Skill entry point + DB foundations
         ├── references/
@@ -90,16 +96,5 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
             ├── mysql/
             └── mongodb/
 
-scripts/
-└── sync_genesis.sh                    # Optional: pull genesis before codebase-memory use
-
 reports/                               # Ephemeral output (gitignored)
 ```
-
----
-
-## Optional extensions
-
-### Local application codebase (genesis)
-
-For questions about application code, `GENESIS_PATH` in `.env` must point to the local clone. If missing, ask the user for the path and add it to `.env`.

@@ -6,7 +6,7 @@ AI agents setup for Flighthub employees. Turns common data-investigation work (b
 
 The repo wires three things together:
 
-1. **CLI wrappers** (`scripts/`) — talk to ClickHouse, MySQL (genesis), and MongoDB (ota) using credentials from `.env`.
+1. **CLI wrappers** (`.cursor/skills/db_access/scripts/`) — talk to ClickHouse, MySQL (genesis), and MongoDB (ota) using credentials from `.env`.
 2. **Table docs** (`.cursor/skills/db_access/db-docs/`) — tell the agent which table / collection holds what, before it writes any query.
 3. **Skills** (`.cursor/skills/<name>/SKILL.md`, exposed as slash commands via `.claude/commands/`) — encode the investigation recipes: which tables to join, which filters to apply, how to classify results, what format to return.
 
@@ -30,11 +30,14 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 .cursor/
 ├── rules/          # Global rules (db access, writing style, mongo hygiene)
 └── skills/         # Per-skill folders, each with a SKILL.md
-scripts/
+.cursor/skills/db_access/scripts/
 ├── clickhouse_query.py   # ClickHouse CLI
 ├── mysql_query.py        # MySQL CLI
-├── mongo_query.py        # MongoDB CLI (collections / describe / find / aggregate)
-└── sync_genesis.sh       # Optional pull of the genesis codebase
+└── mongo_query.py        # MongoDB CLI (collections / describe / find / aggregate)
+.cursor/skills/codebase_access/
+├── SKILL.md
+├── scripts/sync_genesis.sh   # Fast-forwards the local genesis clone before any code read
+└── codebase/                  # Default genesis checkout (gitignored)
 qa_automation/      # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …)
 .cursor/skills/db_access/db-docs/
 ├── clickhouse/     # Documented CH tables
