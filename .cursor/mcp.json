@@ -1,10 +1,10 @@
 {
   "mcpServers": {
     "clickhouse": {
-      "command": "./scripts/mcp_clickhouse.sh"
+      "command": "./.cursor/skills/db_access/scripts/mcp_clickhouse.sh"
     },
     "looker": {
-      "command": "./scripts/mcp_looker.sh"
+      "command": "./.cursor/skills/looker/scripts/mcp_looker.sh"
     }
   }
 }

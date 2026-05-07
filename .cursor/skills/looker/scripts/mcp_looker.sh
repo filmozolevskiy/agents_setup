@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Wrapper that exposes Looker via the MCP Toolbox prebuilt config.
-# Cursor (and any other MCP client) launches this script in stdio mode.
+# Cursor (and any other MCP client) launches this script in stdio mode
+# (wired up in .cursor/mcp.json).
 # Secrets stay in .env (gitignored); this script and .cursor/mcp.json are safe to commit.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 TOOLBOX="${REPO_ROOT}/bin/toolbox"
 
@@ -15,7 +16,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 fi
 
 if [[ ! -x "${TOOLBOX}" ]]; then
-  echo "mcp_looker: ${TOOLBOX} missing. Run scripts/install_mcp_toolbox.sh first." >&2
+  echo "mcp_looker: ${TOOLBOX} missing. Run .cursor/skills/looker/scripts/install_mcp_toolbox.sh first." >&2
   exit 1
 fi
 
