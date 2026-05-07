@@ -47,6 +47,8 @@ Load credentials once per session: `set -a && source .env && set +a`. All comman
 
 If the engine is not specified, default to ClickHouse. Use MySQL or MongoDB if the user said so, named a known database, mentioned a collection, or the previous step used that script.
 
+The CLIs above are the canonical query path. ClickHouse is also exposed as an MCP server via `.cursor/skills/db_access/scripts/mcp_clickhouse.sh` (wired up in `.cursor/mcp.json`); use the MCP only for fast iterative schema discovery. Anything that ends up in a card, a report, or the PR description still goes through `clickhouse_query.py` so the SQL is reproducible outside the agent session.
+
 ## Pick the entry point
 
 | Trigger | Entry point |

@@ -143,15 +143,15 @@ In Cursor: open the MCP panel (Settings → MCP) and confirm each server shows *
 
 ### Repo-local MCPs (ClickHouse, Looker)
 
-Two MCP servers are wired up at the repo level via `.cursor/mcp.json`, so anyone who opens the repo in Cursor gets them automatically. Both read credentials from the repo `.env` (gitignored) through small wrapper scripts under `scripts/`:
+Two MCP servers are wired up at the repo level via `.cursor/mcp.json`, so anyone who opens the repo in Cursor gets them automatically. Both read credentials from the repo `.env` (gitignored) through small wrapper scripts that live alongside the skill that owns each MCP:
 
-- `scripts/mcp_clickhouse.sh` → [`mcp-clickhouse`](https://github.com/ClickHouse/mcp-clickhouse) launched via `uvx`. Tools: `run_query`, `list_databases`, `list_tables`. Reads `CLICKHOUSE_HOST`/`PORT`/`USER`/`PASSWORD`/`DATABASE` from `.env`; defaults `CLICKHOUSE_SECURE` based on the port.
-- `scripts/mcp_looker.sh` → Google [`genai-toolbox`](https://googleapis.github.io/genai-toolbox/) `--prebuilt looker`. Tools: `get_models` / `get_explores` / `get_dimensions` / `get_measures` / `query` / `query_sql` / `run_look` / etc. Reads `LOOKER_BASE_URL`/`LOOKER_CLIENT_ID`/`LOOKER_CLIENT_SECRET`/`LOOKER_VERIFY_SSL` from `.env`.
+- `.cursor/skills/db_access/scripts/mcp_clickhouse.sh` → [`mcp-clickhouse`](https://github.com/ClickHouse/mcp-clickhouse) launched via `uvx`. Tools: `run_query`, `list_databases`, `list_tables`. Reads `CLICKHOUSE_HOST`/`PORT`/`USER`/`PASSWORD`/`DATABASE` from `.env`; defaults `CLICKHOUSE_SECURE` based on the port.
+- `.cursor/skills/looker/scripts/mcp_looker.sh` → Google [`genai-toolbox`](https://googleapis.github.io/genai-toolbox/) `--prebuilt looker`. Tools: `get_models` / `get_explores` / `get_dimensions` / `get_measures` / `query` / `query_sql` / `run_look` / etc. Reads `LOOKER_BASE_URL`/`LOOKER_CLIENT_ID`/`LOOKER_CLIENT_SECRET`/`LOOKER_VERIFY_SSL` from `.env`.
 
 One-time install (downloads the toolbox binary into `bin/`, which is gitignored):
 
 ```bash
-./scripts/install_mcp_toolbox.sh
+./.cursor/skills/looker/scripts/install_mcp_toolbox.sh
 uvx --from mcp-clickhouse mcp-clickhouse --help  # warms the uvx cache (optional)
 ```
 

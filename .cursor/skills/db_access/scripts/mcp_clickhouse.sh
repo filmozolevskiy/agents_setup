@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # Wrapper that exposes ClickHouse via the upstream mcp-clickhouse server
 # (https://github.com/ClickHouse/mcp-clickhouse). Cursor (and any other MCP
-# client) launches this script in stdio mode.
+# client) launches this script in stdio mode (wired up in .cursor/mcp.json).
 #
 # Why mcp-clickhouse and not the genai-toolbox --prebuilt clickhouse:
 # the toolbox's ClickHouse client closes the connection on this server (EOF
 # after sending the Native HTTP handshake), while mcp-clickhouse uses
-# clickhouse-connect — the same library that scripts/clickhouse_query.py
-# already speaks to phoenix-db successfully.
+# clickhouse-connect — the same library that
+# .cursor/skills/db_access/scripts/clickhouse_query.py already speaks to
+# phoenix-db successfully.
 #
 # Secrets stay in .env (gitignored); this script and .cursor/mcp.json are safe to commit.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 
 if [[ ! -f "${ENV_FILE}" ]]; then

@@ -313,6 +313,17 @@ dashboard, before vs after.
   — file-by-file skeleton (LookML, scripts, configs, cursor rules) used
   by the bootstrap subflow. Copy-substitute placeholders, push via
   `push_files`.
+- [`scripts/mcp_looker.sh`](./scripts/mcp_looker.sh) — wrapper that
+  Cursor launches in stdio mode (wired in `.cursor/mcp.json`) to expose
+  the Looker MCP. Loads `.env`, asserts `LOOKER_BASE_URL` /
+  `LOOKER_CLIENT_ID` / `LOOKER_CLIENT_SECRET`, runs `bin/toolbox --prebuilt
+  looker --stdio`. Don't call this script directly — Cursor manages the
+  process.
+- [`scripts/install_mcp_toolbox.sh`](./scripts/install_mcp_toolbox.sh) —
+  one-shot installer that downloads the Google MCP Toolbox binary into
+  `bin/toolbox` (gitignored). Run once per machine; re-run to upgrade
+  via `MCP_TOOLBOX_VERSION`. The Looker wrapper hard-fails until this
+  has been run.
 
 ## Looker MCP — tool reference (read schemas before calling)
 
