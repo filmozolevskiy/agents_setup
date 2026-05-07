@@ -378,11 +378,15 @@ initials let them ask. Plain `# TODO` / `# HACK` comments are not
 acceptable on shipped LookML — either justify with `# Why:` or
 delete.
 
-### R6. Refactor checklist (use on every refactor proposal)
+### R6. Refactor checklist (mental walk-through before posting the proposal)
 
-Walk through each item below and tick what applies in the proposal's
-*Standards applied* section. Items that do not apply are skipped,
-not marked "n/a" — the list is a search prompt, not a form to fill.
+Walk through each item below before pasting the proposal block in
+chat. The list is a search prompt for the agent — it does **not**
+get dumped into the proposal (the block in
+[`refactor_proposal.md`](./refactor_proposal.md) deliberately has
+no per-rule section). If a refactor violates a rule on purpose, the
+*Why* line in the proposal calls it out in plain language; the PR
+description carries any longer justification.
 
 - [ ] Rule 1 — `derived_table:` removed where avoidable, or `# Why:`
   justifies the remaining one.
@@ -415,8 +419,10 @@ not marked "n/a" — the list is a search prompt, not a form to fill.
 
 A change that satisfies all 15 items is a clean refactor. A change
 that fixes 3 of them and leaves the rest untouched is fine —
-incremental refactors are the norm — but the proposal lists which
-were addressed and which were left for a follow-up card.
+incremental refactors are the norm. The proposal block does not
+itemise which rules were touched (`refactor_proposal.md` keeps the
+block lean); follow-up work that you deliberately deferred goes on
+a separate Trello card and is named in the PR description.
 
 ## Testing
 

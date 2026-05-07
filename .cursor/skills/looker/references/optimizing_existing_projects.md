@@ -17,16 +17,15 @@ before any file write.
 
 - **Tier 1** — changes that leave every public dimension and measure
   **identical**: same name, same type, same return value for the
-  same filters. The *Dashboards / tiles potentially affected*
-  section in the proposal lists every dashboard but the per-tile
-  delta is "no value change". Every existing dashboard tile must
-  keep returning the exact same numbers.
+  same filters. The *Affected* section in the proposal lists each
+  dashboard with "no value change". Every existing dashboard tile
+  must keep returning the exact same numbers.
 - **Tier 2** — changes that **could** make a dimension or measure
   return different values, that rename / remove fields, that add
   `always_filter:` / `conditionally_filter:` to a previously
   unbounded explore, or that change cache freshness in a
-  user-visible way. The proposal must list concrete per-tile delta
-  for every affected dashboard (`<old> → <new>`) — "unknown" is not
+  user-visible way. The proposal's *Affected* section lists per-tile
+  `<old> → <new>` for every affected dashboard — "unknown" is not
   acceptable; pause and run the queries first.
 
 If you are unsure which tier a given change falls into, treat it as
@@ -201,10 +200,9 @@ Common Tier 2 changes:
 Format for asking the user: the canonical template is in
 [`refactor_proposal.md`](./refactor_proposal.md). For Tier 2, set
 **Tier**: 2 in the block, fill the per-tile `<old> → <new>` deltas
-in *Dashboards / tiles potentially affected*, and add a *Migration
-plan* line under *Rollback* if the change involves a rename + alias
-or deprecation window. The estimated warehouse speed-up belongs in
-*Why*.
+in *Affected*, and add a migration-plan line under *Rollback* if
+the change involves a rename + alias or deprecation window. The
+estimated warehouse speed-up belongs in *Why*.
 
 If the user asks for the optimization but the impact list is empty
 ("nobody uses that field"), still confirm with `query` against each

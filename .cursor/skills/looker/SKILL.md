@@ -86,10 +86,10 @@ you did):**
 **Proposal format.** Single Markdown block in chat (no separate file
 under `reports/` unless the user asks). Use the template in
 [`references/refactor_proposal.md`](./references/refactor_proposal.md).
-Every refactor's `Standards applied:` section maps each change to a
-specific rule from
+Keep it lean — Scope, Why, Tier, Change, Affected, Rollback.
+Mentally walk the standards checklist in
 [`references/lookml_best_practices.md`](./references/lookml_best_practices.md)
-— readability is a deliberate decision, not a side effect.
+before posting; do not dump the per-rule mapping into the block.
 
 **Approval signal.** Any of `approve`, `yes`, `lgtm`, `ship it`,
 `looks good` (case-insensitive) means apply. Anything else — questions,
