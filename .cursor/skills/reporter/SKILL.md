@@ -61,23 +61,24 @@ for it. Do not invent a recipient or a subject. Do not fall back to a
 
 ## MCP servers (configured per environment)
 
-This skill drives whichever Gmail and Slack MCP servers are wired into
-the project. Discover the actual server identifiers and tool names at
-runtime:
+The configured servers, send-tool names, and argument mappings for
+this repo live in [`servers.md`](./servers.md) — read it first.
+Current wiring: `gmail` (npx
+`@gongrzhe/server-gmail-autoauth-mcp`, `send_email`) and `slack` (npx
+`slack-mcp-server`, `conversations_add_message`).
 
-1. List MCP servers and look for the Gmail / Slack ones — names usually
-   contain `gmail`, `google-mail`, `slack`, etc.
+Before the first call in a fresh session:
+
+1. Read [`servers.md`](./servers.md) for the cached identifiers and
+   argument tables.
 2. Read each tool's JSON descriptor under
-   `mcps/<server>/tools/<tool>.json` **before** the first call. The
-   descriptors are the source of truth for argument names; do not guess.
-3. If neither a Gmail nor a Slack MCP is installed for the channel the
-   caller asked for, stop and tell the user. Do not silently fall back
-   to the other channel.
-
-Document the chosen server identifiers in
-[`servers.md`](./servers.md) once they are confirmed for this repo so
-future invocations do not repeat the discovery. Until that file exists,
-the discovery step above is mandatory every session.
+   `mcps/<server>/tools/<tool>.json` to confirm the argument names —
+   the descriptors are the source of truth and override `servers.md`
+   when they disagree. If they disagree, fix `servers.md` in the same
+   change.
+3. If the channel the caller asked for is not listed in
+   [`servers.md`](./servers.md), stop and tell the user. Do not
+   silently fall back to the other channel.
 
 ## Workflow
 
@@ -156,8 +157,8 @@ disclaimers, or emoji. The caller's body is the message.
 
 ## References
 
+- Configured servers + setup: [`servers.md`](./servers.md).
 - Skill conventions: [`../skill_creator/SKILL.md`](../skill_creator/SKILL.md).
-- Card the skill was built against:
-  [0dDzFejq — Reporter skill (Gmail + Slack)](https://trello.com/c/0dDzFejq).
-- Server identifiers (filled in once confirmed):
-  [`servers.md`](./servers.md) — currently absent; populate on first run.
+- Cards the skill was built against:
+  [0dDzFejq — Reporter skill (Gmail + Slack)](https://trello.com/c/0dDzFejq),
+  [VRYfNyBs — Smoke-test reporter end-to-end](https://trello.com/c/VRYfNyBs).

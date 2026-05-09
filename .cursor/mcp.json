@@ -5,6 +5,12 @@
     },
     "looker": {
       "command": "./.cursor/skills/looker/scripts/mcp_looker.sh"
+    },
+    "gmail": {
+      "command": "./.cursor/skills/reporter/scripts/mcp_gmail.sh"
+    },
+    "slack": {
+      "command": "./.cursor/skills/reporter/scripts/mcp_slack.sh"
     }
   }
 }
