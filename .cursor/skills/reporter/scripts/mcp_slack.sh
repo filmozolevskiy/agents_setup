@@ -54,7 +54,7 @@ if [[ -z "${SLACK_MCP_XOXP_TOKEN:-}" && -z "${SLACK_MCP_XOXB_TOKEN:-}" \
   echo "    SLACK_MCP_XOXP_TOKEN=xoxp-...   (user OAuth token, recommended)" >&2
   echo "    SLACK_MCP_XOXB_TOKEN=xoxb-...   (bot token; limited to invited channels)" >&2
   echo "    SLACK_MCP_XOXC_TOKEN=xoxc-...   + SLACK_MCP_XOXD_TOKEN=xoxd-... (browser tokens)" >&2
-  echo "  See .cursor/skills/reporter/servers.md \u00a7 Slack for token-mint steps." >&2
+  echo "  See .cursor/skills/reporter/servers.md § Slack for token-mint steps." >&2
   exit 1
 fi
 

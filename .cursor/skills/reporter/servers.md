@@ -7,7 +7,7 @@ without re-discovering them every session.
 
 | Channel | MCP server identifier (in `.cursor/mcp.json`) | Send tool | Reads its env from |
 |---------|----------------------------------------------|-----------|--------------------|
-| Gmail   | `gmail`                                      | `send_email` | `~/.gmail-mcp/gcp-oauth.keys.json` + `~/.gmail-mcp/credentials.json` |
+| Gmail   | `gmail`                                      | `send_email` | `.env` (`GMAIL_OAUTH_KEYS_B64` + `GMAIL_CREDENTIALS_B64`, base64 of the two OAuth JSONs) |
 | Slack   | `slack`                                      | `conversations_add_message` | `.env` (`SLACK_MCP_*` vars) |
 
 The wrapper scripts launched by Cursor:
@@ -29,11 +29,20 @@ file is the cache of "what worked last time."
 [`@gongrzhe/server-gmail-autoauth-mcp`](https://www.npmjs.com/package/@gongrzhe/server-gmail-autoauth-mcp)
 (repository: [`GongRzhe/Gmail-MCP-Server`](https://github.com/GongRzhe/Gmail-MCP-Server)).
 Picked because it ships its own OAuth flow as a one-off subcommand
-(`auth`), persists credentials to `~/.gmail-mcp/`, and runs over stdio
-out of the box. The upstream repo went read-only mid-2025 but the
-package on npm still installs and authenticates against current Gmail
-APIs; revisit if Google's official Workspace MCP graduates from
-developer preview.
+(`auth`) and runs over stdio out of the box. The upstream repo went
+read-only mid-2025 but the package on npm still installs and
+authenticates against current Gmail APIs; revisit if Google's official
+Workspace MCP graduates from developer preview.
+
+### Credentials live in `.env` only
+
+Repo policy: every MCP credential goes in `.env` (gitignored); nothing
+under `~/`. The wrapper [`scripts/mcp_gmail.sh`](./scripts/mcp_gmail.sh)
+honours that — it materialises the two OAuth JSON blobs (`GMAIL_OAUTH_KEYS_B64`
+and `GMAIL_CREDENTIALS_B64`) into a per-process `mktemp` directory at
+launch, points the upstream MCP at them via `GMAIL_OAUTH_PATH` /
+`GMAIL_CREDENTIALS_PATH`, and `rm -rf`s the temp dir on exit. No
+credentials touch `~/.gmail-mcp/` or any other persistent location.
 
 ### Send tool the reporter calls
 
@@ -63,46 +72,64 @@ record any variants here:
      `http://localhost:3000/oauth2callback` in *Authorized redirect
      URIs*).
    - Download the resulting JSON.
-2. **Drop the OAuth client JSON into `~/.gmail-mcp/`.**
+2. **Encode the OAuth client JSON and paste it into `.env`.**
 
    ```bash
-   mkdir -p ~/.gmail-mcp
-   mv ~/Downloads/client_secret_*.json ~/.gmail-mcp/gcp-oauth.keys.json
+   base64 -i ~/Downloads/client_secret_<id>.json | tr -d '\n'
    ```
 
-3. **Run the one-time browser flow.**
+   Add the output to `.env` as:
+
+   ```ini
+   GMAIL_OAUTH_KEYS_B64=<the long base64 string from above>
+   ```
+
+3. **Run the one-time browser flow via the wrapper.** The wrapper
+   handles temp-file materialisation; you never touch `gcp-oauth.keys.json`
+   on disk yourself.
 
    ```bash
-   npx -y @gongrzhe/server-gmail-autoauth-mcp auth
+   ./.cursor/skills/reporter/scripts/mcp_gmail.sh auth
    ```
 
    This opens the system browser, prompts for the Google account that
-   will send the email, and writes
-   `~/.gmail-mcp/credentials.json` on success.
+   will send the email, captures the resulting `credentials.json` from
+   the temp dir, base64-encodes it, and prints a `GMAIL_CREDENTIALS_B64=…`
+   line for you to paste into `.env`.
 
-4. **Confirm the wrapper picks them up.** Either restart Cursor (so
+4. **Paste that line into `.env`.** Replace any existing
+   `GMAIL_CREDENTIALS_B64=…` entry with the new value.
+
+5. **Confirm the wrapper picks them up.** Either restart Cursor (so
    `.cursor/mcp.json` re-reads the `gmail` entry) or, in a terminal:
 
    ```bash
    ./.cursor/skills/reporter/scripts/mcp_gmail.sh </dev/null | head -1
    ```
 
-   The script exits non-zero with a clear message if either file is
-   missing.
+   The script exits non-zero with a clear message if either env var
+   is missing or fails to decode.
 
-### Required env (none in `.env`)
+### Required env (in `.env`)
 
-The Gmail MCP reads its credentials from the JSON files above. The
-wrapper script accepts two optional overrides for non-default paths:
+| Variable | Required? | Purpose |
+|----------|-----------|---------|
+| `GMAIL_OAUTH_KEYS_B64`  | Yes | base64 of the OAuth client JSON downloaded from Google Cloud Console. |
+| `GMAIL_CREDENTIALS_B64` | Yes (after first auth) | base64 of the `credentials.json` issued by the browser flow. The wrapper's `auth` subcommand prints the line for you. |
 
-- `GMAIL_OAUTH_KEYS` — path to `gcp-oauth.keys.json` (defaults to
-  `~/.gmail-mcp/gcp-oauth.keys.json`).
-- `GMAIL_CREDENTIALS` — path to `credentials.json` (defaults to
-  `~/.gmail-mcp/credentials.json`).
+`.env.example` carries the canonical layout — do not invent extra
+`GMAIL_*` vars here without updating that file at the same time. The
+upstream package's `GMAIL_OAUTH_PATH` / `GMAIL_CREDENTIALS_PATH` env
+vars are owned by the wrapper (it sets them to the per-process tmp
+files); do not set them yourself.
 
-There is nothing about Gmail in `.env`. The credentials are user-bound
-and live outside the repo; this is by design — `.env` is shared
-between machines but each user keeps their own Gmail account.
+### Re-auth
+
+When the refresh token expires (rare) or you switch the sender Google
+account, re-run `./.cursor/skills/reporter/scripts/mcp_gmail.sh auth`
+and replace the `GMAIL_CREDENTIALS_B64=…` line in `.env`. The
+`GMAIL_OAUTH_KEYS_B64` line stays put unless you rotate the OAuth
+client itself.
 
 ## Slack
 
@@ -184,8 +211,10 @@ this file.
 
 ## Smoke-test checklist (deferred)
 
-Once both setup blocks above are green, drive the `reporter` skill end
-to end and record the proofs on Trello card
+Once both setup blocks above are green (the four env vars in `.env`:
+`GMAIL_OAUTH_KEYS_B64`, `GMAIL_CREDENTIALS_B64`, one of the
+`SLACK_MCP_XOX*` tokens, and a Cursor restart), drive the `reporter`
+skill end to end and record the proofs on Trello card
 [VRYfNyBs](https://trello.com/c/VRYfNyBs):
 
 1. Send one Gmail to Filipp's literal email; capture the message ID.
