@@ -8,9 +8,6 @@
     },
     "gmail": {
       "command": "./.cursor/skills/reporter/scripts/mcp_gmail.sh"
-    },
-    "slack": {
-      "command": "./.cursor/skills/reporter/scripts/mcp_slack.sh"
     }
   }
 }

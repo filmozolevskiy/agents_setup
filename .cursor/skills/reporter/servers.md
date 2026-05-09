@@ -5,17 +5,10 @@ servers below. Identifiers, tool names, and required env vars live
 here so the skill itself stays generic and other agents can route
 without re-discovering them every session.
 
-| Channel | MCP server identifier (in `.cursor/mcp.json`) | Send tool | Reads its env from |
-|---------|----------------------------------------------|-----------|--------------------|
-| Gmail   | `gmail`                                      | `send_email` | `.env` (`GMAIL_OAUTH_KEYS_B64` + `GMAIL_CREDENTIALS_B64`, base64 of the two OAuth JSONs) |
-| Slack   | `slack`                                      | `conversations_add_message` | `.env` (`SLACK_MCP_*` vars) |
-
-The wrapper scripts launched by Cursor:
-
-- Gmail: [`scripts/mcp_gmail.sh`](./scripts/mcp_gmail.sh) — runs
-  `npx -y @gongrzhe/server-gmail-autoauth-mcp`.
-- Slack: [`scripts/mcp_slack.sh`](./scripts/mcp_slack.sh) — runs
-  `npx -y slack-mcp-server@latest --transport stdio`.
+| Channel | MCP server identifier | Where it lives | Reads its auth from |
+|---------|----------------------|----------------|---------------------|
+| Gmail   | `gmail` (in `.cursor/mcp.json`) | self-hosted: `scripts/mcp_gmail.sh` runs `npx -y @gongrzhe/server-gmail-autoauth-mcp` | `.env` (`GMAIL_OAUTH_KEYS_B64` + `GMAIL_CREDENTIALS_B64`, base64 of the two OAuth JSONs) |
+| Slack   | `plugin-slack-slack`            | Cursor's Slack plugin (managed by Cursor's plugin system, not by this repo) | The plugin's own auth flow — call `mcp_auth` on the server once per machine, or use Cursor's plugin settings UI |
 
 After the first successful send, the agent should record the actual
 tool descriptor names — the discovery step in
@@ -133,89 +126,85 @@ client itself.
 
 ## Slack
 
-### Package
+### Server
 
-[`slack-mcp-server`](https://www.npmjs.com/package/slack-mcp-server)
-(repository: [`korotovsky/slack-mcp-server`](https://github.com/korotovsky/slack-mcp-server)).
-Picked because it is the actively-maintained successor to the
-deprecated `@modelcontextprotocol/server-slack`, supports both bot
-(`xoxb-`) and user OAuth (`xoxp-`) tokens, and gates the write tool
-behind an explicit env var (safer default than always-on posting).
+The Cursor Slack plugin: server identifier `plugin-slack-slack`. It is
+managed by Cursor's plugin system, not by this repo — there is no
+wrapper script under `scripts/`, no entry in `.cursor/mcp.json`, no
+token in `.env`. The plugin handles its own OAuth (Slack workspace
+install + scope grants) through the Cursor UI; the agent only sees a
+stable MCP server once the user authenticates.
+
+This was a deliberate switch away from a self-hosted
+`slack-mcp-server` wrapper. The plugin owns the token lifecycle (issue,
+rotate, revoke) and the scope set, which removes a class of failure
+modes (`missing_scope` boot failures, manual reinstalls after every
+scope change, `xoxp-` / `xoxe.xoxp-` shape confusion). Trade-off: this
+repo does not control the plugin's tool surface — it discovers it.
 
 ### Send tool the reporter calls
 
-`conversations_add_message`. Off by default — the wrapper sets
-`SLACK_MCP_ADD_MESSAGE_TOOL=true` so the tool is registered. Argument
-names — verify against the descriptor on first run:
+**Discover at runtime, not from this file.** Until the plugin is
+authenticated and its tool descriptors land under
+`mcps/plugin-slack-slack/tools/*.json`, the only descriptor visible is
+`mcp_auth`. After auth, list the descriptors and pin the send tool's
+real name + arguments here.
 
-| Reporter input | Slack MCP argument |
-|----------------|--------------------|
-| `recipient`    | `channel_id` (channel `C…`, DM `D…`, or pre-resolved user `U…`) |
-| `body`         | `payload` (mrkdwn text) |
+Conventional names plugin-style Slack MCPs expose for posting messages
+(check the descriptor):
+
+- `post_message` / `chat_postMessage` / `send_message` — top-level send.
+- `send_dm` — DM helper, when present.
+
+Likely caller-input mapping (verify against the actual descriptor):
+
+| Reporter input | Slack plugin argument (likely) |
+|----------------|-------------------------------|
+| `recipient`    | a channel ID (`C…`), DM ID (`D…`), pre-resolved user ID (`U…`), or `#channel-name` — the descriptor will spell out which it accepts |
+| `body`         | `text` (mrkdwn) and / or `blocks` (Block Kit JSON) |
 | `thread_ts`    | `thread_ts` |
 
-The reporter does not look users up by display name; it passes the
-literal Slack ID. Use `channels_list` (read-only, registered by
-default) to discover IDs once and cache them in the caller, not in
-this file.
+**First-run procedure.** When the reporter first dispatches over Slack
+in a new session:
 
-### One-time setup (the user runs these once)
+1. List `mcps/plugin-slack-slack/tools/`.
+2. Read the send-tool descriptor for the actual argument names.
+3. Update this section in the same PR if the names disagree with the
+   table above.
 
-1. **Pick or create a Slack app.** Go to
-   <https://api.slack.com/apps>, *Create New App → From scratch*, name
-   it (e.g. `agents-setup-reporter`), pick the workspace.
-2. **Add OAuth scopes** under *OAuth & Permissions*:
-   - **Bot token scopes (`xoxb-`):** `chat:write`,
-     `chat:write.public` (post into channels the bot is not a member
-     of), `im:write` (open / DM), `users:read` (resolve `@handle` →
-     `U…` if needed).
-   - **User token scopes (`xoxp-`)**, if you want the message to come
-     from a real user account: `chat:write`, `im:write`.
-3. **Install to workspace.** Same screen → *Install to workspace* →
-   approve. Copy the resulting `xoxb-…` (Bot User OAuth Token) and / or
-   `xoxp-…` (User OAuth Token).
-4. **Put the token in `.env`.** Pick one (xoxp recommended for human-
-   looking sends; xoxb if a bot identity is fine):
+### One-time setup (the user runs this once per machine)
 
-   ```ini
-   SLACK_MCP_XOXP_TOKEN=xoxp-...
-   # or
-   SLACK_MCP_XOXB_TOKEN=xoxb-...
-   ```
-
-   Optional — restrict posting to specific channels:
-
-   ```ini
-   SLACK_MCP_ADD_MESSAGE_TOOL=C0123456789,C9876543210
-   ```
-
-5. **Confirm the wrapper picks it up.** Either restart Cursor or run:
-
-   ```bash
-   ./.cursor/skills/reporter/scripts/mcp_slack.sh </dev/null | head -1
-   ```
-
-   The script exits non-zero with a clear message if no token is set.
+1. Install / enable the **Slack** plugin in Cursor (Settings → Plugins
+   → Slack).
+2. From any agent session that has the `plugin-slack-slack` server
+   visible, call its `mcp_auth` tool with `{}` — Cursor pops the
+   workspace install / scope-grant flow.
+3. Approve the install in the browser. Cursor caches the auth; the
+   `STATUS.md` for the server flips from "needs authentication" to
+   ready, and additional tool descriptors appear under
+   `mcps/plugin-slack-slack/tools/`.
+4. There is nothing to put in `.env`.
 
 ### Required env (in `.env`)
 
-| Variable | Required? | Purpose |
-|----------|-----------|---------|
-| `SLACK_MCP_XOXP_TOKEN` | one of these | User OAuth token (recommended). |
-| `SLACK_MCP_XOXB_TOKEN` | one of these | Bot token. Limited to channels the bot is a member of. |
-| `SLACK_MCP_XOXC_TOKEN` + `SLACK_MCP_XOXD_TOKEN` | one of these | Browser-extracted tokens (last-resort; only if no app install is possible). |
-| `SLACK_MCP_ADD_MESSAGE_TOOL` | optional | Wrapper defaults this to `true`. Set to a comma-separated channel list to restrict. |
+None. The plugin owns its own auth.
 
-`.env.example` carries the canonical layout — do not invent extra
-`SLACK_*` vars here without updating that file at the same time.
+If you find yourself reaching for `SLACK_MCP_*` env vars to make
+something work, you are looking at the old self-hosted wrapper docs in
+git history — that path is gone on purpose. Either re-authenticate the
+plugin, or ask the user to.
 
 ## Smoke-test checklist (deferred)
 
-Once both setup blocks above are green (the four env vars in `.env`:
-`GMAIL_OAUTH_KEYS_B64`, `GMAIL_CREDENTIALS_B64`, one of the
-`SLACK_MCP_XOX*` tokens, and a Cursor restart), drive the `reporter`
-skill end to end and record the proofs on Trello card
-[VRYfNyBs](https://trello.com/c/VRYfNyBs):
+Once both surfaces are green:
+
+- Gmail: `GMAIL_OAUTH_KEYS_B64` + `GMAIL_CREDENTIALS_B64` set in
+  `.env`, Cursor restarted so it spawns the `gmail` server.
+- Slack: the Cursor Slack plugin is authenticated (`plugin-slack-slack`
+  exposes more than just `mcp_auth`).
+
+Drive the `reporter` skill end to end and record the proofs on Trello
+card [VRYfNyBs](https://trello.com/c/VRYfNyBs):
 
 1. Send one Gmail to Filipp's literal email; capture the message ID.
 2. Send one Slack DM to Filipp's user ID; capture the `ts`.
