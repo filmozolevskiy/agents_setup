@@ -89,6 +89,66 @@ The field set in `query:` covers the slow tile's fields, the result
 table is small, and Looker picks it transparently. See
 [Looker aggregate awareness](https://docs.cloud.google.com/looker/docs/aggregate-awareness).
 
+**Precondition — the connection must be write-capable.** `aggregate_table:`
+materializes a real table on the warehouse. The Looker connection that
+backs the explore must have:
+
+- A user with `CREATE TABLE` / `INSERT` / `DROP` on a designated database
+  (sometimes called PDT Database, Temp Database, or Scratch Schema).
+- The Connection's "PDT and Datagroup Maintenance Schedule" field
+  set to a cron expression (e.g. `*/5 * * * *`). Empty = Looker never
+  polls the trigger, so the agg never rebuilds.
+
+If either is missing, Looker silently skips the build. Project Health
+will read "Unbuilt PDTs (0) — All PDTs successfully built" — that means
+Looker has zero PDTs registered to build, **not** that yours built.
+Queries keep hitting raw with no warning.
+
+**Diagnostic — is the connection write-capable? Run before proposing
+the agg.** Two cheap checks:
+
+1. *Username pattern.* Looker → Admin → Connections → edit → Step 2
+   "Database Settings" → Username field. If it ends in `_ro`,
+   `_readonly`, `_analyst`, or you can see no Looker-managed scratch
+   schema in the warehouse, treat it as read-only until proven
+   otherwise.
+2. *Warehouse-side check.* Run via `db_access`:
+
+   ```sql
+   -- ClickHouse
+   SELECT DISTINCT database FROM system.tables
+   WHERE database LIKE '%scratch%' OR database LIKE '%looker%'
+      OR database LIKE '%pdt%';
+   ```
+
+   ```sql
+   -- MySQL
+   SHOW DATABASES LIKE 'looker%';
+   ```
+
+   No rows = no scratch schema configured. Either fix the connection
+   (admin step — add a write-capable user / scratch DB / maintenance
+   schedule, optionally via Looker's "PDT Override Connection" so
+   reads stay on the read-only role) or skip Tier 1 A and use the
+   warehouse-side fallback below.
+
+**Fallback when the connection is read-only — warehouse-maintained
+rollup.** Have the data-engineering team materialize the rollup as a
+`MATERIALIZED VIEW` (ClickHouse) or scheduled job (MySQL / BigQuery)
+on the source table, refreshing on the same cadence the agg would
+have. Point a hidden LookML view at that materialized table; either
+re-add a thin `aggregate_table:` over it (free, since the heavy lift
+is already done) or have the existing measures `sql:` reference the
+MV directly. Trades a Looker-managed object for a warehouse-managed
+one, but works with a read-only connection. Pre-existing `_pdt_*` /
+`_rollup_*` tables in the warehouse are usually this pattern — check
+before re-implementing.
+
+**Note** — even when Tier 1 A is blocked, Tier 1 B (`datagroup:` +
+`persist_with:`) still works on a read-only connection. The result
+cache lives in Looker's metadata DB, not the warehouse. Ship B even
+when you have to skip A.
+
 ### B. Add a `datagroup` + `max_cache_age:` to slow explores
 
 ```lkml
