@@ -1,0 +1,51 @@
+{
+    "name": "qa-assistant",
+    "version": "1.0.0",
+    "description": "QA assistant for flighthub.com and justfly.com (shared genesis backend) on Playwright + TypeScript. Vendored from Playwright-Scaffold-AI-Assisted-Development; rebuilt around the booking-flow per-phase runners by epic https://trello.com/c/TsZ362XC.",
+    "private": true,
+    "scripts": {
+        "test": "npm run test:flighthub:staging2 && npm run test:justfly:staging2",
+        "test:flighthub:staging2": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --grep-invert @destructive",
+        "test:flighthub:production": "TARGET=flighthub-production npx playwright test --project=flighthub-production --grep-invert @destructive",
+        "test:justfly:staging2": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --grep-invert @destructive",
+        "test:justfly:production": "TARGET=justfly-production npx playwright test --project=justfly-production --grep-invert @destructive",
+        "test:flighthub:staging2:ci": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --workers=1",
+        "test:justfly:staging2:ci": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --workers=1",
+        "test:flighthub:staging2:debug": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --debug",
+        "test:justfly:staging2:debug": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --debug",
+        "test:flighthub:staging2:ui": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --ui",
+        "test:justfly:staging2:ui": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --ui",
+        "test:flighthub:staging2:headed": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --headed --grep-invert @destructive",
+        "test:justfly:staging2:headed": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --headed --grep-invert @destructive",
+        "test:sanity:flighthub:staging2": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --grep @sanity",
+        "test:sanity:justfly:staging2": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --grep @sanity",
+        "test:smoke:flighthub:staging2": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --grep @smoke",
+        "test:smoke:justfly:staging2": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --grep @smoke",
+        "report": "npx playwright show-report",
+        "lint": "npx eslint .",
+        "lint:fix": "npx eslint . --fix",
+        "format": "npx prettier --write ."
+    },
+    "keywords": [],
+    "author": "FlightHub QA",
+    "license": "MIT",
+    "devDependencies": {
+        "@faker-js/faker": "^9.9.0",
+        "@playwright/test": "^1.59.1",
+        "@types/node": "^24.0.1",
+        "@typescript-eslint/eslint-plugin": "^8.34.1",
+        "@typescript-eslint/parser": "^8.34.1",
+        "eslint": "^9.29.0",
+        "eslint-config-prettier": "^10.1.5",
+        "eslint-define-config": "^2.1.0",
+        "eslint-plugin-playwright": "^2.2.0",
+        "eslint-plugin-prettier": "^5.5.0",
+        "jiti": "^2.4.2"
+    },
+    "dependencies": {
+        "dotenv": "^16.5.0",
+        "mysql2": "^3.22.3",
+        "otpauth": "^9.5.1",
+        "zod": "^4.3.6"
+    }
+}
