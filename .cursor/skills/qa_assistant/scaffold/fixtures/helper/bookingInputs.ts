@@ -315,7 +315,7 @@ export function parseFromCli(argv: readonly string[]): Record<string, unknown> {
     // ----- pax: aggregated --pax JSON or per-component --pax-* -------------
     let pax: Record<string, unknown> | undefined;
     if ('pax' in flags) {
-        pax = parseJsonField('pax', flags.pax);
+        pax = parseJsonField('pax', flags.pax) as Record<string, unknown>;
     }
     for (const [key, dst] of [
         ['pax-adt', 'adt'],
@@ -333,7 +333,7 @@ export function parseFromCli(argv: readonly string[]): Record<string, unknown> {
     // ----- route: aggregated --route JSON or per-component --route-* -------
     let route: Record<string, unknown> | undefined;
     if ('route' in flags) {
-        route = parseJsonField('route', flags.route);
+        route = parseJsonField('route', flags.route) as Record<string, unknown>;
     }
     for (const [key, dst] of [
         ['origin', 'origin'],

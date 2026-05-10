@@ -161,10 +161,11 @@ async function main(): Promise<void> {
             const filterSelect = session.page.locator('select#gds');
             if ((await filterSelect.count()) > 0) {
                 const optionValue = inputs.contentSource;
-                await filterSelect.selectOption({ label: new RegExp(optionValue, 'i') }).catch(async () => {
-                    // Try value-based selection as fallback.
-                    await filterSelect.selectOption(optionValue).catch(() => undefined);
-                });
+                const matchingOption = filterSelect.locator('option').filter({ hasText: new RegExp(optionValue, 'i') });
+                const selectedValue = (await matchingOption.count()) > 0
+                    ? (await matchingOption.first().getAttribute('value') ?? optionValue)
+                    : optionValue;
+                await filterSelect.selectOption(selectedValue).catch(() => undefined);
                 log(`debug filter set to: ${inputs.contentSource}`);
                 // Re-wait for results after filter change.
                 await resultsPage.waitForResults();
@@ -205,8 +206,14 @@ async function main(): Promise<void> {
         // Inject failure reason if specified.
         if (inputs.failureInjection && brand === 'flighthub') {
             const fhCheckout = checkoutPage as FlighthubCheckoutPage;
+            const failureOption = fhCheckout.bookingFailureReasonSelect
+                .locator('option')
+                .filter({ hasText: new RegExp(inputs.failureInjection, 'i') });
+            const failureValue = (await failureOption.count()) > 0
+                ? (await failureOption.first().getAttribute('value') ?? inputs.failureInjection)
+                : inputs.failureInjection;
             await fhCheckout.bookingFailureReasonSelect
-                .selectOption({ label: new RegExp(inputs.failureInjection, 'i') })
+                .selectOption(failureValue)
                 .catch(() => undefined);
             log(`failure injection set: ${inputs.failureInjection}`);
         }
