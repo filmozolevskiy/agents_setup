@@ -1,5 +1,5 @@
 ---
-name: qa-automation
+name: qa-assistant
 description: >-
   Use when creating real test bookings on FlightHub / JustFly staging or
   production and validating them across MySQL, ClickHouse, and MongoDB.
@@ -12,7 +12,7 @@ description: >-
   --booking-failure-reason.
 ---
 
-# QA Automation
+# QA Assistant
 
 Drive a real test booking on `staging{QA_STAGING_PREFIX}.flighthub.com` /
 `staging{QA_STAGING_PREFIX}.justfly.com` or on production
@@ -199,12 +199,13 @@ Current selector inventory (dated) + staging DOM notes:
 ## Invocation
 
 All tools are console scripts registered in
-[`qa_automation/pyproject.toml`](../../../qa_automation/pyproject.toml) and
-installed by `uv sync` inside `qa_automation/`. Run them from the repo root
-with `uv run` so they pick up the `.env` at the top of the repo:
+[`legacy_python/pyproject.toml`](legacy_python/pyproject.toml) and
+installed by `uv sync` inside `.cursor/skills/qa_assistant/legacy_python/`.
+Run them from there with `uv run` so they pick up the `.env` at the top
+of the repo:
 
 ```bash
-cd qa_automation && uv run qa-search \
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-search \
     --origin YUL --dest LAX --depart 2026-07-15 --trip-type oneway \
     --label amadeus-smoke
 ```
@@ -213,10 +214,10 @@ cd qa_automation && uv run qa-search \
 one attempt land in the same folder:
 
 ```bash
-cd qa_automation && uv run qa-book \
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-book \
     --search-url "https://staging2.flighthub.com/flight/search?..." \
     --content-source amadeus \
-    --scenario-dir qa_automation/reports/20260423-130000-amadeus-smoke
+    --scenario-dir reports/20260423-130000-amadeus-smoke
 ```
 
 For a production E2E (no injection — real end-to-end booking
@@ -224,13 +225,13 @@ through the supplier and payment gateway; ticketing is blocked
 server-side by `is_test=1`):
 
 ```bash
-cd qa_automation && uv run qa-search --env production \
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-search --env production \
     --origin YUL --dest LAX --depart 2026-07-15 --trip-type oneway \
     --label prod-amadeus-smoke
-cd qa_automation && uv run qa-book \
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-book \
     --search-url "https://www.flighthub.com/flight/search?..." \
     --content-source amadeus \
-    --scenario-dir qa_automation/reports/<UTC>-prod-amadeus-smoke
+    --scenario-dir reports/<UTC>-prod-amadeus-smoke
 # qa-book emits a banner to stderr summarising env / failure-reason /
 # resolved card before submitting; capture it for the run report.
 ```
@@ -239,11 +240,11 @@ For an opt-in failure-path test (booker short-circuits, no supplier
 call, no gateway authorisation):
 
 ```bash
-cd qa_automation && uv run qa-book \
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-book \
     --search-url "https://www.flighthub.com/flight/search?..." \
     --content-source amadeus \
     --booking-failure-reason "CC Decline" \
-    --scenario-dir qa_automation/reports/<UTC>-prod-amadeus-cc-decline
+    --scenario-dir reports/<UTC>-prod-amadeus-cc-decline
 # Expected outcome: booking_failed_by_injection with
 # failure_origin=qa_injection.
 ```
@@ -258,21 +259,21 @@ envs so the cleanup URL is identical.
 
 When you capture a runner's JSON for inspection (e.g. piping through `jq`,
 or saving for a later step), write the dumps under
-`qa_automation/reports/_stdio/<tool>-<label>.{json,log}` — never next to
-`pyproject.toml` or inside the `qa_automation/qa_automation/` package
-dir. `qa_automation/reports/` is gitignored, so anything in `_stdio/`
+`.cursor/skills/qa_assistant/legacy_python/reports/_stdio/<tool>-<label>.{json,log}`
+— never next to `pyproject.toml` or inside the `legacy_python/qa_automation/`
+package dir. `legacy_python/reports/` is gitignored, so anything in `_stdio/`
 stays out of the repo. Create the dir on first use:
 
 ```bash
-mkdir -p qa_automation/reports/_stdio
-cd qa_automation && uv run qa-search ... \
+mkdir -p .cursor/skills/qa_assistant/legacy_python/reports/_stdio
+cd .cursor/skills/qa_assistant/legacy_python && uv run qa-search ... \
     > reports/_stdio/search-amadeus.json \
     2> reports/_stdio/search-amadeus.log
 ```
 
 Per-scenario evidence (screenshots, `trace.zip`) still goes to the
-scenario dir under `qa_automation/reports/<UTC-timestamp>-<label>/` —
-that part is unchanged.
+scenario dir under `.cursor/skills/qa_assistant/legacy_python/reports/<UTC-timestamp>-<label>/`
+— that part is unchanged.
 
 ## Read the evidence, do not trust
 
@@ -389,20 +390,20 @@ The headline summary is the deliverable. The agent does not lose the
 diagnostics; they are already on disk:
 
 - **Tool stdout / stderr** — full JSON dump per stage, captured under
-  `qa_automation/reports/_stdio/<tool>-<label>.{json,log}` per
-  [Where to redirect stdout/stderr](#where-to-redirect-stdoutstderr).
+  `.cursor/skills/qa_assistant/legacy_python/reports/_stdio/<tool>-<label>.{json,log}`
+  per [Where to redirect stdout/stderr](#where-to-redirect-stdoutstderr).
   Internal field names, raw exception classes, retry chatter, the
   `qa-book` stderr banner — all there.
-- **Scenario dir** (`qa_automation/reports/<UTC>-<label>/`) —
-  screenshots, `trace.zip`, `qa-diag` probe output when a selector
+- **Scenario dir** (`.cursor/skills/qa_assistant/legacy_python/reports/<UTC>-<label>/`)
+  — screenshots, `trace.zip`, `qa-diag` probe output when a selector
   miss fired.
 - **Supplier log groups** — when the validation table needs them as
   `Proof`, the cell is the raw permalink URL (one URL per cell, per
   sibling [UEZ0oMf4](https://trello.com/c/UEZ0oMf4)).
 
 If the summary surfaces a single internal artefact, it is a **path**
-("scenario dir: `qa_automation/reports/<UTC>-<label>/`") so the
-engineer can drill in. Never paste raw JSON, raw class names, raw
+("scenario dir: `.cursor/skills/qa_assistant/legacy_python/reports/<UTC>-<label>/`")
+so the engineer can drill in. Never paste raw JSON, raw class names, raw
 selectors, or stderr banners into the summary itself.
 
 ### Worked examples
@@ -419,7 +420,7 @@ stage-by-stage phrase bank covers the cases the two examples do not.
 
 If a runner returns `{"error": "selector_not_found", "name": "..."}`,
 invoke `qa-diag --url <url> --page <page>` to list every probed selector.
-Update [`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py),
+Update [`legacy_python/qa_automation/pages/selectors.py`](legacy_python/qa_automation/pages/selectors.py),
 bump the `VERIFIED_ON` date, and refresh [`page_inventory.md`](page_inventory.md).
 Do not edit selectors elsewhere — that file is the single source of truth.
 

@@ -565,7 +565,7 @@ class ResultsPage(BasePage):
         Turkish Airlines" matches ``--carrier UA`` (UA is the
         marketing carrier) but does **not** match ``--carrier TK``
         (TK is only the metal). See
-        ``.cursor/skills/qa_automation/SKILL.md`` →
+        ``.cursor/skills/qa_assistant/SKILL.md`` →
         "When ``--carrier`` is specified, it always means the
         marketing/validating carrier".
 

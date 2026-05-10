@@ -1,11 +1,11 @@
-# QA Automation — Page Inventory
+# QA Assistant — Page Inventory
 
 All selectors verified against **staging2.flighthub.com** and
 **www.flighthub.com** (production), plus
 **staging2-summit.flighthub.com** (Summit) and
 **reservations.voyagesalacarte.ca** (ResPro), on **2026-04-26**. Casper-era
 selectors have been replaced. Selector constants live in
-[`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py);
+[`legacy_python/qa_automation/pages/selectors.py`](legacy_python/qa_automation/pages/selectors.py);
 the `VERIFIED_ON` string in that file must match this header.
 
 Selectors that diverge cosmetically between staging and production are
@@ -19,7 +19,7 @@ below under "Production override".
 
 ## Critical: Third-Party Ad Blocking
 
-[`qa_automation/qa_automation/browser.py`](../../../qa_automation/qa_automation/browser.py)
+[`legacy_python/qa_automation/browser.py`](legacy_python/qa_automation/browser.py)
 injects a route handler on every `BrowserContext` that blocks:
 - **Third-party scripts** (`resource_type == "script"` not from flighthub.com/justfly.com)
 - **Third-party document navigations** (ClickTripz, TripAdvisor, etc.)
@@ -176,7 +176,7 @@ No booking number is shown on the page — must be looked up in MySQL.
 
 Base URL: `https://staging2-summit.flighthub.com` (Momentum OTA-Admin).
 Stats are auth-gated; anonymous requests redirect to `/login`. The
-[`SummitStatsPage`](../../../qa_automation/qa_automation/pages/summit_stats_page.py)
+[`SummitStatsPage`](legacy_python/qa_automation/pages/summit_stats_page.py)
 runner logs in at the base URL and then navigates straight to
 `/flight-search/info/{search_hash}` (the `#searchIdForm` lookup just
 redirects to the same path — bypass it).

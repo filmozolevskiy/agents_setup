@@ -11,7 +11,7 @@ Reads a JSON document from stdin (or ``--input``) shaped like::
         "content_source": "amadeus",
         "route": "YUL-LAX",
         "depart": "2026-07-15",
-        "scenario_dir": "qa_automation/reports/20260428-110135-prod-amadeus-ac-yul-yvr"
+        "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/20260428-110135-prod-amadeus-ac-yul-yvr"
       },
       "records": [
         {
@@ -27,7 +27,7 @@ Reads a JSON document from stdin (or ``--input``) shaped like::
 Writes ``{scenario_dir}/report.md`` (or ``--out``) and emits a single JSON
 object on stdout::
 
-    {"report_path": "qa_automation/reports/.../report.md",
+    {"report_path": ".cursor/skills/qa_assistant/legacy_python/reports/.../report.md",
      "overall_verdict": "PASS",
      "validations_count": 1}
 

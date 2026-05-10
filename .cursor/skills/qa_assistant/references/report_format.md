@@ -62,7 +62,7 @@ booking `297983572` — env `production` — site `flighthub` — content source
 
 Overall verdict: **AMBIGUOUS** (5 validations run).
 
-Scenario dir: `qa_automation/reports/20260428-110135-prod-amadeus-ac-yul-yvr`
+Scenario dir: `.cursor/skills/qa_assistant/legacy_python/reports/20260428-110135-prod-amadeus-ac-yul-yvr`
 
 | Booking ID | Validation | Verdict | Explanation | Proof |
 |------------|------------|---------|-------------|-------|
@@ -85,7 +85,7 @@ cat <<'JSON' | uv run qa-report
     "content_source": "amadeus",
     "route": "YUL-LAX",
     "depart": "2026-07-15",
-    "scenario_dir": "qa_automation/reports/20260428-110135-prod-amadeus-ac-yul-yvr"
+    "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/20260428-110135-prod-amadeus-ac-yul-yvr"
   },
   "records": [
     {

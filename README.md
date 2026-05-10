@@ -16,7 +16,7 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 
 - **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
 - **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
-- **`/qa_automation`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
+- **`/qa_assistant`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
 - **`/db_access`** — find which table or collection holds the data you need (when `.cursor/skills/db_access/db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `.cursor/skills/db_access/db-docs/`.
 - **`/skill_creator`** — scaffold a new project-local skill (SKILL.md + `.claude/commands/<name>.md` wrapper + Skills Index rows in `CLAUDE.md` and `.cursor/rules/rules.mdc`); ships a `lint_skill.py` validator that flags missing wrappers and broken frontmatter.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
@@ -38,7 +38,7 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 ├── SKILL.md
 ├── scripts/sync_genesis.sh   # Fast-forwards the local genesis clone before any code read
 └── codebase/                  # Default genesis checkout (gitignored)
-qa_automation/      # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …)
+.cursor/skills/qa_assistant/legacy_python/   # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …); cd here + uv sync
 .cursor/skills/db_access/db-docs/
 ├── clickhouse/     # Documented CH tables
 ├── mysql/          # Documented MySQL tables
@@ -62,7 +62,7 @@ requirements.txt    # clickhouse-connect, pymysql, pymongo
   ```bash
    cp .env.example .env
   ```
-   Then fill in real values. `.env.example` lists every variable the repo reads, grouped by area (ClickHouse, MySQL, MongoDB, optional genesis path, QA automation). Only the database blocks are required for the core skills; the QA section is only needed for `/qa_automation`.
+   Then fill in real values. `.env.example` lists every variable the repo reads, grouped by area (ClickHouse, MySQL, MongoDB, optional genesis path, QA automation). Only the database blocks are required for the core skills; the QA section is only needed for `/qa_assistant`.
 3. **Load `.env` before running any CLI.** Every script reads credentials from environment variables. Export them first:
   ```bash
    set -a && source .env && set +a

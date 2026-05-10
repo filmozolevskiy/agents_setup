@@ -2,7 +2,7 @@
 qa-validate: dump raw evidence about a booking across MySQL/ClickHouse/MongoDB.
 
 No pass/fail judgment — the agent reads the evidence against
-``.cursor/skills/qa_automation/references/validation_checklist.md``.
+``.cursor/skills/qa_assistant/references/validation_checklist.md``.
 """
 from __future__ import annotations
 
