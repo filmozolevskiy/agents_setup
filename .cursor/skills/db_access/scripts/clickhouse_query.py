@@ -18,6 +18,7 @@ Batch mode:
 """
 
 import argparse
+import json
 import os
 import sys
 from datetime import date, timedelta
@@ -61,7 +62,15 @@ def cmd_query(args):
     result = client.query(args.sql)
 
     if not result.result_rows:
-        print("(no rows)")
+        if getattr(args, "json", False):
+            print("[]")
+        else:
+            print("(no rows)")
+        return
+
+    if getattr(args, "json", False):
+        rows = [dict(zip(result.column_names, row)) for row in result.result_rows]
+        print(json.dumps(rows, default=str))
         return
 
     print_table(result.column_names, result.result_rows)
@@ -172,6 +181,8 @@ def main():
     # query
     p_query = subparsers.add_parser("query", help="Execute a SQL query")
     p_query.add_argument("sql", help="SQL query to execute")
+    p_query.add_argument("--json", action="store_true",
+                         help="Output rows as a JSON array of objects")
 
     # batch
     p_batch = subparsers.add_parser(
