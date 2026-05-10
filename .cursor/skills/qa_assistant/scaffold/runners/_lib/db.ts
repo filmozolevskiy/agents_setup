@@ -1,7 +1,7 @@
 /**
  * Shared DB helpers for QA DB shell runners (qa-validate, qa-search-telemetry).
  *
- * MySQL:      mysql2 (already a scaffold dependency) — fastest, structured JSON.
+ * MySQL:      spawns mysql_query.py --json — no DB client in package.json.
  * ClickHouse: spawns clickhouse_query.py --json — no CH client in package.json.
  * MongoDB:    spawns mongo_query.py --json — Extended JSON via bson.json_util.
  *
@@ -13,7 +13,6 @@
 
 import { spawn } from 'child_process';
 import path from 'path';
-import mysql from 'mysql2/promise';
 
 // Resolved from CWD (scaffold root when invoked via `npx tsx runners/...`).
 const DB_SCRIPTS = path.resolve(
@@ -74,20 +73,8 @@ function runPythonJson(
 export async function mysqlQuery(
     sql: string
 ): Promise<Record<string, unknown>[]> {
-    const conn = await mysql.createConnection({
-        host: process.env.MYSQL_HOST ?? 'localhost',
-        port: parseInt(process.env.MYSQL_PORT ?? '3306', 10),
-        user: process.env.MYSQL_USER ?? 'root',
-        password: process.env.MYSQL_PASSWORD ?? '',
-        database: process.env.MYSQL_DATABASE ?? 'ota',
-        decimalNumbers: true,
-    });
-    try {
-        const [rows] = await conn.execute(sql);
-        return rows as Record<string, unknown>[];
-    } finally {
-        await conn.end();
-    }
+    const result = await runPythonJson('mysql_query.py', ['query', '--json', sql]);
+    return result as Record<string, unknown>[];
 }
 
 export async function clickhouseQuery(

@@ -176,9 +176,11 @@ async function main(): Promise<void> {
             // eslint-disable-next-line playwright/no-raw-locators
             const filterSelect = session.page.locator('select#gds');
             if ((await filterSelect.count()) > 0) {
-                await filterSelect.selectOption({ label: new RegExp(cs, 'i') }).catch(async () => {
-                    await filterSelect.selectOption(cs).catch(() => undefined);
-                });
+                const matchingOption = filterSelect.locator('option').filter({ hasText: new RegExp(cs, 'i') });
+                const optionValue = (await matchingOption.count()) > 0
+                    ? (await matchingOption.first().getAttribute('value') ?? cs)
+                    : cs;
+                await filterSelect.selectOption(optionValue).catch(() => undefined);
                 log(`debug filter → ${cs}`);
                 await resultsPage.waitForResults();
             }
@@ -219,10 +221,14 @@ async function main(): Promise<void> {
         // Set failure injection before passenger form (mirrors Python runner order).
         if (inputs.failureInjection && brand === 'flighthub') {
             const fhCheckout = checkoutPage as FlighthubCheckoutPage;
+            const failureOption = fhCheckout.bookingFailureReasonSelect
+                .locator('option')
+                .filter({ hasText: new RegExp(inputs.failureInjection, 'i') });
+            const failureValue = (await failureOption.count()) > 0
+                ? (await failureOption.first().getAttribute('value') ?? inputs.failureInjection)
+                : inputs.failureInjection;
             await fhCheckout.bookingFailureReasonSelect
-                .selectOption({
-                    label: new RegExp(inputs.failureInjection, 'i'),
-                })
+                .selectOption(failureValue)
                 .catch(() => undefined);
             log(`failure injection → ${inputs.failureInjection}`);
         }

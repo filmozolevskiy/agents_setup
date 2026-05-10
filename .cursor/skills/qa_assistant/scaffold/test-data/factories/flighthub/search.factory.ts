@@ -213,16 +213,16 @@ export function generatePassengersFromBookingInputs(
     const overrides = inputs.passengerOverrides;
     let i = 0;
     for (let n = 0; n < inputs.pax.adt; n++, i++) {
-        out.push(generateAdultPassenger(overrides[i]));
+        out.push(generateAdultPassenger(overrides[i] as Partial<FlighthubPassenger>));
     }
     for (let n = 0; n < inputs.pax.chd; n++, i++) {
-        out.push(generateChildPassenger(overrides[i]));
+        out.push(generateChildPassenger(overrides[i] as Partial<FlighthubPassenger>));
     }
     for (let n = 0; n < inputs.pax.infSeat; n++, i++) {
-        out.push(generateInfantPassenger(overrides[i]));
+        out.push(generateInfantPassenger(overrides[i] as Partial<FlighthubPassenger>));
     }
     for (let n = 0; n < inputs.pax.infLap; n++, i++) {
-        out.push(generateInfantPassenger(overrides[i]));
+        out.push(generateInfantPassenger(overrides[i] as Partial<FlighthubPassenger>));
     }
     return out;
 }
