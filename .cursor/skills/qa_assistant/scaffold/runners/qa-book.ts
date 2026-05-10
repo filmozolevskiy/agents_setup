@@ -112,9 +112,9 @@ async function main(): Promise<void> {
     const inputs = mergeWithFactoryDefaults(parseResult.data);
 
     if (inputs.mode === 'api') {
-        emitError('api_mode_not_in_card4', {
+        emitError('api_mode_requires_ui', {
             detail:
-                'API mode is implemented in Card 5 (zutcAJq7). Pass --mode ui-headless or --mode ui-headed.',
+                'qa-book drives the checkout and confirmation forms, which require a browser. Pass --mode ui-headless or --mode ui-headed.',
         });
     }
 
