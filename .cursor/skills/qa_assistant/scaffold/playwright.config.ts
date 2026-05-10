@@ -155,6 +155,18 @@ export default defineConfig({
      * run under that brand's projects.
      */
     projects: [
+        /*
+         * Unit-style specs — pure parsers, validators, and factories.
+         * No brand auth, no `setup-*` dependency, no `baseURL` /
+         * `storageState`. Anything under `tests/unit/` runs here only.
+         * Brand-pinned acceptance (`TARGET=...`) does NOT need to be
+         * set; the loader's default keeps Playwright happy.
+         */
+        {
+            name: 'unit',
+            testMatch: /tests\/unit\/.*\.spec\.ts/,
+        },
+
         /* ── Flighthub ─────────────────────────────────────────────── */
         {
             name: 'setup-flighthub',
