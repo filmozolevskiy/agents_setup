@@ -4,6 +4,10 @@
     "description": "QA assistant for flighthub.com and justfly.com (shared genesis backend) on Playwright + TypeScript. Vendored from Playwright-Scaffold-AI-Assisted-Development; rebuilt around the booking-flow per-phase runners by epic https://trello.com/c/TsZ362XC.",
     "private": true,
     "scripts": {
+        "qa-search": "tsx runners/qa-search.ts",
+        "qa-checkout": "tsx runners/qa-checkout.ts",
+        "qa-book": "tsx runners/qa-book.ts",
+        "qa-cleanup": "tsx runners/qa-cleanup.ts",
         "test": "npm run test:flighthub:staging2 && npm run test:justfly:staging2",
         "test:flighthub:staging2": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --grep-invert @destructive",
         "test:flighthub:production": "TARGET=flighthub-production npx playwright test --project=flighthub-production --grep-invert @destructive",
@@ -41,7 +45,8 @@
         "eslint-define-config": "^2.1.0",
         "eslint-plugin-playwright": "^2.2.0",
         "eslint-plugin-prettier": "^5.5.0",
-        "jiti": "^2.4.2"
+        "jiti": "^2.4.2",
+        "tsx": "^4.21.0"
     },
     "dependencies": {
         "dotenv": "^16.5.0",

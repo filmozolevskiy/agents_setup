@@ -109,6 +109,19 @@ const config = [
             'playwright/no-standalone-expect': 'error', // Expect must be in test
         },
     },
+    // Runners are plain Node.js scripts that use Playwright's browser API
+    // programmatically (not via the test runner). Disable test-runner-
+    // specific rules for that directory.
+    {
+        files: ['runners/**/*.ts'],
+        rules: {
+            'playwright/require-top-level-describe': 'off',
+            'playwright/expect-expect': 'off',
+            'playwright/no-standalone-expect': 'off',
+            'playwright/no-conditional-in-test': 'off',
+            'playwright/prefer-lowercase-title': 'off',
+        },
+    },
 ];
 
 export default config;
