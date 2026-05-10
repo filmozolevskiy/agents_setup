@@ -21,6 +21,7 @@
         "test:sanity:justfly:staging2": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --grep @sanity",
         "test:smoke:flighthub:staging2": "TARGET=flighthub-staging2 npx playwright test --project=flighthub-staging2 --grep @smoke",
         "test:smoke:justfly:staging2": "TARGET=justfly-staging2 npx playwright test --project=justfly-staging2 --grep @smoke",
+        "test:unit": "npx playwright test --project=unit",
         "report": "npx playwright show-report",
         "lint": "npx eslint .",
         "lint:fix": "npx eslint . --fix",

@@ -3,6 +3,20 @@ import type {
     JustflyCabinClass,
     JustflySearchInputs,
 } from '../../../pages/justfly/home.page';
+import type {
+    FareType,
+    NormalizedBookingInputs,
+} from '../../../fixtures/helper/bookingInputs';
+import {
+    generateAdultPassenger,
+    generateChildPassenger,
+    generateInfantPassenger,
+    type JustflyPassenger,
+} from './passenger.factory';
+import {
+    generatePassport,
+    type JustflyPassport,
+} from './passport.factory';
 
 // Well-trafficked airports likely to return inventory on staging2.
 const STAGING_FRIENDLY_AIRPORTS = [
@@ -84,6 +98,138 @@ export function generateRoundTripSearch(
             overrides?.returnDate ??
             isoDateOffset(departureOffset + tripLength),
     };
+}
+
+// ---------------------------------------------------------------------------
+// BookingInputs → factory output (pure helpers)
+// ---------------------------------------------------------------------------
+
+const FARE_TYPE_TO_CABIN: Record<FareType, JustflyCabinClass> = {
+    economy: 'Economy',
+    'premium-economy': 'Premium Economy',
+    business: 'Business',
+    first: 'First',
+};
+
+/**
+ * Maps the FareType slug to the storefront's `JustflyCabinClass` label.
+ *
+ * @param fareType - Normalized BookingInputs fare type.
+ * @returns The matching JustflyCabinClass label.
+ */
+export function fareTypeToCabin(fareType: FareType): JustflyCabinClass {
+    return FARE_TYPE_TO_CABIN[fareType];
+}
+
+/**
+ * Resolves a `NormalizedBookingInputs` record into a fully-populated
+ * `JustflySearchInputs` payload. See the Flighthub mirror for the full
+ * behaviour contract — this function is intentionally identical.
+ *
+ * @param inputs - Normalized BookingInputs (post `mergeWithFactoryDefaults`).
+ * @returns JustflySearchInputs with optional `returnDate` and per-counter
+ *   infant fields.
+ */
+export function searchInputsFromBookingInputs(
+    inputs: NormalizedBookingInputs
+): JustflySearchInputs & {
+    returnDate?: string;
+    infantsOnSeat: number;
+    infantsOnLap: number;
+} {
+    if (inputs.tripType === 'multi-city') {
+        throw new Error(
+            'searchInputsFromBookingInputs: multi-city is not yet wired through the home-page POM; tracked on the per-phase UI runners card.'
+        );
+    }
+
+    const route = inputs.route;
+    if (!route) {
+        throw new Error(
+            'searchInputsFromBookingInputs: `route` is required (origin, dest, depart, optionally return).'
+        );
+    }
+
+    const base: JustflySearchInputs & {
+        infantsOnSeat: number;
+        infantsOnLap: number;
+    } = {
+        origin: route.origin,
+        destination: route.dest,
+        departureDate: route.depart,
+        cabin: fareTypeToCabin(inputs.fareType),
+        adults: inputs.pax.adt,
+        children: inputs.pax.chd,
+        infants: inputs.pax.infSeat + inputs.pax.infLap,
+        infantsOnSeat: inputs.pax.infSeat,
+        infantsOnLap: inputs.pax.infLap,
+    };
+
+    if (inputs.tripType === 'roundtrip') {
+        if (!route.return) {
+            throw new Error(
+                'searchInputsFromBookingInputs: `route.return` is required when `tripType="roundtrip"`.'
+            );
+        }
+        return { ...base, returnDate: route.return };
+    }
+
+    return base;
+}
+
+/**
+ * Builds the per-pax passenger array implied by
+ * `NormalizedBookingInputs.pax`, using `passenger.factory` for each
+ * pax-type and applying `passengerOverrides[i]` index-aligned. Same
+ * pax-type ordering and out-of-range semantics as the Flighthub mirror.
+ *
+ * @param inputs - Normalized BookingInputs.
+ * @returns Index-aligned `JustflyPassenger[]` of length
+ *   `adt + chd + infSeat + infLap`.
+ */
+export function generatePassengersFromBookingInputs(
+    inputs: NormalizedBookingInputs
+): JustflyPassenger[] {
+    const out: JustflyPassenger[] = [];
+    const overrides = inputs.passengerOverrides;
+    let i = 0;
+    for (let n = 0; n < inputs.pax.adt; n++, i++) {
+        out.push(generateAdultPassenger(overrides[i]));
+    }
+    for (let n = 0; n < inputs.pax.chd; n++, i++) {
+        out.push(generateChildPassenger(overrides[i]));
+    }
+    for (let n = 0; n < inputs.pax.infSeat; n++, i++) {
+        out.push(generateInfantPassenger(overrides[i]));
+    }
+    for (let n = 0; n < inputs.pax.infLap; n++, i++) {
+        out.push(generateInfantPassenger(overrides[i]));
+    }
+    return out;
+}
+
+/**
+ * Builds the per-pax passport array implied by `inputs.pax`, applying
+ * `passportOverrides[i]` index-aligned. Same pax-type ordering as the
+ * Flighthub mirror.
+ *
+ * @param inputs - Normalized BookingInputs.
+ * @returns Index-aligned `JustflyPassport[]` of length
+ *   `adt + chd + infSeat + infLap`.
+ */
+export function generatePassportsFromBookingInputs(
+    inputs: NormalizedBookingInputs
+): JustflyPassport[] {
+    const total =
+        inputs.pax.adt +
+        inputs.pax.chd +
+        inputs.pax.infSeat +
+        inputs.pax.infLap;
+    const out: JustflyPassport[] = [];
+    for (let i = 0; i < total; i++) {
+        out.push(generatePassport(inputs.passportOverrides[i]));
+    }
+    return out;
 }
 
 // Canonical international round-trip used by checkout-form regressions.
