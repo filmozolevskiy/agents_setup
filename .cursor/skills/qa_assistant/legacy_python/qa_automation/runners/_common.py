@@ -25,8 +25,8 @@ from typing import Any, NoReturn
 
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-REPORTS_DIR = REPO_ROOT / "qa_automation" / "reports"
+REPO_ROOT = Path(__file__).resolve().parents[6]
+REPORTS_DIR = Path(__file__).resolve().parents[2] / "reports"
 
 logger = logging.getLogger("qa_automation")
 
@@ -50,11 +50,11 @@ def utc_stamp() -> str:
 
 
 def allocate_scenario_dir(label: str | None, existing: str | None = None) -> Path:
-    """Return a per-run scenario dir under qa_automation/reports/.
+    """Return a per-run scenario dir under ``legacy_python/reports/``.
 
     Priority:
       1. If ``existing`` is given, use that path (co-locate screenshots across runners).
-      2. Else build ``qa_automation/reports/{UTC}-{label}``.
+      2. Else build ``.cursor/skills/qa_assistant/legacy_python/reports/{UTC}-{label}``.
 
     The directory is created if missing.
     """

@@ -2,7 +2,7 @@
 Per-step QA validation report (markdown).
 
 The agent walks the ``qa-validate`` evidence blob against
-``.cursor/skills/qa_automation/references/validation_checklist.md``,
+``.cursor/skills/qa_assistant/references/validation_checklist.md``,
 emits one ``ValidationRecord`` per invariant, and asks this module to
 render a single ``report.md`` per run. The body is overwhelmingly a
 single table; prose is limited to a one-paragraph header
@@ -11,7 +11,7 @@ one-line tail with the overall verdict.
 
 Canonical column order: ``Booking ID | Validation | Verdict |
 Explanation | Proof``. See
-``.cursor/skills/qa_automation/references/report_format.md`` for the
+``.cursor/skills/qa_assistant/references/report_format.md`` for the
 spec and a worked example.
 """
 from __future__ import annotations

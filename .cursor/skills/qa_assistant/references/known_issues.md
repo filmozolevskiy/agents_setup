@@ -17,7 +17,7 @@ a bug.
 
 ## Third-party route blocker must allowlist payment SDKs (production)
 
-- `qa_automation/browser.py` aborts third-party `script` /
+- `legacy_python/qa_automation/browser.py` aborts third-party `script` /
   `document` requests so the homepage search-form submit can't be
   hijacked by hotel-ad redirectors (ClickTripz / TripAdvisor / Hopper
   ads). The blocker is necessary — without it `qa-search` lands on
@@ -274,7 +274,7 @@ ever drops the `select#gds` dropdown.
 ## Third-party scripts redirect the search submit
 
 - The homepage search form's Submit button opens a popup. Without the
-  route-blocker in [`qa_automation/browser.py`](../../../qa_automation/qa_automation/browser.py),
+  route-blocker in [`legacy_python/qa_automation/browser.py`](../legacy_python/qa_automation/browser.py),
   ClickTripz / TripAdvisor scripts can hijack the main tab and the popup
   never lands on `/flight/search`.
 - The route-blocker passes through any URL whose host ends with one of
@@ -306,7 +306,7 @@ ever drops the `select#gds` dropdown.
 
 - Staging front-end deploys change selectors without warning. Every
   runner's error body includes the failing selector `name`.
-- Fix by editing [`qa_automation/qa_automation/pages/selectors.py`](../../../qa_automation/qa_automation/pages/selectors.py)
+- Fix by editing [`legacy_python/qa_automation/pages/selectors.py`](../legacy_python/qa_automation/pages/selectors.py)
   and bumping `VERIFIED_ON`. Re-run `qa-diag --url <url> --page <page>` to
   confirm all selectors are found before declaring the fix complete.
 

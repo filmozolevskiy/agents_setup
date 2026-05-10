@@ -5,7 +5,7 @@ Each helper returns plain Python lists/dicts; callers embed the result in
 runner JSON output without further shaping.
 
 When validating a booking we intentionally over-fetch: the agent interprets
-the evidence using ``.cursor/skills/qa_automation/references/validation_checklist.md``.
+the evidence using ``.cursor/skills/qa_assistant/references/validation_checklist.md``.
 No judgment lives in this file.
 """
 from __future__ import annotations

@@ -55,7 +55,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--inf", type=int, default=0)
     p.add_argument("--pos", default=None, help="Point-of-sale hint (informational only)")
     p.add_argument("--currency", default=None, help="Currency hint (informational only)")
-    p.add_argument("--label", default=None, help="Scenario dir suffix under qa_automation/reports/")
+    p.add_argument("--label", default=None, help="Scenario dir suffix under legacy_python/reports/")
     p.add_argument("--max-packages", type=int, default=20, help="Cap on DOM package enumeration")
     p.add_argument(
         "--env",

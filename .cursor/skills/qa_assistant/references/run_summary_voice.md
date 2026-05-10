@@ -81,7 +81,7 @@ all validation checks met, booking cancelled in ResPro.
 | 297983572  | Supplier log group present | PASS | Booking call recorded in the supplier log group | https://reservations.voyagesalacarte.ca/debug-logs/log-group/abc123… |
 | 297983572  | No supplier or pipeline errors | PASS | No rows in the booking-error feed for this booking session | (empty result expected) |
 
-Scenario dir: `qa_automation/reports/20260423-120000-amadeus-smoke/`.
+Scenario dir: `.cursor/skills/qa_assistant/legacy_python/reports/20260423-120000-amadeus-smoke/`.
 ```
 
 Notes:
@@ -157,7 +157,7 @@ expected; no charge was made and no booking was persisted.
 | —          | Segments match requested route | SKIPPED | No booking row to inspect | n/a |
 | —          | Shown vs charged total | SKIPPED | No booking row to inspect | n/a |
 
-Scenario dir: `qa_automation/reports/20260424-101000-prod-amadeus-cc-decline/`.
+Scenario dir: `.cursor/skills/qa_assistant/legacy_python/reports/20260424-101000-prod-amadeus-cc-decline/`.
 ```
 
 Notes:

@@ -1,10 +1,10 @@
-# QA Automation — Tool Reference
+# QA Assistant — Tool Reference
 
 Every tool prints one JSON object to stdout. Success exits 0; failure exits
 non-zero with `{"error": ..., "detail": ..., ...}`. Logs go to stderr only.
 
 Scenario artefacts (screenshots, `trace.zip`) land in
-`qa_automation/reports/<UTC-timestamp>-<label>/`. Tools that accept
+`.cursor/skills/qa_assistant/legacy_python/reports/<UTC-timestamp>-<label>/`. Tools that accept
 `--scenario-dir` co-locate into that dir so one booking attempt keeps all
 screenshots together.
 
@@ -36,7 +36,7 @@ No booking is initiated.
 
 ```json
 {
-  "scenario_dir": "qa_automation/reports/20260423-120000-amadeus-smoke",
+  "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/20260423-120000-amadeus-smoke",
   "env": "staging",
   "site": "flighthub",
   "base_url": "https://staging2.flighthub.com",
@@ -213,7 +213,7 @@ to the JSON report.
 
 ```json
 {
-  "scenario_dir": "qa_automation/reports/...",
+  "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/...",
   "env": "staging",
   "id_hash": "2F3...",
   "booking_id": 297983572,
@@ -511,7 +511,7 @@ a stuck staging worker.
 
 ```json
 {
-  "scenario_dir": "qa_automation/reports/...",
+  "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/...",
   "booking_id": 297983572,
   "cancelled": true,
   "was_already_cancelled": false,
@@ -548,7 +548,7 @@ are suspicious.
 
 ```json
 {
-  "scenario_dir": "qa_automation/reports/...",
+  "scenario_dir": ".cursor/skills/qa_assistant/legacy_python/reports/...",
   "page_key": "results",
   "url": "https://staging2.flighthub.com/flight/search?...",
   "selectors_verified_on": "2026-04-23",
