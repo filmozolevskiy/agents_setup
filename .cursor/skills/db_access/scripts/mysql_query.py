@@ -63,7 +63,15 @@ def cmd_query(args):
             rows = cursor.fetchall()
 
             if not rows:
-                print("(no rows)")
+                if getattr(args, "json", False):
+                    print("[]")
+                else:
+                    print("(no rows)")
+                return
+
+            if getattr(args, "json", False):
+                import json
+                print(json.dumps(rows, default=str))
                 return
 
             headers = list(rows[0].keys())
@@ -132,6 +140,8 @@ def main():
     # query
     p_query = subparsers.add_parser("query", help="Execute a SQL query")
     p_query.add_argument("sql", help="SQL query to execute")
+    p_query.add_argument("--json", action="store_true",
+                         help="Output rows as a JSON array of objects")
 
     # tables
     p_tables = subparsers.add_parser("tables", help="List tables in a database")
