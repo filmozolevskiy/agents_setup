@@ -37,6 +37,6 @@ WHERE oab.attempt_id = :attempt_id;
 - No `created_at` column — use the linked `optimizer_attempts.created_at` or `optimizer_candidates.created_at` when a date bound is needed, especially on candidate-side joins (the candidates table is large).
 
 **Notes:**
-- Used by the `optimizer_analysis` skill (`.cursor/skills/optimizer_analysis/`) to wire `booking_id` back to `attempt_id` in the `by_booking` drill-down.
+- Used by the `optimizer` skill (`.cursor/skills/optimizer/`) to wire `booking_id` back to `attempt_id` in the `by_booking` drill-down.
 - Not every attempt has a row here — only attempts whose winning candidate was actually booked.
 - When joining on `candidate_id`, use a `LEFT JOIN` so you keep non-winning / not-yet-booked candidates too (this is what the canonical join pattern does).

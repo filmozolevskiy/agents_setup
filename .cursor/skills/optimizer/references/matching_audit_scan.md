@@ -129,7 +129,7 @@ Merge records with the same signature and accumulate:
 
 For each signature, also produce a 7d + 30d prevalence count to put
 "how widespread" on the report. Use the Variant C aggregation from
-[`../../bookability_analysis/references/harvest_permalinks.md`](../../bookability_analysis/references/harvest_permalinks.md),
+[`../../bookability/references/harvest_permalinks.md`](../../bookability/references/harvest_permalinks.md),
 swapping `debug_logs` → `optimizer_logs` and the signature-bearing field to
 whatever path `fares[]` exposes for the bucket (see
 [`optimizer_logs_patterns.md`](optimizer_logs_patterns.md#fares-extraction)).

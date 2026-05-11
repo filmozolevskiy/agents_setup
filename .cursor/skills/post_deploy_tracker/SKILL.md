@@ -11,7 +11,7 @@ description: >-
   approval, then queries MySQL / ClickHouse / MongoDB on a per-watch
   cadence and pings via @reporter when something the agent thinks is
   related to the deploy fires. Owns no SQL of its own — drives the
-  `bookability_analysis` and `optimizer_analysis` skills' query
+  `bookability` and `optimizer` skills' query
   templates. Single-machine, single-user — state lives in `reports/`
   (gitignored).
 ---
@@ -44,8 +44,8 @@ the watch" next session resumes where the loop left off.
 - **Pre-deploy QA.** Use `qa_automation` to drive a real test booking
   before shipping; this skill watches *after* the fact.
 - **One-off bookability or optimizer audit** with no temporal /
-  watching component. Use `bookability_analysis` or
-  `optimizer_analysis` directly — those skills already cover the
+  watching component. Use `bookability` or
+  `optimizer` directly — those skills already cover the
   query side.
 - **Custom monitoring not tied to a specific deploy / card.** This
   skill anchors on a parent Trello card; if there's no card, it has
@@ -76,10 +76,10 @@ This skill writes no SQL of its own. Per tick it drives:
 
 - [`db_access`](../db_access/SKILL.md) for the CLI scripts and
   documented schemas.
-- [`bookability_analysis`](../bookability_analysis/SKILL.md) for the
+- [`bookability`](../bookability/SKILL.md) for the
   SQL templates (success / failure / error-signature queries) and
   for `debug_logs` evidence patterns.
-- [`optimizer_analysis`](../optimizer_analysis/SKILL.md) when the
+- [`optimizer`](../optimizer/SKILL.md) when the
   card target involves matching / contestants / fare basis (look for
   optimizer keywords in the card description).
 - [`reporter`](../reporter/SKILL.md) for Slack DMs on findings. The
@@ -221,7 +221,7 @@ the post-deploy watch on <short_link>":
   the queries the user actually wanted, not what the agent guessed
   from a half-read card.
 - **Do not write SQL inline in `SKILL.md` or `state.json`.** Drive
-  `bookability_analysis` / `optimizer_analysis` templates per tick.
+  `bookability` / `optimizer` templates per tick.
   Owning SQL here would duplicate query patterns and drift from
   those skills.
 - **Do not fire `@reporter` on every tick.** Slack noise kills
@@ -252,8 +252,8 @@ the post-deploy watch on <short_link>":
   shapes of `state.json` and `report.md`, plus the dedup rules.
 - Cross-skill load list (read each before driving its templates):
   [`db_access/SKILL.md`](../db_access/SKILL.md),
-  [`bookability_analysis/SKILL.md`](../bookability_analysis/SKILL.md),
-  [`optimizer_analysis/SKILL.md`](../optimizer_analysis/SKILL.md),
+  [`bookability/SKILL.md`](../bookability/SKILL.md),
+  [`optimizer/SKILL.md`](../optimizer/SKILL.md),
   [`reporter/SKILL.md`](../reporter/SKILL.md).
 - Parent card:
   [doJTY0Eu — Post-deploy verification skill](https://trello.com/c/doJTY0Eu).

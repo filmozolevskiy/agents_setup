@@ -54,7 +54,7 @@ All three are the same string. `NULL` / empty `search_hash` rows cannot be corre
 |---------|----------|-----------|
 | "Show failure rates for content source / carrier / office X", "bookability for Y" | **Standard bookability report** — SQL summary + failure details + error bucket, then offer a Mongo deep dive. | [`references/standard_bookability_report.md`](references/standard_bookability_report.md) |
 | User supplies a `booking_id` or `search_hash` and asks "understand the flow" / "what went wrong" | **Single-booking flow investigation** — chronological narrative across `debug_logs`. | [`references/single_booking_investigation.md`](references/single_booking_investigation.md) |
-| "Deep bookability analysis", "correlate logs", "supplier truth for failures", "similar-errors report" | **Deep bookability analysis** — CH signatures + `search_id` list, MySQL cross-check for rates / `surfer_id` / MT, `debug_logs` by `transaction_id` when CH is too coarse, bookability vs non-bookability attribution, grouped signatures with permalinks. | [`references/deep_bookability_analysis.md`](references/deep_bookability_analysis.md) |
+| "Deep bookability analysis", "correlate logs", "supplier truth for failures", "similar-errors report" | **Deep bookability analysis** — CH signatures + `search_id` list, MySQL cross-check for rates / `surfer_id` / MT, `debug_logs` by `transaction_id` when CH is too coarse, bookability vs non-bookability attribution, grouped signatures with permalinks. | [`references/deep_bookability.md`](references/deep_bookability.md) |
 
 For a "standard" ask, run the standard report and offer the deep dive at the end. Do not jump to MongoDB preemptively.
 
@@ -85,7 +85,7 @@ Column contract, verdict vocabulary, and worked examples live in [`references/re
 - **Drop hedging.** No "tentatively", "not sure", "tbd", "we think". If a number is an estimate, say so: "At least 280 distinct sessions; ingestion lag means the true number may be slightly higher." If a row was excluded, say which and why: "Payment-side failures (47 rows) are excluded from the bookability rate."
 - **State counts and shares together.** "312 / 3,421 = 9.1%" beats "9.1%" or "312" alone. Same for recovery: "72 / 153 = 47%".
 - **Failure-injection runs (single-booking workflow on a deliberately-failed booking) are not failures.** A booking the user themselves induced (CC Decline test, fare-increase injection) ends with a `PASS` row saying "behaved as designed" — the verdict reflects whether the scenario matched its intent, not whether a row exists in `bookings`.
-- **`Proof` cells are runnable, not references.** Never write "see the standard report § 1 `summary` CTE" or "see `deep_bookability_analysis.md` for the SQL". Inline a short, runnable query (or a permalink, or a path to a saved dump under `reports/_stdio/`). The reader has to be able to copy the cell, paste it into `mysql_query.py` / `clickhouse_query.py` / `mongo_query.py` and reproduce the number without leaving the report.
+- **`Proof` cells are runnable, not references.** Never write "see the standard report § 1 `summary` CTE" or "see `deep_bookability.md` for the SQL". Inline a short, runnable query (or a permalink, or a path to a saved dump under `reports/_stdio/`). The reader has to be able to copy the cell, paste it into `mysql_query.py` / `clickhouse_query.py` / `mongo_query.py` and reproduce the number without leaving the report.
 - **`Sample session` URLs land on the exact log entry, not the log-group root.** Every URL in the failure-causes table's `Sample session` column ends with `#<_id>`, where `<_id>` is the Mongo `_id` of the specific log entry whose `Error-Data` / `Response` body appears verbatim in the row's `Supplier verbatim` column. Canonical shape — pin this host, do **not** swap to brand-specific hosts: `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>`. ResPro is shared across brands and `voyagesalacarte.ca` is the canonical ResPro host (same shape used in [`harvest_permalinks.md`](references/harvest_permalinks.md)). The log-group root alone (no `#<_id>`) is not a sample session — it's homework. Get the `_id` by querying Mongo for the cluster's anchor `transaction_id` filtered to the supplier-error context (`Downtowntravel::BookFlight::Error`, `loss-limit-fare-increase`, etc.) and copying the `$oid` from the `--json` output.
 - **The findings table is small.** Mandatory rows are: volumes, bookability rate, customer recovery rate, repeat-client failures. Nothing else. Three rows are explicitly dropped from the mandatory list because they were noise that rarely changed what anyone did: ~~MySQL vs ClickHouse row-count reconciliation~~, ~~MySQL ↔ ClickHouse classification mismatch~~, ~~uncorrelated rows~~. The first never adds information. The second is replaced by a sentence in the `Total failures` row's `Explanation` ("one of those clusters may be misclassified — see failure-causes table"). The third is replaced, when the uncorrelated count actually matters, by an `AMBIGUOUS` row in the failure-causes table.
 - **No duplication between header and tables.** If a finding is in the table, it is **not** also in the header. The header summarises the overall outcome and the headline cluster; everything else lives in rows.
@@ -136,7 +136,7 @@ All metrics and exports must come from the same row set:
 - **Multi-ticket:** count master and slave rows separately. Each leg is a distinct contestant attempt and a distinct failure opportunity, so the default grain keeps both. Filter to `master` only (or run a self-join on `search_hash`) only for explicit MT-pair audits — see § *Multi-ticket pair audits*.
 - **Time window:** bound `bcusta.date_created` (indexed). Never scan the full table.
 
-Full SQL templates in [`references/standard_bookability_report.md`](references/standard_bookability_report.md) and [`references/deep_bookability_analysis.md`](references/deep_bookability_analysis.md).
+Full SQL templates in [`references/standard_bookability_report.md`](references/standard_bookability_report.md) and [`references/deep_bookability.md`](references/deep_bookability.md).
 
 ## Multi-ticket pair audits
 
@@ -181,7 +181,7 @@ Used by the bookability success-rate denominator. These codes are excluded from 
 
 **Bookability side:** every other contestant failure counts, including `loss_limit_fare_increase` (fare / limit / repricing during book).
 
-If a deep dive (see [`deep_bookability_analysis.md`](references/deep_bookability_analysis.md)) shows payment evidence under a generic SQL code — or the reverse — reclassify in the similar-errors report and flag "SQL vs Mongo mismatch". Supplier evidence wins for root-cause narrative.
+If a deep dive (see [`deep_bookability.md`](references/deep_bookability.md)) shows payment evidence under a generic SQL code — or the reverse — reclassify in the similar-errors report and flag "SQL vs Mongo mismatch". Supplier evidence wins for root-cause narrative.
 
 If the user cares about a different split, state the list used in that report.
 

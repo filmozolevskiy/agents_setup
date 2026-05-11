@@ -2,7 +2,7 @@
 
 Single source of truth for the MongoDB aggregations used to produce shareable
 `debug_logs` permalinks for bookability investigations and Trello `mongo_query:`
-blocks. Both `bookability_analysis/SKILL.md` and `trello_assistant/SKILL.md`
+blocks. Both `bookability/SKILL.md` and `trello_assistant/SKILL.md`
 link here.
 
 Run these in **mongosh**, **MongoDB Compass**, or **Python + pymongo** — the repo's
@@ -13,7 +13,7 @@ pipeline string.
 filters (or for narrowing Variant A) can come straight from ClickHouse
 `jupiter_booking_errors_v2` — it already groups failures by signature and returns the sample
 `search_id`s per group. See
-[`deep_bookability_analysis.md`](deep_bookability_analysis.md#clickhouse-failure-signatures--search_id-list).
+[`deep_bookability.md`](deep_bookability.md#clickhouse-failure-signatures--search_id-list).
 This skips the MySQL hash extraction when you only need supplier-side context.
 
 ## Common `$match` recipe

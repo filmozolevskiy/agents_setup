@@ -63,5 +63,5 @@ GROUP BY oct.candidate_id;
 
 **Notes:**
 - Tags are **many-to-many per candidate** — the same candidate can have several `Exception` rows with different values. `GROUP_CONCAT(DISTINCT … SEPARATOR ', ')` is the standard way to collapse.
-- Routine `Blocked by Supplier Rules%` exception values are normal policy exceptions; optimizer audits usually exclude them (see `.cursor/skills/optimizer_analysis/`).
+- Routine `Blocked by Supplier Rules%` exception values are normal policy exceptions; optimizer audits usually exclude them (see `.cursor/skills/optimizer/`).
 - See `optimizer_tags.md` for the full catalog of tag names and their meaning.

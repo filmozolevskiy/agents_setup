@@ -8,7 +8,7 @@ description: >-
   table", "what does this table do", "explore tables", "check database",
   "search database". Carries the shared DB infrastructure — query CLIs, the
   schema / collection docs, and the Mongo query mechanics — that other skills
-  (`bookability_analysis`, `optimizer_analysis`, `qa_assistant`) load first
+  (`bookability`, `optimizer`, `qa_assistant`) load first
   before issuing any query.
 ---
 
@@ -25,13 +25,13 @@ When exploration finds a good candidate, continue straight into documentation. D
 
 ## DB foundations
 
-These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability_analysis`, `optimizer_analysis`, `qa_assistant`) inherit them and layer their own query discipline on top.
+These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability`, `optimizer`, `qa_assistant`) inherit them and layer their own query discipline on top.
 
 - **Database CLIs only.** Query MySQL, ClickHouse, and MongoDB only via `.cursor/skills/db_access/scripts/mysql_query.py`, `.cursor/skills/db_access/scripts/clickhouse_query.py`, `.cursor/skills/db_access/scripts/mongo_query.py`. Load `.env` once per session: `set -a && source .env && set +a`. Never invent connection strings, hostnames, or credentials — they come from `.env` via these CLIs. The `## Tooling` section below lists the env vars each CLI needs.
 - **`.cursor/skills/db_access/db-docs/` first.** Before querying a table or collection, look it up under `.cursor/skills/db_access/db-docs/clickhouse/`, `.cursor/skills/db_access/db-docs/mysql/`, or `.cursor/skills/db_access/db-docs/mongodb/`. If undocumented, say so and offer to document it via this skill (template in `.cursor/skills/db_access/db-docs/README.md`). The same rule lives as step `### 2. Check .cursor/skills/db_access/db-docs/ first` inside the Explore workflow below.
 - **Document durable facts.** When you confirm a stable per-table behavior, content-source quirk, or supplier evidence pattern during an investigation, append it to the matching `.cursor/skills/db_access/db-docs/<store>/<table>.md`. Skill `references/` files capture investigation patterns; `.cursor/skills/db_access/db-docs/` captures what the data means. Investigation-time learnings come back here, not into chat-only output.
 - **Ask before guessing the table.** If the user names a metric without naming a table, run the Explore entry point (or scan `.cursor/skills/db_access/db-docs/`) before querying. Do not infer the table from the metric name.
-- **Mongo query mechanics.** When the task touches `ota.debug_logs` or `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filtering, when to switch to mongosh / Compass / pymongo, no-unbounded-scans), load [`references/mongodb_query_mechanics.md`](references/mongodb_query_mechanics.md). The Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) reference the same file directly.
+- **Mongo query mechanics.** When the task touches `ota.debug_logs` or `ota.optimizer_logs` (collection choice, `transaction_id` / `context` / `Response` filtering, when to switch to mongosh / Compass / pymongo, no-unbounded-scans), load [`references/mongodb_query_mechanics.md`](references/mongodb_query_mechanics.md). The Mongo-touching skills (`bookability`, `optimizer`) reference the same file directly.
 
 ## Tooling
 
@@ -140,7 +140,7 @@ Try keyword variations (e.g. "block", "blocked", "block_reason", "status").
 
 **MongoDB** — no `information_schema`. Shortlist collections by name, then use `describe` and `find` / `aggregate` with small limits to inspect fields. For a cross-key scan, use an aggregation with `$objectToArray` on a small `$sample`.
 
-**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.cursor/skills/bookability_analysis/references/debug_logs_query_patterns.md`.
+**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.cursor/skills/bookability/references/debug_logs_query_patterns.md`.
 
 #### 4c. Sample candidates in parallel
 
@@ -190,7 +190,7 @@ For every selected table, continue into § Document a table. When you are done, 
 - Recommended query patterns.
 - Joins needed with other tables.
 
-The summary lets the calling skill (e.g. `bookability_analysis`) or the user continue the analysis.
+The summary lets the calling skill (e.g. `bookability`) or the user continue the analysis.
 
 ### Exploration rules
 

@@ -34,7 +34,7 @@ sending anything.
 ## When NOT to use
 
 - The caller does not yet know the content. Draft the content in the
-  skill that owns the topic (e.g. `bookability_analysis`,
+  skill that owns the topic (e.g. `bookability`,
   `trello_assistant`), then hand the finished message to this skill.
 - The caller knows only a person's display name ("send it to Sergey").
   Resolve the Slack ID first (ask the user, or use the appropriate
