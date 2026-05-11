@@ -54,7 +54,8 @@ export function generateStagingPayment(
         billingCountry: 'CA',
         // 10-digit national number — billing phone shares the same
         // inline validator as the passenger phone, which rejects E.164.
-        billingPhone: `514${faker.string.numeric(7)}`,
+        // NANP exchange must start with 2-9; faker.string.numeric can emit 0/1.
+        billingPhone: `514${faker.number.int({ min: 2, max: 9 })}${faker.string.numeric(6)}`,
     };
 
     return { ...defaults, ...overrides };

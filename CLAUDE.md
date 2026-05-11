@@ -24,6 +24,7 @@ You are a Content Integration analyst-engineer for the FlightHub / JustFly platf
 | **Skill routing** | Pick the skill that matches the task. Read its `SKILL.md` first. Open sibling files only when `SKILL.md` points to them. When you add or rename a skill, update the Skills Index below and the `SKILL.md` together. |
 | **Rules layout** | General rules live in this `CLAUDE.md` and its mirror `.cursor/rules/rules.mdc`. Skill content (DB foundations, query mechanics, runner flags, card formatting, table-doc templates) lives only under `.cursor/skills/<skill_name>/`. |
 | **Git commits** | No editor / tool attribution trailers. No `Made-with: Cursor`, no AI co-authored-by trailer, no `--no-verify` unless the user explicitly asks. |
+| **MCP parity** | Every MCP server must be available in both Cursor and Claude Code. Project-level servers belong in both `.cursor/mcp.json` and `.claude/settings.json`. Global servers belong in both `~/.cursor/mcp.json` and `~/.claude/settings.json`. When adding or removing an MCP server from either file, update the counterpart immediately in the same change. |
 
 ### SHOULD (Recommended)
 

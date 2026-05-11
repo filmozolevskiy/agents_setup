@@ -503,21 +503,17 @@ export class FlighthubSearchResultsPage {
      * @returns Promise that resolves after the final interstitial click
      * or the direct URL transition; caller asserts the resulting URL.
      */
-    async selectFirstResult(options?: {
-        resultsTimeoutMs?: number;
-    }): Promise<void> {
-        await this.dismissInterruptions();
-        await this.waitForResults(
-            options?.resultsTimeoutMs ?? RESULTS_DEFAULT_TIMEOUT_MS
-        );
-        await this.dismissInterruptions();
-        // eslint-disable-next-line playwright/no-nth-methods -- pick the top-of-list result.
-        await this.selectButton.first().click();
-
+    /**
+     * Handles the post-Select interstitial sequence (bundle upsell →
+     * optional fare-upgrade modal → checkout URL) without clicking a
+     * Select button. Call this after any `resultCardSelectButton(idx).click()`
+     * so the modal race runs on the correct card's interstitial, not the
+     * first card's.
+     */
+    async handlePostSelectModals(): Promise<void> {
         // eslint-disable-next-line playwright/no-nth-methods -- one button per fare option; default fare is first.
         const fareModalContinue = this.fareUpgradeContinueToCheckout.first();
-        // Panel renders two CTAs (sticky header + base-card variant); first in DOM order is the always-present header copy.
-        // eslint-disable-next-line playwright/no-nth-methods
+        // eslint-disable-next-line playwright/no-nth-methods -- panel renders two CTAs; first is the always-present header copy.
         const fareFamilyContinue = this.fareFamilyContinueToCheckout.first();
         const checkoutUrlMatcher = /\/checkout\/billing\/flight\//;
 
@@ -563,6 +559,19 @@ export class FlighthubSearchResultsPage {
         }
 
         await fareModalContinue.click();
+    }
+
+    async selectFirstResult(options?: {
+        resultsTimeoutMs?: number;
+    }): Promise<void> {
+        await this.dismissInterruptions();
+        await this.waitForResults(
+            options?.resultsTimeoutMs ?? RESULTS_DEFAULT_TIMEOUT_MS
+        );
+        await this.dismissInterruptions();
+        // eslint-disable-next-line playwright/no-nth-methods -- pick the top-of-list result.
+        await this.selectButton.first().click();
+        await this.handlePostSelectModals();
     }
 
     /**

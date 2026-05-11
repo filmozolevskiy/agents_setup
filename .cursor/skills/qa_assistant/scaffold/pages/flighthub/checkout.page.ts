@@ -856,6 +856,20 @@ export class FlighthubCheckoutPage {
      *
      * @returns Promise that resolves once the cardholder-name input is visible.
      */
+    /**
+     * Clicks the staging "Autofill" link that pre-fills passenger + payment
+     * fields with test data and sets `is_test=1` server-side via `?af=78FF47`.
+     * Call this before `fillPassenger` / `fillPaymentAndBilling` on staging
+     * environments where Debugging Options are absent (new "Review & pay" UI).
+     */
+    async clickAutofill(): Promise<void> {
+        const link = this.page.getByRole('link', { name: 'Autofill', exact: true });
+        if ((await link.count()) === 0) return;
+        await link.click();
+        // Wait for the passenger form to re-hydrate after the URL update.
+        await this.passenger(1).firstNameInput.waitFor({ state: 'attached', timeout: 10000 });
+    }
+
     async continueToPayment(): Promise<void> {
         await this.continueToPaymentButton.click();
         await expect(this.continueToPaymentButton).toBeHidden({
