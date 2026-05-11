@@ -53,7 +53,7 @@ export function loadEnv(target?: string): LoadedEnv {
         );
     }
 
-    dotenv.config({ path: path.resolve(process.cwd(), 'env/.env') });
+    dotenv.config({ path: path.resolve(process.cwd(), '../../../../.env') });
 
     const brandUpper = brand.toUpperCase();
     // .env keys use PROD (not PRODUCTION) as the environment segment.
@@ -76,7 +76,7 @@ export function loadEnv(target?: string): LoadedEnv {
     if (!appUrl) {
         throw new Error(
             `${brandKey}_APP_URL is not set after loading env for TARGET="${targetStr}". ` +
-                'Populate env/.env from env/.env.example.'
+                'Populate .env at the repo root (copy .env.example).'
         );
     }
 
