@@ -1,6 +1,6 @@
 ## Optimizer join pattern (5-table canonical query)
 
-Cross-reference for the five tables that together describe one Optimizer run: **`optimizer_attempts`**, **`optimizer_candidates`**, **`optimizer_attempt_bookings`**, **`optimizer_candidate_tags`**, **`optimizer_tags`**. This is the read-side shape; it is used by the `optimizer_analysis` skill and ad-hoc audits.
+Cross-reference for the five tables that together describe one Optimizer run: **`optimizer_attempts`**, **`optimizer_candidates`**, **`optimizer_attempt_bookings`**, **`optimizer_candidate_tags`**, **`optimizer_tags`**. This is the read-side shape; it is used by the `optimizer` skill and ad-hoc audits.
 
 All tables live in `ota`. Per-table detail is in the individual docs in this folder.
 
@@ -126,6 +126,6 @@ LEFT JOIN tags_agg tags ON tags.candidate_id = b.contestant_id;
 
 ### Related
 
-- Skills: `.cursor/skills/optimizer_analysis/SKILL.md`, including `references/matching_audit_scan.md` and `references/mistake_classification.md`.
+- Skills: `.cursor/skills/optimizer/SKILL.md`, including `references/matching_audit_scan.md` and `references/mistake_classification.md`.
 - Per-table docs: `optimizer_candidates.md`, `optimizer_attempts.md`, `optimizer_attempt_bookings.md`, `optimizer_candidate_tags.md`, `optimizer_tags.md`.
 - `bookings` (`bookings.md`) is the far side of `optimizer_attempt_bookings.booking_id`.

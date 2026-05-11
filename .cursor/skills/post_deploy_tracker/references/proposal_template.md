@@ -30,7 +30,7 @@ glance:
 ```
 **#<n> <Slot title>** — <one-line purpose>
 - **Watches:** <SQL dimensions>
-- **SQL:** <bookability_analysis / optimizer_analysis template name + parameters>
+- **SQL:** <bookability / optimizer template name + parameters>
 - **Verifies in Mongo:** <collection + predicate>
 - **Dedup:** <one-shot / per-signature 6h>
 ```
@@ -44,7 +44,7 @@ deploy. Fires `@reporter` once, then goes silent.
 
 - **Watches.** Successful bookings on the card's `content_source`,
   any carrier, any office, since `deploy_time`.
-- **SQL.** `bookability_analysis` "successes by content source"
+- **SQL.** `bookability` "successes by content source"
   template, scoped to `content_source = <card>`, window
   `[deploy_time, now]`, `LIMIT 200`.
 - **Verifies in Mongo.** `debug_logs` for each candidate booking ID:
@@ -63,7 +63,7 @@ are the "fix did not land" signal).
   `content_source = Intelisys, payment_processor = F8, ticket_shape
   = multi, card_brand IN (Visa, Mastercard), card_funding =
   debit`. Window `[deploy_time, now]`.
-- **SQL.** `bookability_analysis` "successes / failures by combo"
+- **SQL.** `bookability` "successes / failures by combo"
   template, with the card's full dimensions in the `WHERE` clause.
 - **Verifies in Mongo.** `debug_logs` plus, when payment-relevant,
   the Payhub / merchant Sale payload — the card target predicate
@@ -80,7 +80,7 @@ loudest slot — the one most likely to fire on this watch.
 
 - **Watches.** All errors on `content_source = <card>`, any
   carrier, any office. Window `[deploy_time, now]`.
-- **SQL.** `bookability_analysis` "failure signatures by content
+- **SQL.** `bookability` "failure signatures by content
   source" template (ClickHouse `jupiter_booking_errors_v2`),
   grouped by error signature, ordered by count desc, since
   `deploy_time`.
@@ -112,20 +112,20 @@ The proposal the agent posts in chat:
 >
 > **#1 Happy path baseline** — confirm Intelisys is still booking after the deploy.
 > - Watches: successful bookings on Intelisys, any carrier, any office.
-> - SQL: `bookability_analysis` "successes by content source" template,
+> - SQL: `bookability` "successes by content source" template,
 >   `content_source = Intelisys`, window `[deploy_time, now]`, `LIMIT 200`.
 > - Verifies in Mongo: `debug_logs` `status.success == true` for the candidate booking.
 > - Dedup: one-shot.
 >
 > **#2 Card target** — confirm Float card on F8 multi-ticket F8/F8 debit charges go through.
 > - Watches: `content_source = Intelisys, payment_processor = F8, ticket_shape = multi, card_brand IN (Visa, Mastercard), card_funding = debit`.
-> - SQL: `bookability_analysis` "successes / failures by combo" template with the full WHERE clause.
+> - SQL: `bookability` "successes / failures by combo" template with the full WHERE clause.
 > - Verifies in Mongo: `debug_logs.payhub.merchant == "F8" AND debug_logs.card.brand IN {Visa, Mastercard} AND debug_logs.card.funding == "debit" AND debug_logs.payhub.sale.status == "success"`.
 > - Dedup: one-shot for success; per-signature 6h for failure.
 >
 > **#3 Regression sweep** — catch anything broken on Intelisys post-deploy.
 > - Watches: all errors on `content_source = Intelisys`, any carrier, any office.
-> - SQL: `bookability_analysis` "failure signatures by content source" template, ClickHouse `jupiter_booking_errors_v2`, grouped by signature, ordered by count desc.
+> - SQL: `bookability` "failure signatures by content source" template, ClickHouse `jupiter_booking_errors_v2`, grouped by signature, ordered by count desc.
 > - Verifies in Mongo: sample one `debug_logs` per top signature; mark "deploy-related" if the failing payment processor or carrier lines up with the deploy.
 > - Dedup: per signature, 6h cooldown.
 >

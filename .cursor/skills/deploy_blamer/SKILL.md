@@ -39,14 +39,14 @@ call once they pick the suspect.
 ## When NOT to use
 
 - The symptom has no clean onset time (gradual degradation over weeks).
-  Use `bookability_analysis` / `optimizer_analysis` to find a real
+  Use `bookability` / `optimizer` to find a real
   break first; this skill is useless without a window.
 - The change you suspect is in a non-genesis repo. Genesis only —
   separate skills handle other surfaces.
 - Looking up the diff of one specific PR you already know about. Just
   open the PR on GitHub or call `get_pull_request` directly.
 - Re-counting failure rates by deploy. That belongs in
-  `bookability_analysis` (joining ClickHouse / MySQL slices to a deploy
+  `bookability` (joining ClickHouse / MySQL slices to a deploy
   timeline) once a candidate PR has been picked here.
 
 ## Inventory (fixed)
@@ -58,7 +58,7 @@ call once they pick the suspect.
 | Deployment proxy | merges into `develop` (no separate Deployments API source) |
 | Local clone (optional) | `$GENESIS_PATH` from `.env` (auto-synced by [`codebase_access`](../codebase_access/SKILL.md) — `.cursor/skills/codebase_access/scripts/sync_genesis.sh`) |
 | GitHub MCP | `user-GitHub` (tools `list_pull_requests`, `get_pull_request`, `get_pull_request_files`, `list_commits`) |
-| Ranking helper | `.cursor/skills/deployment_review/scripts/rank_prs.py` |
+| Ranking helper | `.cursor/skills/deploy_blamer/scripts/rank_prs.py` |
 | PAT (header use) | `GITHUB_PERSONAL_ACCESS_TOKEN` in `.env` (only when the agent needs the REST API directly; MCP is preferred) |
 
 `develop` is the production-equivalent branch on this repo. Treat every
@@ -149,7 +149,7 @@ Hand the enriched JSON and the user's symptom phrase to the ranking
 helper:
 
 ```bash
-python3 .cursor/skills/deployment_review/scripts/rank_prs.py \
+python3 .cursor/skills/deploy_blamer/scripts/rank_prs.py \
   --prs-file reports/prs_<from>_<to>.json \
   --symptom "PayHub Sale failures" \
   --top 10

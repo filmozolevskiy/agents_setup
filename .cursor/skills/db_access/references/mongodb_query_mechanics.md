@@ -1,6 +1,6 @@
 # MongoDB query mechanics
 
-Reference for the [`db_access`](../SKILL.md) skill. How to query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** safely via `.cursor/skills/db_access/scripts/mongo_query.py`. Loaded by the Mongo-touching skills (`bookability_analysis`, `optimizer_analysis`) when an investigation needs raw collection access; for the field-level catalogues see [`.cursor/skills/db_access/db-docs/mongodb/debug_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/debug_logs.md) and [`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md) (append durable facts there per the `db_access` SKILL).
+Reference for the [`db_access`](../SKILL.md) skill. How to query **`debug_logs`** and **`optimizer_logs`** in database **`ota`** safely via `.cursor/skills/db_access/scripts/mongo_query.py`. Loaded by the Mongo-touching skills (`bookability`, `optimizer`) when an investigation needs raw collection access; for the field-level catalogues see [`.cursor/skills/db_access/db-docs/mongodb/debug_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/debug_logs.md) and [`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md) (append durable facts there per the `db_access` SKILL).
 
 ---
 

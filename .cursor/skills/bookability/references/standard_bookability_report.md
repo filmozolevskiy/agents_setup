@@ -19,7 +19,7 @@ queries (or a CH variant) in its `Proof` column. Do not paste raw SQL output int
 report body; raw output goes to `reports/_stdio/standard-<source>-<UTC>.json`.
 
 After presenting this report, **offer** a Mongo deep dive (see
-[`deep_bookability_analysis.md`](deep_bookability_analysis.md)) when CH's `error_message` is
+[`deep_bookability.md`](deep_bookability.md)) when CH's `error_message` is
 too terse (e.g. generic wrappers, truncated NDC payloads) or when you need the full request /
 response body.
 
@@ -363,7 +363,7 @@ When both conditions hold, ship the cluster as a `CRITICAL` row in the failure-c
 
 When in doubt, run a single broad `find` for the anchor `transaction_id` (no context filter, `--limit 200 --sort date_added:1 --json`), grep the JSON for `Error` / `failed` / `decline` in `context`, and pick the matching entry.
 
-For raw query mechanics (collection choice, `transaction_id` / `context` filtering, escaping literal periods in `$regex`), see [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md). For permalink harvest pipelines when you need every example for a Trello card, see [`harvest_permalinks.md`](harvest_permalinks.md). For deeper correlation across a window or multiple suppliers, switch to [`deep_bookability_analysis.md`](deep_bookability_analysis.md).
+For raw query mechanics (collection choice, `transaction_id` / `context` filtering, escaping literal periods in `$regex`), see [`debug_logs_query_patterns.md`](debug_logs_query_patterns.md). For permalink harvest pipelines when you need every example for a Trello card, see [`harvest_permalinks.md`](harvest_permalinks.md). For deeper correlation across a window or multiple suppliers, switch to [`deep_bookability.md`](deep_bookability.md).
 
 Always use `ota.debug_logs` — `optimizer_logs` is repricing-only and not a bookability source.
 

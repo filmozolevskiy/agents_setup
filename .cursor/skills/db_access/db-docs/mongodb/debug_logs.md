@@ -37,7 +37,7 @@ This document also holds **investigation context** for this collection: where el
 
 ### Bookability / content sources
 
-- MySQL `ota` bookability tables are the **first** stop for rates and attempts; see `**.cursor/skills/bookability_analysis/references/standard_bookability_report.md**` for the SQL template.
+- MySQL `ota` bookability tables are the **first** stop for rates and attempts; see `**.cursor/skills/bookability/references/standard_bookability_report.md**` for the SQL template.
 - `**debug_logs**` often holds supplier-side detail after SQL; the bookability skill describes when to go there. **Add per–content-source log hints** in the table below when verified.
 
 **Content source hints** (log filters, services, caveats — verified entries only):
@@ -62,7 +62,7 @@ This document also holds **investigation context** for this collection: where el
 | Need                                                  | Where                                                                                            |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Table/collection purpose & columns (other stores)     | `.cursor/skills/db_access/db-docs/` and `.cursor/skills/db_access/scripts/mysql_query.py`, `.cursor/skills/db_access/scripts/mongo_query.py`, `.cursor/skills/db_access/scripts/clickhouse_query.py` |
-| Bookability SQL workflow                              | `.cursor/skills/bookability_analysis/references/standard_bookability_report.md`                  |
+| Bookability SQL workflow                              | `.cursor/skills/bookability/references/standard_bookability_report.md`                  |
 | MongoDB query rules (`debug_logs` / `optimizer_logs`) | `.cursor/skills/db_access/references/mongodb_query_mechanics.md`                            |
 | Optimizer-only repricing logs                         | `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`                                                              |
 

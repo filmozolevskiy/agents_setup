@@ -224,7 +224,7 @@ Same host family as `debug_logs` — the storefront exposes optimizer logs
 under the same `/debug-logs/log-group/` path (confirmed 2026-04-21).
 
 **Aggregation to harvest permalinks** — use the same Variants A/B/C shape
-from [`../../bookability_analysis/references/harvest_permalinks.md`](../../bookability_analysis/references/harvest_permalinks.md),
+from [`../../bookability/references/harvest_permalinks.md`](../../bookability/references/harvest_permalinks.md),
 swapping `debug_logs` for `optimizer_logs` and replacing the `Response`
 regex with an equality `$match` on the relevant `context` (since the
 supplier body is a placeholder here).

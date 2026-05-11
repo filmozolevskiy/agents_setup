@@ -87,7 +87,7 @@ Exact inputs, output schemas, and error bodies live in
   X stopped working" — run `qa-diag` first.
 
 Do not invoke this skill for data-only investigations (bookability rates,
-optimizer audits) — those use `/bookability_analysis` or `/optimizer_analysis`.
+optimizer audits) — those use `/bookability` or `/optimizer`.
 
 ## When the user names a content source, pin to it — period
 

@@ -45,9 +45,9 @@ so the agent gets it whole every time.
 
 | Item | Convention |
 |------|------------|
-| Folder name | snake_case, e.g. `bookability_analysis` |
+| Folder name | snake_case, e.g. `bookability` |
 | Frontmatter `name:` | kebab-case, e.g. `bookability-analysis` |
-| Slash command file | matches folder, e.g. `.claude/commands/bookability_analysis.md` |
+| Slash command file | matches folder, e.g. `.claude/commands/bookability.md` |
 | Entry point | `.cursor/skills/<name>/SKILL.md` |
 | Long-form docs | `.cursor/skills/<name>/references/<topic>.md` |
 | Helpers | `.cursor/skills/<name>/scripts/<name>.py` |
@@ -71,7 +71,7 @@ Before writing files, pin down:
 4. **Supporting files** — `references/*.md` for long-form material,
    `scripts/*.py` for helpers, sample inputs / fixtures if any.
 5. **Cross-skill dependencies** — does this skill call into
-   `bookability_analysis`, `table_analysis`, etc.? List them; the body
+   `bookability`, `table_analysis`, etc.? List them; the body
    should link to those skills, not duplicate their content.
 
 If any of these is unclear, ask the user before writing files. Stub
@@ -191,7 +191,7 @@ Aim for under ~500 lines. Spill anything longer into
 - Do not place skills in `~/.cursor/skills-cursor/` — that path is
   Cursor's built-in skills, not this repo.
 - Do not skip the slash command wrapper. Several existing skills
-  (`bookability_analysis`, `table_analysis`, `trello_assistant`)
+  (`bookability`, `table_analysis`, `trello_assistant`)
   currently lack one and should be backfilled; do not add to the gap.
 - Do not summarise the skill's workflow in `description`. Workflow
   summaries cause the agent to skip the body.
@@ -211,7 +211,7 @@ Aim for under ~500 lines. Spill anything longer into
 - Routing tables to mirror: `CLAUDE.md` § Skills Index and
   `.cursor/rules/rules.mdc` § Skills Index.
 - Slash command pattern: `.claude/commands/qa_assistant.md`,
-  `.claude/commands/optimizer_analysis.md`.
+  `.claude/commands/optimizer.md`.
 - In-repo style examples: `.cursor/skills/trello_assistant/SKILL.md`,
   `.cursor/skills/table_analysis/SKILL.md`,
   `.cursor/skills/qa_assistant/SKILL.md`.

@@ -32,7 +32,7 @@ Audit the Optimizer — the service that turns a content source's raw fare paylo
 - Supplier returned a fare whose itinerary matches the anchor, but `fare_bases` differ — we tagged the candidate `Unmatchable` / `No matching fares found` instead of ranking it.
 - Multi-ticket attempt: supplier priced the `master` operand cleanly but left out the `slave` operand — attribute to the right leg, do not average across the attempt.
 
-Investigations follow the two-stage shape used in `bookability_analysis`: MySQL overview first, then MongoDB deep-dive against context-specific supplier evidence in `optimizer_logs`.
+Investigations follow the two-stage shape used in `bookability`: MySQL overview first, then MongoDB deep-dive against context-specific supplier evidence in `optimizer_logs`.
 
 **Before digging:** read [`.cursor/skills/db_access/db-docs/mysql/optimizer_candidates.md`](../../../.cursor/skills/db_access/db-docs/mysql/optimizer_candidates.md), [`.cursor/skills/db_access/db-docs/mysql/optimizer_attempts.md`](../../../.cursor/skills/db_access/db-docs/mysql/optimizer_attempts.md), [`.cursor/skills/db_access/db-docs/mysql/optimizer_candidate_tags.md`](../../../.cursor/skills/db_access/db-docs/mysql/optimizer_candidate_tags.md), [`.cursor/skills/db_access/db-docs/mysql/optimizer_tags.md`](../../../.cursor/skills/db_access/db-docs/mysql/optimizer_tags.md), [`.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md`](../../../.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md). For Mongo query mechanics, load [`../db_access/references/mongodb_query_mechanics.md`](../db_access/references/mongodb_query_mechanics.md). Update `.cursor/skills/db_access/db-docs/mongodb/optimizer_logs.md` and `.cursor/skills/db_access/db-docs/mysql/optimizer_attempt_bookings.md` when you confirm durable facts (see **Post-run learning**).
 
@@ -93,7 +93,7 @@ If the user gives a single ID but also asks "and then see if this is widespread"
 - `level` / `source` — narrow to the optimizer pass you care about. Never include other contestants' evidence in a given candidate's verdict.
 - `date_added` — always bound when aggregating.
 
-## Supplier-evidence rule (copied from `bookability_analysis`)
+## Supplier-evidence rule (copied from `bookability`)
 
 When the MySQL state and the supplier payload disagree, **the supplier payload wins** for root-cause narrative. Flag the divergence explicitly as "SQL vs Mongo mismatch" in the report. Never silently reclassify. When the payload is not readable, fall back to the attempt's anchor candidate as the ground truth (see Glossary). Detail: [`references/mistake_classification.md`](references/mistake_classification.md).
 

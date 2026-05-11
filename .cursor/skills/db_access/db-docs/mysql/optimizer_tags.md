@@ -48,5 +48,5 @@ SELECT id, name, created_at FROM ota.optimizer_tags ORDER BY id;
 - Always join by `name`, never by hardcoded `id`: new tags get new non-sequential ids.
 
 **Notes:**
-- Audit tooling in `.cursor/skills/optimizer_analysis/` relies on tag **names** (e.g. `Exception`, `Demoted`, `Promoted`, `MultiTicketPart`, `Downgrade`, `MixedFareType`, `AlternativeMarketingCarrier`, `Risky`). Keep usage in sync with this catalog.
+- Audit tooling in `.cursor/skills/optimizer/` relies on tag **names** (e.g. `Exception`, `Demoted`, `Promoted`, `MultiTicketPart`, `Downgrade`, `MixedFareType`, `AlternativeMarketingCarrier`, `Risky`). Keep usage in sync with this catalog.
 - New tag names appear over time; re-run the catalog query periodically and update this doc.

@@ -85,5 +85,5 @@ GROUP BY gds;
 **Notes:**
 - Multiple rows per `customer_attempt_id`: one per contestant fare the system tried. Multi-ticket runs produce both a `master` and a `slave` row; join on `multiticket_part` when reconciling per-leg.
 - `booking_id` is `NULL` for attempts that never finalized; use it as an existence filter when you only care about attempts that became real bookings.
-- For supplier-evidence or raw payloads, correlate to MongoDB `ota.debug_logs` / `ota.optimizer_logs` via `search_hash` / `transaction_id` (see `bookability_analysis` and `optimizer_analysis` skills).
+- For supplier-evidence or raw payloads, correlate to MongoDB `ota.debug_logs` / `ota.optimizer_logs` via `search_hash` / `transaction_id` (see `bookability` and `optimizer` skills).
 - Joining to `bookings` gives the final FOP / customer context; joining to `bookings.booking_date` is usually a tighter filter than `bca.date_created` when scoping a booked-bookings window.

@@ -99,7 +99,7 @@ Background: [`.cursor/skills/db_access/db-docs/mysql/bookability_contestant_atte
 
 ## `clickhouse.jupiter_booking_errors_v2`
 
-Background: see `bookability_analysis` skill and its ClickHouse references.
+Background: see `bookability` skill and its ClickHouse references.
 
 - **PASS**: empty list.
 - **FAIL**: any rows. Every row is a booking error signature. Report the
@@ -134,7 +134,7 @@ should agree on the source. Mismatch is always a FAIL.
 
 ## `mongodb.debug_logs_count` / `debug_logs_top`
 
-Background: `bookability_analysis/references/debug_logs_query_patterns.md`
+Background: `bookability/references/debug_logs_query_patterns.md`
 (not copied here — agents running qa-validate should open that doc if deep
 payload inspection is needed).
 
@@ -156,7 +156,7 @@ Common patterns inside `Response` (via `_preview`):
 
 - Informational only. Non-zero is expected for reprice scenarios.
 - If the scenario involved repricing and `optimizer_logs_count == 0`, flag
-  as suspicious and cross-reference with `/optimizer_analysis`.
+  as suspicious and cross-reference with `/optimizer`.
 
 ---
 

@@ -27,7 +27,7 @@ to production before any read.
   for a Trello card, PR review, debugging note, or chat reply.
 - Cross-referencing a DB column / table to the code that writes or reads
   it.
-- Any other skill (`bookability_analysis`, `optimizer_analysis`,
+- Any other skill (`bookability`, `optimizer`,
   `qa_assistant`) is about to grep the genesis tree — load this skill
   first so the sync runs and the path is canonical.
 
