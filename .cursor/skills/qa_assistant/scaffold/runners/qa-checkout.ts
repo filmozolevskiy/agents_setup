@@ -175,6 +175,7 @@ async function main(): Promise<void> {
         // Pick a package.
         if (inputs.packageIndex !== undefined) {
             await resultsPage.resultCardSelectButton(inputs.packageIndex).click();
+            await resultsPage.handlePostSelectModals();
         } else {
             await resultsPage.selectFirstResult();
         }

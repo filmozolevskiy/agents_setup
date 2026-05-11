@@ -257,6 +257,59 @@ ever drops the `select#gds` dropdown.
   (e.g. `DE 2403`, `DE 2402`) and the user can decide whether to
   switch carrier or stop.
 
+## staging2 / staging99: new "Review & pay" checkout UI — Debugging Options broken (as of 2026-05-10)
+
+- As of ~22:00 UTC on 2026-05-10 staging2.flighthub.com deployed a new **"Review & pay"**
+  checkout UI across **all packages** — both optimizer-path (`--package-index`) and
+  content-source-pinned (`--content-source`). staging99 also has the same new UI.
+  The new UI renders no Debugging Options section — no Disable Optimizer/Repricer toggle,
+  no Booking Failure Reason dropdown, no ConnexPay merchant selector.
+- Earlier that day (S1–S8 in the verification matrix) the old checkout UI was still live
+  on staging2 and Debugging Options were present. The deployment happened mid-session.
+- **Root cause confirmed via network log (2026-05-10):** The new React checkout's
+  `capture-booking-attempts` POST body already includes
+  `qa_debug_booking_default_merchant=connexpay-merchant` (the autofill pre-fills it as
+  the form default). Despite this, the backend fires `error_type=fraud_check_cc_problem`
+  and returns `show_cc_error`. Confirmed by intercepting the request and trying both
+  `connexpay-merchant` and an empty string — neither bypasses the fraud check. The backend
+  is ignoring the `qa_debug_booking_default_merchant` field on the new checkout, regardless
+  of its value. Same applies to `qa_debug_booking_failure_reason` (failure injection).
+- Consequence: `useConnexPayMerchant()` and `setOptimizerDisabled()` silently no-op on
+  all staging2/staging99 runs — the form fields reach the server but are not honoured.
+  Every booking attempt on staging2/staging99 ends in `unhandled_exception`
+  (`fraud_check_cc_problem` → CC decline).
+- Consequence: `--failure-injection` is also unavailable on staging2/staging99 until the
+  backend honours `qa_debug_booking_failure_reason` again.
+- Unaffected: production still has Debugging Options (verified 2026-05-10 — P1 and P2
+  production runs with `--failure-injection "CC Decline"` both returned
+  `booking_failed_by_injection` successfully).
+- Fix required from engineering: restore server-side honouring of `qa_debug_*` fields
+  on the new "Review & pay" checkout, or re-render the Debugging Options panel so the
+  fields are explicitly user-set before submit.
+- Workaround until fixed: run bookings against production with
+  `--failure-injection "CC Decline"` (no real booking is created; injection fires before
+  the supplier or gateway is contacted).
+- **Workaround confirmed working (2026-05-11): autofill DOM serialization.** `--mode api`
+  bypasses the React form by clicking Autofill, waiting for the form to hydrate, then
+  DOM-serializing all named inputs and POSTing them directly to `capture-booking-attempts`
+  via `page.evaluate(fetch(...))`. The autofill pre-fills a card the staging fraud service
+  accepts; the factory 4242 card does not pass. With DOM serialization:
+  `booking_id=299361352`, `bcai=240314472`, `result=true` confirmed on staging99 2026-05-11.
+  The `capture-booking-attempts` endpoint returns JSON (not an HTTP redirect) — the portal
+  URL lives in `resp.redirect` as a relative path; the runner resolves it against the
+  checkout origin. `--mode api` is the recommended mode for all staging99/staging2 runs
+  until engineering restores server-side honouring of `qa_debug_booking_default_merchant`.
+
+## staging2: `num_infants_lap=1` occasionally returns 0 results (transient)
+
+- On 2026-05-10 YUL→YYZ and YUL→LAX with `--pax-inf-lap 1` returned 0 packages on
+  staging2 (90 s timeout). Later the same day, retests on both routes — and 5 other
+  route/date combos (YUL→MIA, YYZ→LAX, YVR→YYZ, YUL→CDG, YUL→YYZ 2026-09-15) — all
+  returned 20 packages. The failure was transient, not a blanket staging2 limitation.
+- If infLap returns 0 on a route, retry with ±7 days or a different route before
+  treating it as a staging2 constraint. The `--pax-inf-seat 1` substitute also works
+  as a short-term workaround (staging2 returns results reliably for infSeat).
+
 ## PNRs / tickets are empty until ticketing
 
 - `bookings.status` is `not_issued` right after `qa-book`; do not assert

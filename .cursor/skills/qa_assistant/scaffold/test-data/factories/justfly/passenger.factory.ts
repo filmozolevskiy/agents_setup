@@ -53,8 +53,9 @@ export function generateAdultPassenger(
         passportExpiry: isoDateYearsAhead(faker.number.int({ min: 2, max: 8 })),
         email: faker.internet.email(),
         // Storefront expects a 10-digit national number; international /
-        // E.164 forms are rejected by inline phone validation.
-        phone: `514${faker.string.numeric(7)}`,
+        // E.164 forms are rejected by inline phone validation. NANP exchange
+        // (digits 4-6) must start with 2-9; faker.string.numeric can emit 0/1.
+        phone: `514${faker.number.int({ min: 2, max: 9 })}${faker.string.numeric(6)}`,
     };
 
     return { ...defaults, ...overrides };

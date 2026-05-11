@@ -111,21 +111,18 @@ async function main(): Promise<void> {
 
     const inputs = mergeWithFactoryDefaults(parseResult.data);
 
-    if (inputs.mode === 'api') {
-        emitError('api_mode_requires_ui', {
-            detail:
-                'qa-book drives the checkout and confirmation forms, which require a browser. Pass --mode ui-headless or --mode ui-headed.',
-        });
-    }
-
     // Infer brand/env from the search URL host.
     let brand = inputs.brand;
     let env = inputs.env;
     const searchUrlHost = new URL(flags.searchUrl!).hostname;
     if (searchUrlHost.includes('justfly')) brand = 'justfly';
     else if (searchUrlHost.includes('flighthub')) brand = 'flighthub';
-    if (searchUrlHost.startsWith('www.')) env = 'production';
-    else env = 'staging2';
+    if (searchUrlHost.startsWith('www.')) {
+        env = 'production';
+    } else {
+        const stagingMatch = /^(staging\d+)\./.exec(searchUrlHost);
+        env = stagingMatch ? stagingMatch[1] : 'staging2';
+    }
 
     try {
         loadEnv(`${brand}-${env}`);
@@ -153,9 +150,11 @@ async function main(): Promise<void> {
         `failure_injection=${inputs.failureInjection ?? 'none'}\n`
     );
 
-    const session = await launchBrowser(inputs.mode);
+    const session = await launchBrowser(inputs.mode === 'api' ? 'ui-headless' : inputs.mode);
     let checkoutUrl = '';
     let idHash: string | null = null;
+
+
 
     try {
         await session.page.goto(flags.searchUrl!);
@@ -188,8 +187,7 @@ async function main(): Promise<void> {
 
         if (inputs.packageIndex !== undefined) {
             await resultsPage.resultCardSelectButton(inputs.packageIndex).click();
-            // Handle post-Select modals (bundle / fare-upgrade / fare-family).
-            await resultsPage.selectFirstResult().catch(() => undefined);
+            await resultsPage.handlePostSelectModals();
         } else {
             await resultsPage.selectFirstResult();
         }
@@ -210,6 +208,139 @@ async function main(): Promise<void> {
                 ? new FlighthubCheckoutPage(session.page)
                 : new JustflyCheckoutPage(session.page);
 
+        // ── API-MODE BOOKING ────────────────────────────────────────────────
+        // Skip all UI form interactions. Instead:
+        //   1. Click Autofill to set is_test=1 server-side.
+        //   2. Wait for the checkout_id + u_p_id captured by the
+        //      post-saved-form-data interceptor set up above.
+        //   3. Build the full capture-booking-attempts POST body from
+        //      factory data and fire it via fetch() in the page context
+        //      (inheriting the session cookies already established by
+        //      browser navigation).
+        // This bypasses the React form state entirely so qa_debug_* fields
+        // come from our code, not from autofill defaults.
+        if (inputs.mode === 'api') {
+            if (env !== 'production') {
+                const autofillCalled = await (checkoutPage as FlighthubCheckoutPage)
+                    .clickAutofill()
+                    .then(() => true)
+                    .catch(() => false);
+                if (autofillCalled) log('autofill clicked (is_test=1 set)');
+            }
+
+            // Advance to the payment step if this is a two-step checkout so
+            // all payment DOM inputs are present before serialization.
+            if (brand === 'flighthub') {
+                await (checkoutPage as FlighthubCheckoutPage).continueToPayment()
+                    .catch(() => undefined);
+            }
+
+            // Serialize the autofill-populated DOM form.
+            // Autofill pre-fills card data the server is configured to accept on staging —
+            // the factory 4242 card triggers fraud_check_cc_problem regardless of UI/API mode.
+            // Raw string eval avoids tsx/esbuild injecting __name() helpers (Node-only).
+            const formBody = String(await session.page.evaluate(`(() => {
+                var parts = [];
+                document.querySelectorAll('input[name], select[name], textarea[name]').forEach(function(el) {
+                    if (el.type !== 'submit' && el.type !== 'button' && el.name) {
+                        parts.push(encodeURIComponent(el.name) + '=' + encodeURIComponent(el.value || ''));
+                    }
+                });
+                var ctx = [['ff_option','0'],['checkout_type','flight'],['controller','checkout'],['action','billing']];
+                ctx.forEach(function(pair) {
+                    var k = encodeURIComponent(pair[0]);
+                    if (!parts.some(function(s) { return s.split('=')[0] === k; })) {
+                        parts.push(k + '=' + encodeURIComponent(pair[1]));
+                    }
+                });
+                return parts.join('&');
+            })()`));
+            log('serialized ' + formBody.split('&').length + ' form fields from DOM');
+
+            log('submitting booking via API (autofill data)…');
+            const submitResult = await session.page.evaluate(
+                async ({ url, body }: { url: string; body: string }) => {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body,
+                        redirect: 'follow',
+                    });
+                    const responseJson = await response.json().catch(() => null);
+                    return { status: response.status, redirectUrl: response.url, responseJson };
+                },
+                {
+                    url: `${checkoutUrl.replace(/[?#].*/, '')}/capture-booking-attempts`,
+                    body: formBody,
+                }
+            );
+
+            log(`api submit: status=${submitResult.status}`);
+            const resp = submitResult.responseJson as Record<string, unknown> | null;
+            const apiResult    = resp?.result;
+            const apiErrorType = resp?.error_type;
+            const apiBcai      = resp?.bcai;
+            // capture-booking-attempts is a JSON API — React navigates client-side
+            // to the URL the JSON carries; there is no HTTP redirect to follow.
+            const apiPortalUrl = String(resp?.redirect ?? resp?.redirect_url ?? resp?.redirectUrl ?? resp?.portal_url ?? '');
+
+            if (apiErrorType) log(`api error_type=${String(apiErrorType)} bcai=${String(apiBcai ?? '')}`);
+
+            // Detect failure injection: result=false with no fraud error = injection fired.
+            if (
+                inputs.failureInjection &&
+                apiResult === false &&
+                !apiPortalUrl.includes('/portal/detail/')
+            ) {
+                emitError('booking_failed_by_injection', {
+                    failure_origin: 'qa_injection',
+                    failure_injection: inputs.failureInjection,
+                    detail: 'Booking pipeline short-circuited as expected (no portal redirect).',
+                    checkout_url: checkoutUrl,
+                    scenario_dir: scenarioDir,
+                });
+            }
+
+            // Portal URL is in the JSON body (may be relative); resolve against checkout origin.
+            const checkoutOrigin = new URL(checkoutUrl).origin;
+            const portalUrlRaw = apiPortalUrl.includes('/portal/detail/') ? apiPortalUrl
+                : submitResult.redirectUrl.includes('/portal/detail/') ? submitResult.redirectUrl
+                : '';
+            const portalUrlFromJson = portalUrlRaw.startsWith('/')
+                ? `${checkoutOrigin}${portalUrlRaw}`
+                : portalUrlRaw;
+            const hashMatch = /\/portal\/detail\/([a-f0-9]+)/.exec(portalUrlFromJson);
+            idHash = hashMatch?.[1] ?? null;
+
+            if (!idHash) {
+                emitError('booking_api_no_portal_redirect', {
+                    detail: `No portal redirect found. status=${submitResult.status} result=${String(apiResult)} error_type=${String(apiErrorType ?? '')}`,
+                    error_type: apiErrorType ?? null,
+                    bcai: apiBcai ?? null,
+                    server_response: resp,
+                    checkout_url: checkoutUrl,
+                    scenario_dir: scenarioDir,
+                });
+            }
+
+            log(`booking confirmed (api): id_hash=${idHash}`);
+            emitOk({
+                scenario_dir: scenarioDir,
+                brand,
+                env,
+                checkout_url: checkoutUrl,
+                portal_url: portalUrlFromJson,
+                id_hash: idHash,
+                booking_id: null,
+                content_source_booked: cs ?? null,
+                package_index_booked: inputs.packageIndex ?? null,
+                failure_injection: inputs.failureInjection ?? null,
+                screenshots: ['001-search-results.png', '002-checkout.png'],
+            });
+            return;
+        }
+        // ── END API-MODE BOOKING ─────────────────────────────────────────────
+
         // Disable optimizer when content-source is pinned.
         if (cs && brand === 'flighthub') {
             await (checkoutPage as FlighthubCheckoutPage)
@@ -218,16 +349,39 @@ async function main(): Promise<void> {
             log('optimizer disabled');
         }
 
+        // On staging: click Autofill to set is_test=1 server-side before form fill.
+        // On the new "Review & pay" checkout Debugging Options are absent, so Autofill
+        // is the only remaining test hook. No-ops if the link is not present (production
+        // or old checkout). Called before passenger fill so our factory data overwrites
+        // the autofill pre-fill on every field.
+        if (env !== 'production') {
+            const autofillCalled = await (checkoutPage as FlighthubCheckoutPage)
+                .clickAutofill()
+                .then(() => true)
+                .catch(() => false);
+            if (autofillCalled) log('autofill clicked (is_test=1 set)');
+        }
+
+        // Pin ConnexPay before continueToPayment() — the Debugging Options
+        // section is hidden once the payment panel expands.
+        if (brand === 'flighthub' && env !== 'production') {
+            await (checkoutPage as FlighthubCheckoutPage)
+                .useConnexPayMerchant()
+                .catch(() => undefined);
+        }
+
         // Set failure injection before passenger form (mirrors Python runner order).
-        if (inputs.failureInjection && brand === 'flighthub') {
-            const fhCheckout = checkoutPage as FlighthubCheckoutPage;
-            const failureOption = fhCheckout.bookingFailureReasonSelect
+        // JustflyCheckoutPage exposes bookingFailureReasonSelect with the same
+        // selector logic; no brand guard needed.
+        if (inputs.failureInjection) {
+            const anyCheckout = checkoutPage as FlighthubCheckoutPage;
+            const failureOption = anyCheckout.bookingFailureReasonSelect
                 .locator('option')
                 .filter({ hasText: new RegExp(inputs.failureInjection, 'i') });
             const failureValue = (await failureOption.count()) > 0
                 ? (await failureOption.first().getAttribute('value') ?? inputs.failureInjection)
                 : inputs.failureInjection;
-            await fhCheckout.bookingFailureReasonSelect
+            await anyCheckout.bookingFailureReasonSelect
                 .selectOption(failureValue)
                 .catch(() => undefined);
             log(`failure injection → ${inputs.failureInjection}`);
@@ -265,13 +419,6 @@ async function main(): Promise<void> {
 
         // Continue to payment.
         await (checkoutPage as FlighthubCheckoutPage).continueToPayment();
-
-        // Use ConnexPay on staging to avoid repeat-BIN fraud block.
-        if (brand === 'flighthub' && env !== 'production') {
-            await (checkoutPage as FlighthubCheckoutPage)
-                .useConnexPayMerchant()
-                .catch(() => undefined);
-        }
 
         // Fill payment.
         const payment = generateStagingPayment(
@@ -347,8 +494,7 @@ async function main(): Promise<void> {
         // page with an alert instead of navigating to the portal URL).
         if (
             inputs.failureInjection &&
-            errMsg.includes('waitForURL') ||
-            errMsg.includes('Timeout')
+            (errMsg.includes('waitForURL') || errMsg.includes('Timeout'))
         ) {
             const pageText = await session.page.textContent('body').catch(() => '');
             const hasAlert =

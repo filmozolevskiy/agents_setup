@@ -754,6 +754,13 @@ export class JustflyCheckoutPage {
      *
      * @returns Promise that resolves once the cardholder-name input is visible.
      */
+    async clickAutofill(): Promise<void> {
+        const link = this.page.getByRole('link', { name: 'Autofill', exact: true });
+        if ((await link.count()) === 0) return;
+        await link.click();
+        await this.passenger(1).firstNameInput.waitFor({ state: 'attached', timeout: 10000 });
+    }
+
     async continueToPayment(): Promise<void> {
         await this.continueToPaymentButton.click();
         await expect(this.continueToPaymentButton).toBeHidden({

@@ -3,10 +3,13 @@ import * as path from 'node:path';
 import * as url from 'node:url';
 
 const VALID_BRANDS = ['flighthub', 'justfly'] as const;
-const VALID_ENVIRONMENTS = ['staging2', 'production'] as const;
 
 type Brand = (typeof VALID_BRANDS)[number];
-type Environment = (typeof VALID_ENVIRONMENTS)[number];
+type Environment = string; // 'production' | `staging${number}`
+
+function isValidEnvironment(env: string): boolean {
+    return env === 'production' || /^staging\d+$/.test(env);
+}
 
 export interface LoadedEnv {
     brand: Brand;
@@ -44,16 +47,17 @@ export function loadEnv(target?: string): LoadedEnv {
             `Invalid brand "${brand}". Must be one of: ${VALID_BRANDS.join(', ')}.`
         );
     }
-    if (!(VALID_ENVIRONMENTS as readonly string[]).includes(environment)) {
+    if (!isValidEnvironment(environment)) {
         throw new Error(
-            `Invalid environment "${environment}". Must be one of: ${VALID_ENVIRONMENTS.join(', ')}.`
+            `Invalid environment "${environment}". Must be "production" or "stagingN" (e.g. "staging2", "staging99").`
         );
     }
 
     dotenv.config({ path: path.resolve(process.cwd(), 'env/.env') });
 
     const brandUpper = brand.toUpperCase();
-    const envUpper = environment.toUpperCase();
+    // .env keys use PROD (not PRODUCTION) as the environment segment.
+    const envUpper = environment === 'production' ? 'PROD' : environment.toUpperCase();
     const targetPrefix = `${brandUpper}_${envUpper}_`;
 
     for (const key of Object.keys(process.env)) {

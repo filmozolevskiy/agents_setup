@@ -139,7 +139,10 @@ async function main(): Promise<void> {
         seg0_date: inputs.route!.depart,
         num_adults: String(inputs.pax.adt),
         num_children: String(inputs.pax.chd),
-        num_infants: String(inputs.pax.infSeat + inputs.pax.infLap),
+        // Storefront treats num_infants and num_infants_lap as additive buckets
+        // (seat infants + lap infants). Passing infSeat+infLap in num_infants
+        // double-counts lap infants and triggers "infants > adults" validation.
+        num_infants: String(inputs.pax.infSeat),
         num_infants_lap: String(inputs.pax.infLap),
     });
     if (inputs.tripType === 'roundtrip' && inputs.route!.return) {

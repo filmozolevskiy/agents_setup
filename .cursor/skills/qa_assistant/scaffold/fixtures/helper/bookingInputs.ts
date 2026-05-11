@@ -33,11 +33,9 @@ import { z } from 'zod';
 export const BRANDS = ['flighthub', 'justfly'] as const;
 export type Brand = (typeof BRANDS)[number];
 
-// "staging2" is the standing default for local runs (the team has no
-// dev environment); "staging" is the legacy alias the CLI accepts and
-// normalises to "staging2" for back-compat with the Python runners.
-export const ENVIRONMENTS = ['staging', 'staging2', 'production'] as const;
-export type Environment = 'staging2' | 'production';
+// "staging" is the legacy alias the CLI accepts and normalises to "staging2".
+// Any "stagingN" (staging1, staging2, staging99, …) and "production" are valid.
+export type Environment = string; // 'production' | `staging${number}`
 
 export const MODES = ['api', 'ui-headless', 'ui-headed'] as const;
 export type Mode = (typeof MODES)[number];
@@ -164,10 +162,12 @@ const PassportOverrideSchema = z
 export const BookingInputsSchema = z
     .object({
         brand: z.enum(BRANDS).optional(),
-        // `staging` accepted as a legacy alias and normalised to `staging2`
-        // by the field's transform.
         env: z
-            .enum(ENVIRONMENTS)
+            .string()
+            .refine(
+                v => v === 'production' || v === 'staging' || /^staging\d+$/.test(v),
+                { message: 'env must be "production" or "stagingN" (e.g. "staging2", "staging99")' }
+            )
             .transform((v): Environment => (v === 'staging' ? 'staging2' : v))
             .optional(),
         mode: z.enum(MODES).optional(),
