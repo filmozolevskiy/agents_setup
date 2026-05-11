@@ -28,7 +28,7 @@ to production before any read.
 - Cross-referencing a DB column / table to the code that writes or reads
   it.
 - Any other skill (`bookability_analysis`, `optimizer_analysis`,
-  `qa_automation`) is about to grep the genesis tree — load this skill
+  `qa_assistant`) is about to grep the genesis tree — load this skill
   first so the sync runs and the path is canonical.
 
 ## When NOT to use

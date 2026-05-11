@@ -1,6 +1,6 @@
 # Bookability report format (canonical)
 
-Every bookability analysis ends with a single markdown report. The body is **header paragraph → tables → recommended next step**, nothing else. The QA skill's [`report_format.md`](../../qa_automation/references/report_format.md) is the parent shape; this card adapts it for bookability — split the failure-cause rows into their own table so verbatim supplier evidence fits beside the count, and inline every proof so the reader never has to follow a documentation reference to reproduce a number.
+Every bookability analysis ends with a single markdown report. The body is **header paragraph → tables → recommended next step**, nothing else. The QA skill's [`report_format.md`](../../qa_assistant/references/report_format.md) is the parent shape; this card adapts it for bookability — split the failure-cause rows into their own table so verbatim supplier evidence fits beside the count, and inline every proof so the reader never has to follow a documentation reference to reproduce a number.
 
 Voice rules, banned tokens, and the four-part structure live in [`../SKILL.md`](../SKILL.md) § *Report shape: write for content / business, not for the SQL author*. Read those first.
 
