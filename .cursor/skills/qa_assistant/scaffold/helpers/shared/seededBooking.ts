@@ -55,7 +55,7 @@ export function seededBooking(brand?: Brand): SeededBooking {
     if (!bookingId || !lastName) {
         throw new Error(
             `seededBooking: ${idVar} / ${lastNameVar} not both set for brand "${resolvedBrand}". ` +
-                `Populate env/.env.shared per env/.env.shared.example, or override in env/.env.${resolvedBrand}.<env>.`
+                `Populate .env at the repo root (BOOKING_ID_${resolvedBrand === 'flighthub' ? 'FH' : 'JF'} / BOOKING_LAST_NAME_${resolvedBrand === 'flighthub' ? 'FH' : 'JF'}).`
         );
     }
 
@@ -83,7 +83,7 @@ export function seededBookingIdHash(brand?: Brand): string {
     if (!idHash) {
         throw new Error(
             `seededBookingIdHash: ${idHashVar} not set for brand "${resolvedBrand}". ` +
-                `Populate env/.env.shared per env/.env.shared.example, or override in env/.env.${resolvedBrand}.<env>.`
+                `Populate .env at the repo root (BOOKING_ID_HASH_${resolvedBrand === 'flighthub' ? 'FH' : 'JF'}).`
         );
     }
 

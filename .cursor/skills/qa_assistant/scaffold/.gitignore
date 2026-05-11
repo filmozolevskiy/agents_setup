@@ -9,11 +9,6 @@ node_modules/
 !.auth/*/
 !.auth/**/.gitkeep
 
-# Environment file (keep env/.env.example committed; env/.env is real secrets)
-env/.env
-env/.env.*
-!env/.env.example
-
 # Playwright CLI
 .playwright-cli/
 

@@ -7,7 +7,7 @@
       "command": "./.cursor/skills/looker/scripts/mcp_looker.sh"
     },
     "GitHub": {
-      "command": "./.cursor/skills/deployment_review/scripts/mcp_github.sh"
+      "command": "./.cursor/skills/deploy_blamer/scripts/mcp_github.sh"
     },
     "trello": {
       "command": "./.cursor/skills/trello_assistant/scripts/mcp_trello.sh"

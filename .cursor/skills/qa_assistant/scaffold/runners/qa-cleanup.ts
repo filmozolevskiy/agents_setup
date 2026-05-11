@@ -93,7 +93,7 @@ async function main(): Promise<void> {
     if (!process.env.RESPRO_URL) {
         emitError('missing_respro_config', {
             detail:
-                'RESPRO_URL is not set. Populate env/.env per env/.env.example.',
+                'RESPRO_URL is not set. Populate .env at the repo root (copy .env.example).',
         });
     }
 

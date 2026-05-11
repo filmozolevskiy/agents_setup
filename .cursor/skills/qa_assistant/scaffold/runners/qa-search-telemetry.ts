@@ -21,7 +21,7 @@ import path from 'path';
 import { emitOk, emitError, log } from './_lib/stdout';
 import { clickhouseQuery } from './_lib/db';
 
-dotenv.config({ path: path.resolve(process.cwd(), 'env/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../../../../.env') });
 
 const TABLE = 'search_api_stats.gds_raw';
 

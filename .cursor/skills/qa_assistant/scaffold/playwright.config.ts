@@ -73,7 +73,7 @@ const { brand, environment } = parseTarget(
     process.env.TARGET ?? 'flighthub-staging2'
 );
 
-dotenv.config({ path: './env/.env' });
+dotenv.config({ path: '../../../../.env' });
 
 const brandUpper = brand.toUpperCase();
 const envUpper = environment.toUpperCase();

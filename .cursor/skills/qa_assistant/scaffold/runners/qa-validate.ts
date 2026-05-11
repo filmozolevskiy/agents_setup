@@ -21,7 +21,7 @@ import path from 'path';
 import { emitOk, emitError, log } from './_lib/stdout';
 import { mysqlQuery, clickhouseQuery, mongoFind, mongoAggregate } from './_lib/db';
 
-dotenv.config({ path: path.resolve(process.cwd(), 'env/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../../../../.env') });
 
 interface JoinKeys {
     bookingId?: number;

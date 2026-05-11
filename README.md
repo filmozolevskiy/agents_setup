@@ -14,39 +14,48 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 
 ## Skills
 
-- **`/bookability_analysis`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
-- **`/optimizer_analysis`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
+- **`/bookability`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
+- **`/optimizer`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
 - **`/qa_assistant`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
 - **`/db_access`** — find which table or collection holds the data you need (when `.cursor/skills/db_access/db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `.cursor/skills/db_access/db-docs/`.
-- **`/skill_creator`** — scaffold a new project-local skill (SKILL.md + `.claude/commands/<name>.md` wrapper + Skills Index rows in `CLAUDE.md` and `.cursor/rules/rules.mdc`); ships a `lint_skill.py` validator that flags missing wrappers and broken frontmatter.
+- **`/deploy_blamer`** — correlate a production regression to the genesis PR(s) most likely to have caused it; returns a ranked table of merges in the window.
+- **`/post_deploy_tracker`** — autonomous watcher that verifies a shipped fix landed in production; loops on bookability / optimizer queries and pings Slack on confirmed hits.
+- **`/reporter`** — deliver a message to a specific Slack person, channel, or group.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
+- **`/skill_creator`** — scaffold a new project-local skill (SKILL.md + `.claude/commands/<name>.md` wrapper + Skills Index rows in `CLAUDE.md` and `.cursor/rules/rules.mdc`).
 
 Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 
 ## Repo layout
 
 ```text
-.claude/commands/   # Slash-command wrappers (e.g. /optimizer_analysis)
+.claude/commands/           # Slash-command wrappers (one per skill)
+.claude/settings.json       # Claude Code MCP server config (mirrors .cursor/mcp.json)
 .cursor/
-├── rules/          # Global rules (db access, writing style, mongo hygiene)
-└── skills/         # Per-skill folders, each with a SKILL.md
-.cursor/skills/db_access/scripts/
-├── clickhouse_query.py   # ClickHouse CLI
-├── mysql_query.py        # MySQL CLI
-└── mongo_query.py        # MongoDB CLI (collections / describe / find / aggregate)
-.cursor/skills/codebase_access/
-├── SKILL.md
-├── scripts/sync_genesis.sh   # Fast-forwards the local genesis clone before any code read
-└── codebase/                  # Default genesis checkout (gitignored)
-.cursor/skills/qa_assistant/legacy_python/   # Playwright-backed QA runners (qa-search, qa-book, qa-validate, …); cd here + uv sync
-.cursor/skills/db_access/db-docs/
-├── clickhouse/     # Documented CH tables
-├── mysql/          # Documented MySQL tables
-└── mongodb/        # Documented Mongo collections
-reports/            # Ephemeral output from skills (gitignored)
-CLAUDE.md           # Agent rules + skill routing
-.env.example        # Template for the gitignored .env (copy and fill in)
-requirements.txt    # clickhouse-connect, pymysql, pymongo
+├── mcp.json                # Cursor MCP server config (mirrors .claude/settings.json)
+├── rules/rules.mdc         # Always-loaded Cursor mirror of CLAUDE.md
+└── skills/                 # Per-skill folders, each with a SKILL.md
+    ├── bookability/        # Bookability failure analysis
+    ├── codebase_access/    # Local genesis checkout + sync script
+    ├── db_access/          # Shared DB CLIs + schema docs
+    │   ├── scripts/
+    │   │   ├── clickhouse_query.py
+    │   │   ├── mysql_query.py
+    │   │   └── mongo_query.py
+    │   └── db-docs/        # Documented CH / MySQL / Mongo tables
+    ├── deploy_blamer/      # Regression → genesis PR correlation
+    ├── looker/             # Looker MCP + LookML scaffolding
+    ├── optimizer/          # Optimizer matching audits
+    ├── post_deploy_tracker/# Autonomous post-deploy verification watcher
+    ├── qa_assistant/       # Test-booking runner (Playwright TS scaffold)
+    │   └── scaffold/       # npm project — qa-search, qa-book, qa-validate, …
+    ├── reporter/           # Slack delivery skill
+    ├── skill_creator/      # Scaffold new skills
+    └── trello_assistant/   # Trello card management
+reports/                    # Ephemeral output from skills (gitignored)
+CLAUDE.md                   # Agent constitution + skill routing
+.env.example                # Template for the gitignored .env
+requirements.txt            # Python deps for DB CLIs (clickhouse-connect, pymysql, pymongo)
 ```
 
 ## Setup
@@ -54,19 +63,26 @@ requirements.txt    # clickhouse-connect, pymysql, pymongo
 1. **Clone and install Python deps** (Python 3.10+):
   ```bash
    git clone <this-repo>
-   cd bookability_agent_setup
+   cd agents_setup
    python3 -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
   ```
-2. **Create `.env`** at the repo root by copying the template. `.env` is gitignored. Never commit it.
+2. **Install Node deps for the QA scaffold** (Node 18+):
+  ```bash
+   cd .cursor/skills/qa_assistant/scaffold
+   npm install
+   cd -
+  ```
+3. **Create `.env`** at the repo root by copying the template. `.env` is gitignored. Never commit it.
   ```bash
    cp .env.example .env
   ```
-   Then fill in real values. `.env.example` lists every variable the repo reads, grouped by area (ClickHouse, MySQL, MongoDB, optional genesis path, QA automation). Only the database blocks are required for the core skills; the QA section is only needed for `/qa_assistant`.
-3. **Load `.env` before running any CLI.** Every script reads credentials from environment variables. Export them first:
+   Fill in real values. `.env.example` lists every variable the repo reads, grouped by area. Only the database blocks are required for the core skills; the brand×env URL matrix and scaffold sections are needed for `/qa_assistant`.
+4. **Load `.env` before running any Python CLI.** Export vars first:
   ```bash
    set -a && source .env && set +a
   ```
+   The QA scaffold (`npx tsx runners/…`) loads `.env` automatically.
 
 ## MCP servers
 
