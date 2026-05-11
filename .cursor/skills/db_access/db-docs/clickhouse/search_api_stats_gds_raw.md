@@ -2,7 +2,7 @@
 
 **Database:** `search_api_stats`
 **Engine:** Distributed (no `partition_key` / `sorting_key` / `primary_key`)
-**Purpose:** Per search, per content source, per API call — the raw record of which content sources we actually hit during a search, how many packages each returned / blocked / won, and how long each call took. Primary source for `/qa_automation`'s `qa-search-telemetry` step and for any "did source X respond to my search?" question.
+**Purpose:** Per search, per content source, per API call — the raw record of which content sources we actually hit during a search, how many packages each returned / blocked / won, and how long each call took. Primary source for `/qa_assistant`'s `qa-search-telemetry` step and for any "did source X respond to my search?" question.
 
 > **Critical performance note.** `gds_raw` has no sorting or partition key, so every query **must** include a `date_added` window. Without one, ClickHouse does a full scan of the underlying shards (≈3 min in practice). A `date_added >= now() - INTERVAL 1 DAY` predicate on the same search brings the same query to ~6 s.
 

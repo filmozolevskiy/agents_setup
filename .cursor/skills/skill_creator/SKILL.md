@@ -55,7 +55,7 @@ so the agent gets it whole every time.
 
 Existing skills to mirror for tone and shape: `trello_assistant/SKILL.md`
 (rich, multi-section), `table_analysis/SKILL.md` (narrower, two entry
-points), `qa_automation/SKILL.md` (workflow-driven).
+points), `qa_assistant/SKILL.md` (workflow-driven).
 
 ## Inputs to gather
 
@@ -165,7 +165,7 @@ Aim for under ~500 lines. Spill anything longer into
 4. **Write `SKILL.md`.** Use the body shape above. Keep imperatives.
    Concrete paths, IDs, commands. No narrative.
 5. **Add the slash command wrapper.** Two-line wrapper that points at
-   `SKILL.md`. Mirror `.claude/commands/qa_automation.md`.
+   `SKILL.md`. Mirror `.claude/commands/qa_assistant.md`.
 6. **Update both routing tables.** `CLAUDE.md` § Skills Index **and**
    `.cursor/rules/rules.mdc` § Skills Index. The rows must agree
    on the **Pick when** sentence; only the link target differs (slash
@@ -210,9 +210,9 @@ Aim for under ~500 lines. Spill anything longer into
   that live outside this repo.
 - Routing tables to mirror: `CLAUDE.md` § Skills Index and
   `.cursor/rules/rules.mdc` § Skills Index.
-- Slash command pattern: `.claude/commands/qa_automation.md`,
+- Slash command pattern: `.claude/commands/qa_assistant.md`,
   `.claude/commands/optimizer_analysis.md`.
 - In-repo style examples: `.cursor/skills/trello_assistant/SKILL.md`,
   `.cursor/skills/table_analysis/SKILL.md`,
-  `.cursor/skills/qa_automation/SKILL.md`.
+  `.cursor/skills/qa_assistant/SKILL.md`.
 - Lint script: `.cursor/skills/skill_creator/scripts/lint_skill.py`.

@@ -1,0 +1,21 @@
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.auth/*
+.auth/*/*
+!.auth/*/
+!.auth/**/.gitkeep
+
+# Environment file (keep env/.env.example committed; env/.env is real secrets)
+env/.env
+env/.env.*
+!env/.env.example
+
+# Playwright CLI
+.playwright-cli/
+
+# macOS
+.DS_Store

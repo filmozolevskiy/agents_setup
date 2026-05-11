@@ -8,7 +8,7 @@ description: >-
   table", "what does this table do", "explore tables", "check database",
   "search database". Carries the shared DB infrastructure — query CLIs, the
   schema / collection docs, and the Mongo query mechanics — that other skills
-  (`bookability_analysis`, `optimizer_analysis`, `qa_automation`) load first
+  (`bookability_analysis`, `optimizer_analysis`, `qa_assistant`) load first
   before issuing any query.
 ---
 
@@ -25,7 +25,7 @@ When exploration finds a good candidate, continue straight into documentation. D
 
 ## DB foundations
 
-These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability_analysis`, `optimizer_analysis`, `qa_automation`) inherit them and layer their own query discipline on top.
+These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability_analysis`, `optimizer_analysis`, `qa_assistant`) inherit them and layer their own query discipline on top.
 
 - **Database CLIs only.** Query MySQL, ClickHouse, and MongoDB only via `.cursor/skills/db_access/scripts/mysql_query.py`, `.cursor/skills/db_access/scripts/clickhouse_query.py`, `.cursor/skills/db_access/scripts/mongo_query.py`. Load `.env` once per session: `set -a && source .env && set +a`. Never invent connection strings, hostnames, or credentials — they come from `.env` via these CLIs. The `## Tooling` section below lists the env vars each CLI needs.
 - **`.cursor/skills/db_access/db-docs/` first.** Before querying a table or collection, look it up under `.cursor/skills/db_access/db-docs/clickhouse/`, `.cursor/skills/db_access/db-docs/mysql/`, or `.cursor/skills/db_access/db-docs/mongodb/`. If undocumented, say so and offer to document it via this skill (template in `.cursor/skills/db_access/db-docs/README.md`). The same rule lives as step `### 2. Check .cursor/skills/db_access/db-docs/ first` inside the Explore workflow below.

@@ -24,6 +24,7 @@ You are a Content Integration analyst-engineer for the FlightHub / JustFly platf
 | **Skill routing** | Pick the skill that matches the task. Read its `SKILL.md` first. Open sibling files only when `SKILL.md` points to them. When you add or rename a skill, update the Skills Index below and the `SKILL.md` together. |
 | **Rules layout** | General rules live in this `CLAUDE.md` and its mirror `.cursor/rules/rules.mdc`. Skill content (DB foundations, query mechanics, runner flags, card formatting, table-doc templates) lives only under `.cursor/skills/<skill_name>/`. |
 | **Git commits** | No editor / tool attribution trailers. No `Made-with: Cursor`, no AI co-authored-by trailer, no `--no-verify` unless the user explicitly asks. |
+| **MCP parity** | Every MCP server must be available in both Cursor and Claude Code. Project-level servers belong in both `.cursor/mcp.json` and `.claude/settings.json`. Global servers belong in both `~/.cursor/mcp.json` and `~/.claude/settings.json`. When adding or removing an MCP server from either file, update the counterpart immediately in the same change. |
 
 ### SHOULD (Recommended)
 
@@ -60,7 +61,7 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 | [`deployment_review`](.cursor/skills/deployment_review/SKILL.md) | Regression triage: "<symptom> started failing at T", "what changed in genesis between T1 and T2", "which PR caused this", pre-rollback "what to revert first" | Walks merges into `mventures/genesis` `develop` via the GitHub MCP for a regression window, ranks PRs by symptom-keyword overlap against title / changed files / labels / body, surfaces linked Trello cards from the PR body, and returns a top-N markdown table with rationale; genesis only |
 | [`looker`](.cursor/skills/looker/SKILL.md) | Inspecting Looker, scaffolding a new GitHub-backed LookML project, or creating / modifying dashboards and tiles via the Looker MCP; refactoring existing LookML for readability / standards | Looker MCP discovery (`get_models` / `get_explores` / `get_dimensions` / `get_measures`), GitHub-backed LookML scaffolding (one project = one repo) using a placeholder skeleton, dashboard / tile authoring (`make_dashboard` → `add_dashboard_filter` → `add_dashboard_element`), data verification delegated to `db_access` and `table_analysis`, project registry (`projects.md`) gating which repos the agent may touch; **approval gate on every edit to existing `.lkml` files** — propose-then-wait flow with chat-block template (`references/refactor_proposal.md`) and 15-item refactor checklist (`references/lookml_best_practices.md` rules 1–10 + readability R1–R5) |
 | [`optimizer_analysis`](.cursor/skills/optimizer_analysis/SKILL.md) | Optimizer matching audits: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, content-source-wide leak scan | MySQL `optimizer_candidates` + `optimizer_attempts` + `optimizer_candidate_tags` joins, MongoDB `ota.optimizer_logs` supplier evidence, anchor-candidate ground-truth model, multi-ticket reprice variants, query discipline (CTE shape, `attempt_id` / `created_at` bounds, no unbounded scans) |
-| [`qa_automation`](.cursor/skills/qa_automation/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging or production and validating it across MySQL / ClickHouse / MongoDB | Playwright-backed CLI runners (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`), failure-injection flags, evidence-dump checklist |
+| [`qa_assistant`](.cursor/skills/qa_assistant/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging or production and validating it across MySQL / ClickHouse / MongoDB | Playwright TS scaffold at `.cursor/skills/qa_assistant/scaffold/` — `npm run qa-search`, `qa-book`, `qa-validate`, `qa-cleanup`, `qa-search-telemetry`, `qa-report`; failure-injection flags; evidence-dump checklist |
 | [`skill_creator`](.cursor/skills/skill_creator/SKILL.md) | Adding, scaffolding, or wiring a new project-local skill | SKILL.md + `.claude/commands/<name>.md` wrapper + routing rows in `CLAUDE.md` § Skills Index and `.cursor/rules/rules.mdc` § Skills Index; stdlib-only `lint_skill.py` validator that flags missing wrappers, missing routing rows, and `description:` strings that do not start with "Use when" |
 | [`trello_assistant`](.cursor/skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; weekly grooming / in-flight reports; working a card the user pointed at | Two-section Numbers/ Examples description style + AI footer (Content Integration board), short human-style intake (AI Automation board), per-card branch / PR / lifecycle rules, mandatory CTE shape on card-embedded queries |
 
@@ -83,18 +84,23 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
     │   ├── scripts/
     │   │   └── sync_genesis.sh        # Fast-forwards $GENESIS_BRANCH (default develop) before any code read
     │   └── codebase/                  # Default genesis checkout (gitignored)
-    └── db_access/                     # Shared DB infrastructure — every DB-touching skill loads this first
-        ├── SKILL.md                   # Skill entry point + DB foundations
-        ├── references/
-        │   └── mongodb_query_mechanics.md   # Loaded by bookability_analysis / optimizer_analysis when needed
-        ├── scripts/
-        │   ├── clickhouse_query.py    # ClickHouse CLI
-        │   ├── mysql_query.py         # MySQL CLI
-        │   └── mongo_query.py         # MongoDB CLI
-        └── db-docs/                   # Schema / collection documentation
-            ├── clickhouse/
-            ├── mysql/
-            └── mongodb/
+    ├── db_access/                     # Shared DB infrastructure — every DB-touching skill loads this first
+    │   ├── SKILL.md                   # Skill entry point + DB foundations
+    │   ├── references/
+    │   │   └── mongodb_query_mechanics.md   # Loaded by bookability_analysis / optimizer_analysis when needed
+    │   ├── scripts/
+    │   │   ├── clickhouse_query.py    # ClickHouse CLI
+    │   │   ├── mysql_query.py         # MySQL CLI
+    │   │   └── mongo_query.py         # MongoDB CLI
+    │   └── db-docs/                   # Schema / collection documentation
+    │       ├── clickhouse/
+    │       ├── mysql/
+    │       └── mongodb/
+    └── qa_assistant/                  # Test-booking driver — TS scaffold rebuild in flight on epic TsZ362XC
+        ├── SKILL.md
+        ├── page_inventory.md          # Selector inventory (Python POMs)
+        ├── references/                # Validation / retry / report / voice rules
+        └── legacy_python/             # Existing Playwright-backed Python runners (qa-search, qa-book, …); cd here + uv sync to use them
 
 reports/                               # Ephemeral output (gitignored)
 ```
