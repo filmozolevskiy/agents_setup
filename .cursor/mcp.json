@@ -5,6 +5,18 @@
     },
     "looker": {
       "command": "./.cursor/skills/looker/scripts/mcp_looker.sh"
+    },
+    "GitHub": {
+      "command": "./.cursor/skills/deployment_review/scripts/mcp_github.sh"
+    },
+    "trello": {
+      "command": "./.cursor/skills/trello_assistant/scripts/mcp_trello.sh"
+    },
+    "Lucid": {
+      "url": "https://mcp.lucid.app/mcp"
+    },
+    "Atlassian-MCP-Server": {
+      "url": "https://mcp.atlassian.com/v1/mcp"
     }
   }
 }
