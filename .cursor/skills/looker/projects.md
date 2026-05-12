@@ -28,6 +28,14 @@ project (e.g. a feature that only matters for ClickHouse-backed
 projects), say so explicitly and propose a separate smoke-test project
 before merging.
 
+## Connection constraints
+
+| Connection | Write-capable? | Notes |
+|------------|---------------|-------|
+| `ota` | **No** | Looker service account is read-only. Confirmed 2026-05-11: no scratch/PDT schema exists on the MySQL instance. `aggregate_table:` PDTs and warehouse-side materialization are both unavailable. Use `persist_with:` (Tier 1 B) as the only viable caching layer. |
+| `ota_phoenix` | Unknown | Not yet verified. Run the scratch-schema check before proposing Tier 1 A on `ota_phoenix`-backed explores. |
+| `clickhouse-jupiter` | Unknown | Not yet verified. |
+
 ## Active projects
 
 The **GitHub repo basename** and the **Looker project name** are equal
