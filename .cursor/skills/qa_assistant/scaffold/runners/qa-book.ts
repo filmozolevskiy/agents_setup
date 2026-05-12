@@ -170,18 +170,72 @@ async function main(): Promise<void> {
             fullPage: false,
         });
 
-        // On staging2, filter to content source before selecting.
+        // Filter result packages to the requested content source via the
+        // staging-only Debug Filters panel. On the new staging64 storefront the
+        // panel is collapsed by default and mounts its `<select id="gds">`
+        // child only after the `.debug-filters-header` toggle is clicked.
+        // (On older builds the select was always present; on prod the panel
+        // is absent entirely.)
+        //
+        // Source values in the GDS option list are TitleCase ("Dida",
+        // "Amadeus", "Pkfare", "Flightroutes24", …). We match user-supplied
+        // --content-source case-insensitively against the option text, then
+        // pass the exact `value` attribute to selectOption so the React
+        // onChange handler receives a recognized supplier slug. Selecting an
+        // option re-runs the search; we wait for the results list to
+        // re-populate before returning.
         if (cs && brand === 'flighthub') {
             // eslint-disable-next-line playwright/no-raw-locators
             const filterSelect = session.page.locator('select#gds');
-            if ((await filterSelect.count()) > 0) {
-                const matchingOption = filterSelect.locator('option').filter({ hasText: new RegExp(cs, 'i') });
-                const optionValue = (await matchingOption.count()) > 0
-                    ? (await matchingOption.first().getAttribute('value') ?? cs)
-                    : cs;
+            // The Debug Filters panel is React-rendered AFTER the results
+            // counter ticks, so checking immediately races a missing mount.
+            // First try a short attached-wait on the select itself (covers both
+            // cases: panel already expanded by a prior run, OR a future build
+            // that ships the select expanded by default). If still missing,
+            // wait for the collapsed `.debug-filters-header` toggle to mount,
+            // click it, and wait again on the select.
+            let hasSelect = await filterSelect
+                .waitFor({ state: 'attached', timeout: 1500 })
+                .then(() => true)
+                .catch(() => false);
+            if (!hasSelect) {
+                // eslint-disable-next-line playwright/no-raw-locators
+                const debugHeader = session.page.locator('.debug-filters-header');
+                const headerMounted = await debugHeader
+                    .waitFor({ state: 'attached', timeout: 5000 })
+                    .then(() => true)
+                    .catch(() => false);
+                if (headerMounted) {
+                    await debugHeader.click().catch(() => undefined);
+                    hasSelect = await filterSelect
+                        .waitFor({ state: 'attached', timeout: 5000 })
+                        .then(() => true)
+                        .catch(() => false);
+                }
+            }
+            if (hasSelect) {
+                // Option values are TitleCase ("Dida", "Pkfare", "Flightroutes24");
+                // user-supplied --content-source is lowercase. Match the option
+                // by exact-case-insensitive text first, then by substring, and
+                // pass the option's `value` attribute (not the user input) to
+                // selectOption so React's onChange receives a recognized slug.
+                const matchingOption = filterSelect.locator('option').filter({
+                    hasText: new RegExp(`^${cs}$`, 'i'),
+                });
+                const fallbackOption = filterSelect.locator('option').filter({
+                    hasText: new RegExp(cs, 'i'),
+                });
+                const optionValue =
+                    (await matchingOption.count()) > 0
+                        ? (await matchingOption.first().getAttribute('value')) ?? cs
+                        : (await fallbackOption.count()) > 0
+                            ? (await fallbackOption.first().getAttribute('value')) ?? cs
+                            : cs;
                 await filterSelect.selectOption(optionValue).catch(() => undefined);
-                log(`debug filter → ${cs}`);
+                log(`debug filter → ${optionValue} (matched --content-source ${cs})`);
                 await resultsPage.waitForResults();
+            } else {
+                log(`WARN: --content-source ${cs} pin not applied — select#gds did not mount within 6.5s (Debug Filters panel may be missing on this build); selecting first package (optimizer kill-switch still applies in checkout)`);
             }
         }
 
@@ -207,6 +261,42 @@ async function main(): Promise<void> {
             brand === 'flighthub'
                 ? new FlighthubCheckoutPage(session.page)
                 : new JustflyCheckoutPage(session.page);
+
+        // Disable optimizer when content-source is pinned (BOTH api and ui modes).
+        // The repricer can otherwise swap the candidate to a different supplier
+        // mid-checkout, defeating --content-source. Must happen before the
+        // booking submit in either mode.
+        //
+        // On the new "Review & pay" checkout (and on production) the Debugging
+        // Options row is absent. Probe the select first so the caller learns
+        // whether the kill-switch actually flipped or whether the booking is
+        // still subject to repricer swaps.
+        // UI-mode optimizer kill-switch. The Playwright click DOES fire React's
+        // onChange so the visible <select> shows "Yes", but it does NOT mutate
+        // the underlying native <select>.value — so on its own the click does
+        // not disable the optimizer (verified empirically: dumping the POST
+        // body after a successful selectOption('Yes') still shows
+        // qa_debug_booking_optimizer_disabled=No, and bookings get optimizer-
+        // swapped anyway).
+        //
+        // Keep the click here only as a UI-mode best-effort (so a human watching
+        // headed runs sees the toggle flipped). The real kill-switch for API
+        // mode is the POST-body override further down — that one actually
+        // reaches genesis. UI-mode form submits naturally pick up whatever the
+        // serialized form sends, which means a React-controlled <select> in UI
+        // mode may have the same problem; the recommended path is API mode.
+        if (cs && brand === 'flighthub') {
+            const fhCheckout = checkoutPage as FlighthubCheckoutPage;
+            const hasToggle = await fhCheckout.disableOptimizerSelect.count()
+                .then((n) => n > 0)
+                .catch(() => false);
+            if (hasToggle) {
+                await fhCheckout.setOptimizerDisabled(true).catch(() => undefined);
+                log('Debug Options toggle clicked (UI display only — API mode also forces qa_debug_booking_optimizer_disabled=Yes in the POST body below)');
+            } else {
+                log('Debug Options toggle NOT FOUND in DOM — relying on POST-body override only');
+            }
+        }
 
         // ── API-MODE BOOKING ────────────────────────────────────────────────
         // Skip all UI form interactions. Instead:
@@ -239,7 +329,7 @@ async function main(): Promise<void> {
             // Autofill pre-fills card data the server is configured to accept on staging —
             // the factory 4242 card triggers fraud_check_cc_problem regardless of UI/API mode.
             // Raw string eval avoids tsx/esbuild injecting __name() helpers (Node-only).
-            const formBody = String(await session.page.evaluate(`(() => {
+            let formBody = String(await session.page.evaluate(`(() => {
                 var parts = [];
                 document.querySelectorAll('input[name], select[name], textarea[name]').forEach(function(el) {
                     if (el.type !== 'submit' && el.type !== 'button' && el.name) {
@@ -256,6 +346,35 @@ async function main(): Promise<void> {
                 return parts.join('&');
             })()`));
             log('serialized ' + formBody.split('&').length + ' form fields from DOM');
+
+            // Force optimizer/repricer kill-switch into the POST body when
+            // --content-source is pinned. Playwright's selectOption fires the
+            // React onChange event but does NOT update the native <select>.value,
+            // so the DOM serializer above captures the original "No" and POSTs
+            // it (backend optimizer runs regardless of the on-page click).
+            // Override the field directly in the URL-encoded body: this bypasses
+            // React entirely and is the only path that actually reaches genesis.
+            // Evidence: scenario reports/.../003-api-form-body.txt on a Dida-pin run
+            // showed qa_debug_booking_optimizer_disabled=No despite a successful
+            // Playwright toggle flip; booking 299450712 originally Pkfare was
+            // optimized to Flightroutes24 mid-checkout.
+            if (cs && brand === 'flighthub') {
+                const fieldName = 'qa_debug_booking_optimizer_disabled';
+                const before = formBody;
+                formBody = formBody
+                    // Replace existing value if present.
+                    .replace(
+                        new RegExp(`(^|&)${fieldName}=[^&]*`),
+                        `$1${fieldName}=Yes`
+                    );
+                // If the field was missing from the DOM (older/newer checkout), append.
+                if (!formBody.includes(`${fieldName}=`)) {
+                    formBody += `&${fieldName}=Yes`;
+                }
+                log(before === formBody
+                    ? `${fieldName}=Yes appended to POST body (field was missing from DOM)`
+                    : `${fieldName} overridden to "Yes" in POST body (DOM had "No" — Playwright flip did not sync)`);
+            }
 
             log('submitting booking via API (autofill data)…');
             const submitResult = await session.page.evaluate(
@@ -340,14 +459,6 @@ async function main(): Promise<void> {
             return;
         }
         // ── END API-MODE BOOKING ─────────────────────────────────────────────
-
-        // Disable optimizer when content-source is pinned.
-        if (cs && brand === 'flighthub') {
-            await (checkoutPage as FlighthubCheckoutPage)
-                .setOptimizerDisabled(true)
-                .catch(() => undefined);
-            log('optimizer disabled');
-        }
 
         // On staging: click Autofill to set is_test=1 server-side before form fill.
         // On the new "Review & pay" checkout Debugging Options are absent, so Autofill
