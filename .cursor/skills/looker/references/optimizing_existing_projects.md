@@ -144,6 +144,17 @@ one, but works with a read-only connection. Pre-existing `_pdt_*` /
 `_rollup_*` tables in the warehouse are usually this pattern — check
 before re-implementing.
 
+> **`ota` connection — confirmed read-only (verified 2026-05-11).**
+> `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME
+> LIKE '%looker%' OR '%pdt%' OR '%scratch%'` returned no rows. The Looker
+> service account has no write access to the `ota` MySQL instance.
+> Consequence: **Tier 1 A (`aggregate_table:`) is blocked for all projects
+> on the `ota` connection, and the warehouse-maintained-rollup fallback is
+> also unavailable** (Looker cannot write the pre-built table either — that
+> requires a data-engineering ticket to create and schedule the table
+> outside of Looker). Skip directly to Tier 1 B (`persist_with:` result
+> cache) for `ota`-backed explores.
+
 **Note** — even when Tier 1 A is blocked, Tier 1 B (`datagroup:` +
 `persist_with:`) still works on a read-only connection. The result
 cache lives in Looker's metadata DB, not the warehouse. Ship B even
