@@ -46,10 +46,6 @@ tick, updates it after the tick, and saves atomically (write to
     }
   },
   "cadence_minutes": 5,
-  "reporter": {
-    "recipient": "U01ABC23DEF",
-    "slack_authenticated": true
-  },
   "started_at": "2026-05-09T13:48:02Z",
   "last_tick_at": "2026-05-09T16:33:11Z",
   "tick_count": 33,
@@ -59,8 +55,7 @@ tick, updates it after the tick, and saves atomically (write to
         "kind": "success",
         "booking_id": "BK-19283746",
         "mongo_id": "65f9...",
-        "reported_at": "2026-05-09T13:53:40Z",
-        "reporter_ts": "1715269240.001234"
+        "reported_at": "2026-05-09T13:53:40Z"
       }
     ],
     "slot2": [
@@ -68,8 +63,7 @@ tick, updates it after the tick, and saves atomically (write to
         "kind": "success",
         "booking_id": "BK-19284001",
         "mongo_id": "65fa...",
-        "reported_at": "2026-05-09T14:09:11Z",
-        "reporter_ts": "1715270951.005678"
+        "reported_at": "2026-05-09T14:09:11Z"
       }
     ],
     "slot3": [
@@ -77,8 +71,7 @@ tick, updates it after the tick, and saves atomically (write to
         "kind": "error",
         "signature": "TIMEOUT@INTELISYS_SALE",
         "first_seen_at": "2026-05-09T15:01:22Z",
-        "last_reported_at": "2026-05-09T15:01:22Z",
-        "reporter_ts": "1715275282.009012"
+        "last_reported_at": "2026-05-09T15:01:22Z"
       }
     ]
   }
@@ -97,12 +90,6 @@ tick, updates it after the tick, and saves atomically (write to
   template's WHERE clause (rare; usually empty).
 - `cadence_minutes` — current cadence. Initial value picked from the
   table in `SKILL.md`; can be changed mid-watch via user prompt.
-- `reporter.recipient` — copied from `REPORTER_DEFAULT_SLACK_USER_ID`
-  at watch start. Stable for the lifetime of the watch (does not
-  re-read `.env` mid-watch).
-- `reporter.slack_authenticated` — set at startup. If `false`,
-  alarms degrade to chat output and the field name is the only
-  durable signal that the watch ran "blind".
 - `already_reported.slot1` / `slot2` — append-only. Slot #1 / #2
   are one-shot per `kind` (`success` for #1; `success` and per-
   signature `failure` for #2). The first entry blocks all later
@@ -140,7 +127,7 @@ the latest on the Cuwwjgmr watch".
 - **Deploy time:** 2026-05-09T13:42:11Z (PR #1234 merged_at)
 - **Spec:** Intelisys × F8 × multi-ticket × Visa/Mastercard × debit
 - **Cadence:** 5 min
-- **Reporter:** U01ABC23DEF (Slack authenticated)
+- **Findings:** printed inline in the chat session.
 - **Slots active:** #1 happy path, #2 card target. (#3 dropped by user.)
 
 ## Tick log
@@ -153,7 +140,7 @@ the latest on the Cuwwjgmr watch".
 
 ### Tick 2 at 2026-05-09T13:53:40Z
 - Window: [2026-05-09T13:48:02Z, 2026-05-09T13:53:40Z]
-- Slot #1 SQL: 4 candidates. Verified BK-19283746 (status.success=true). FIRED @reporter — ts 1715269240.001234.
+- Slot #1 SQL: 4 candidates. Verified BK-19283746 (status.success=true). Reported in chat.
 - Slot #2 SQL: 0 candidates.
 - 3 candidates suppressed (Slot #1 already reported).
 
@@ -177,8 +164,8 @@ the latest on the Cuwwjgmr watch".
 ### Append rules
 
 - Tick header is `### Tick <N> at <ISO>`. Always include the window.
-- Per-slot lines: SQL candidate count, verified count, fires (with
-  `ts`), suppression count.
+- Per-slot lines: SQL candidate count, verified count, fires
+  (chat-reported), suppression count.
 - The `## Summary` section is written exactly once when the user
   stops the watch — not re-written on resume.
 - Resumed watches add a new heading: `## Session 2 — resumed at

@@ -19,8 +19,7 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 - **`/qa_assistant`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
 - **`/db_access`** — find which table or collection holds the data you need (when `.cursor/skills/db_access/db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `.cursor/skills/db_access/db-docs/`.
 - **`/deploy_blamer`** — correlate a production regression to the genesis PR(s) most likely to have caused it; returns a ranked table of merges in the window.
-- **`/post_deploy_tracker`** — autonomous watcher that verifies a shipped fix landed in production; loops on bookability / optimizer queries and pings Slack on confirmed hits.
-- **`/reporter`** — deliver a message to a specific Slack person, channel, or group.
+- **`/post_deploy_tracker`** — autonomous watcher that verifies a shipped fix landed in production; loops on bookability / optimizer queries and reports confirmed hits inline in the chat session.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
 - **`/skill_creator`** — scaffold a new project-local skill (SKILL.md + `.claude/commands/<name>.md` wrapper + Skills Index rows in `CLAUDE.md` and `.cursor/rules/rules.mdc`).
 
@@ -49,7 +48,6 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
     ├── post_deploy_tracker/# Autonomous post-deploy verification watcher
     ├── qa_assistant/       # Test-booking runner (Playwright TS scaffold)
     │   └── scaffold/       # npm project — qa-search, qa-book, qa-validate, …
-    ├── reporter/           # Slack delivery skill
     ├── skill_creator/      # Scaffold new skills
     └── trello_assistant/   # Trello card management
 reports/                    # Ephemeral output from skills (gitignored)
