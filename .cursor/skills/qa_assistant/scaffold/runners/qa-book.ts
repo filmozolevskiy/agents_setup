@@ -233,6 +233,16 @@ async function main(): Promise<void> {
                             : cs;
                 await filterSelect.selectOption(optionValue).catch(() => undefined);
                 log(`debug filter → ${optionValue} (matched --content-source ${cs})`);
+                await session.page.waitForTimeout(1500);
+                const postFilterCount = await resultsPage.resultCards.count().catch(() => 0);
+                log(`post-filter result cards: ${postFilterCount}`);
+                if (postFilterCount === 0) {
+                    emitError('no_packages_after_filter', {
+                        detail: `--content-source ${cs} narrowed the results list to 0 packages on this route/date; pick a route/date where ${cs} has storefront inventory.`,
+                        checkout_url: null,
+                        scenario_dir: scenarioDir,
+                    });
+                }
                 await resultsPage.waitForResults();
             } else {
                 log(`WARN: --content-source ${cs} pin not applied — select#gds did not mount within 6.5s (Debug Filters panel may be missing on this build); selecting first package (optimizer kill-switch still applies in checkout)`);
