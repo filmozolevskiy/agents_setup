@@ -40,7 +40,7 @@ glance:
 ### Slot #1 — Happy path baseline
 
 **Goal.** Confirm the integration as a whole still works after the
-deploy. Fires `@reporter` once, then goes silent.
+deploy. Fires a chat report once, then goes silent.
 
 - **Watches.** Successful bookings on the card's `content_source`,
   any carrier, any office, since `deploy_time`.
@@ -89,7 +89,7 @@ loudest slot — the one most likely to fire on this watch.
   payload looks deploy-related (e.g. payment processor on the
   failing leg matches the deploy's processor; failing carrier
   matches a carrier the deploy touched). The agent's "looks
-  deploy-related" judgement is the gate for `@reporter`.
+  deploy-related" judgement is the gate for the chat report.
 - **Dedup.** Per error signature (canonicalised: error message with
   IDs / timestamps stripped + content source + carrier). 6h
   cooldown — re-fires after 6h if still active.
@@ -130,7 +130,7 @@ The proposal the agent posts in chat:
 > - Dedup: per signature, 6h cooldown.
 >
 > **Cadence:** 5 min (Intelisys is high-volume).
-> **Reporter recipient:** `$REPORTER_DEFAULT_SLACK_USER_ID`.
+> **Findings:** printed inline in this chat session.
 >
 > Approve, edit, or tell me to drop a slot.
 
@@ -142,8 +142,8 @@ The user replies: `approved` / `drop slot 3 — too noisy on Intelisys, just slo
   intentional. If the user needs more dimensions, fold them into an
   existing slot's WHERE clause.
 - **Do not propose a slot without a verification predicate.** SQL
-  candidates without a Mongo confirmation are not allowed to fire
-  `@reporter` — that's the rule that keeps the alarm signal-heavy.
+  candidates without a Mongo confirmation are not allowed to fire a
+  chat report — that's the rule that keeps findings signal-heavy.
 - **Do not re-propose after every tick.** The proposal is a one-time
   approval gate at watch start. Mid-watch changes go through a
   short "I want to change slot N to …" exchange in chat, not a full

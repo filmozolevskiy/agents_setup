@@ -9,11 +9,11 @@ description: >-
   Trello card, proposes 3 things to track (happy path / card target /
   regression sweep) with concrete queries, waits for the user's
   approval, then queries MySQL / ClickHouse / MongoDB on a per-watch
-  cadence and pings via @reporter when something the agent thinks is
-  related to the deploy fires. Owns no SQL of its own — drives the
-  `bookability` and `optimizer` skills' query
-  templates. Single-machine, single-user — state lives in `reports/`
-  (gitignored).
+  cadence and reports findings inline in the chat session when
+  something the agent thinks is related to the deploy fires. Owns no
+  SQL of its own — drives the `bookability` and `optimizer` skills'
+  query templates. Single-machine, single-user — state lives in
+  `reports/` (gitignored).
 ---
 
 # Post-deploy verification
@@ -22,7 +22,7 @@ Watch production after a deploy. The user kicks off a watch by pointing
 at a Trello card; the agent proposes three things to track (happy path,
 the literal card target, regression sweep around the same area), waits
 for approval, then runs an autonomous loop in the current chat session
-— SQL → Mongo verification → `@reporter` Slack alarm on hits — until
+— SQL → Mongo verification → inline chat report on hits — until
 the user stops it or the session ends. State persists locally so "redo
 the watch" next session resumes where the loop left off.
 
@@ -64,12 +64,6 @@ The user provides one of:
   card. The skill writes the parsed spec into `state.json` instead of
   the card.
 
-The skill also reads from `.env`:
-
-| Var | Purpose |
-|---|---|
-| `REPORTER_DEFAULT_SLACK_USER_ID` | Slack user ID (`U…`) the watch DMs on findings via the `reporter` skill. Required if Slack alarms are wanted. If unset, the skill falls back to printing findings into the chat. |
-
 ## Cross-skill dependencies
 
 This skill writes no SQL of its own. Per tick it drives:
@@ -82,10 +76,11 @@ This skill writes no SQL of its own. Per tick it drives:
 - [`optimizer`](../optimizer/SKILL.md) when the
   card target involves matching / contestants / fare basis (look for
   optimizer keywords in the card description).
-- [`reporter`](../reporter/SKILL.md) for Slack DMs on findings. The
-  Slack plugin (`plugin-slack-slack`) must be authenticated. If it
-  is not, the skill detects this at startup and degrades to
-  chat-only output — it does not refuse to run.
+
+Findings are reported inline in the current chat session (the agent
+prints the body of each finding directly into chat). There is no
+Slack / email / webhook delivery — the skill is session-bounded by
+design.
 
 ## Workflow
 
@@ -150,21 +145,20 @@ Repeat until the user stops the watch or the chat session ends:
    card.funding == "debit" && payhub.sale.status == "success"`).
 4. **Categorise hits.** For each verified candidate:
    - Slot #1 (happy path) — only the **first** confirmed success
-     fires `@reporter`; subsequent successes are silent.
+     fires a chat report; subsequent successes are silent.
    - Slot #2 (card target) — only the **first** confirmed match
-     fires `@reporter`; subsequent matches are silent. Failures on
+     fires a chat report; subsequent matches are silent. Failures on
      Slot #2's exact dimensions also fire (these are the deploy's
      "did not land" signal).
-   - Slot #3 (regression sweep) — fire `@reporter` per **new error
-     signature** (deduped by canonicalised error string + content
-     source + carrier). Already-reported signatures stay silent for
-     6 hours, then re-fire if still active.
-5. **Notify.** Build a concise body per finding (slot label, combo,
-   booking ID / search hash, mongo `_id`, one-line evidence) and
-   send via the [`reporter`](../reporter/SKILL.md) skill with
-   `recipient = REPORTER_DEFAULT_SLACK_USER_ID`. Append the `ts` to
-   the finding entry in `state.json` and `report.md`. If reporter is
-   degraded (no Slack auth), print the body in chat instead.
+   - Slot #3 (regression sweep) — fire a chat report per **new
+     error signature** (deduped by canonicalised error string +
+     content source + carrier). Already-reported signatures stay
+     silent for 6 hours, then re-fire if still active.
+5. **Notify in chat.** Build a concise body per finding (slot label,
+   combo, booking ID / search hash, mongo `_id`, one-line evidence)
+   and print it inline in the current chat session. Append the same
+   entry to `state.json`'s `already_reported.<slot>` ledger and to
+   `report.md` so the dedup rules below can suppress it next tick.
 6. **Persist.** Update `state.json` with `last_tick_at = now`,
    append the `already_reported` entries. Append the tick's findings
    + suppressed candidates to `report.md`.
@@ -224,7 +218,7 @@ the post-deploy watch on <short_link>":
   `bookability` / `optimizer` templates per tick.
   Owning SQL here would duplicate query patterns and drift from
   those skills.
-- **Do not fire `@reporter` on every tick.** Slack noise kills
+- **Do not fire a chat report on every tick.** Chat-log noise kills
   trust. Slots #1 / #2 are one-shot per confirmed hit; Slot #3 is
   per-signature with a 6h cooldown.
 - **Do not move the parent Trello card.** Only suggest a list move
@@ -233,13 +227,9 @@ the post-deploy watch on <short_link>":
   the user wants to add a sibling carrier or a new error to watch,
   ask, then update `state.json` and write the change into
   `report.md`'s tick log.
-- **Do not retry a failed `@reporter` send silently.** Surface the
-  error verbatim, append the failed finding to `report.md` as
-  `(NOT SENT: <reason>)`, and continue the loop. The user can re-
-  drive the missed alerts after fixing the Slack auth.
-- **Do not write to `.env`.** Read only. If
-  `REPORTER_DEFAULT_SLACK_USER_ID` is missing the skill degrades to
-  chat output and tells the user once at startup.
+- **Do not pretend a finding was delivered to anything other than
+  chat.** There is no Slack / email / webhook transport — the skill
+  is session-bounded and reports inline only.
 - **Do not commit anything under `reports/post_deploy/`.** That
   folder is gitignored — single-machine, single-user state.
 
@@ -253,7 +243,6 @@ the post-deploy watch on <short_link>":
 - Cross-skill load list (read each before driving its templates):
   [`db_access/SKILL.md`](../db_access/SKILL.md),
   [`bookability/SKILL.md`](../bookability/SKILL.md),
-  [`optimizer/SKILL.md`](../optimizer/SKILL.md),
-  [`reporter/SKILL.md`](../reporter/SKILL.md).
+  [`optimizer/SKILL.md`](../optimizer/SKILL.md).
 - Parent card:
   [doJTY0Eu — Post-deploy verification skill](https://trello.com/c/doJTY0Eu).
