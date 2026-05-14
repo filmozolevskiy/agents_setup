@@ -13,12 +13,15 @@
       "command": "./.cursor/skills/trello_assistant/scripts/mcp_trello.sh"
     },
     "Lucid": {
+      "type": "http",
       "url": "https://mcp.lucid.app/mcp"
     },
     "Atlassian-MCP-Server": {
+      "type": "http",
       "url": "https://mcp.atlassian.com/v1/mcp"
     },
     "Notion": {
+      "type": "http",
       "url": "https://mcp.notion.com/mcp"
     },
     "datadog": {
