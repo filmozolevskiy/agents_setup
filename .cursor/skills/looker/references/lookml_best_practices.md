@@ -267,6 +267,16 @@ This is the agent's last gate before saying the work is verified.
 - `SELECT *` anywhere — list the columns you actually use.
 - Hardcoded date bounds in `sql:` (`WHERE created_at > '2025-01-01'`).
   Use a `parameter` of type `date` or `always_filter:` (rule 5).
+- Hardcoded date bounds in a derived table's `sql:` block.
+  Inject the user's filter via `{% condition main_view.dim_date_<TIMEFRAME> %}`
+  against the column — pick the timeframe that matches what the
+  dashboard actually filters (`date_date` for date pickers,
+  `date_raw` only when the dashboard filters the raw timestamp).
+  See [`derived_table_patterns.md`](./derived_table_patterns.md) rule 1.
+- `_is_filtered` as a Yes/No gate on a `yesno` dimension's pushdown.
+  `_is_filtered` fires for both `= Yes` and `= No`; using it as the
+  only condition for an unconditional `EXISTS` block inverts results
+  on `= No` filters. See [`derived_table_patterns.md`](./derived_table_patterns.md) rule 3.
 - Mixing two unrelated tables in one view to "save a join". Use joins
   (rule 3).
 - Copy-pasting field definitions across views. Use `extends:` (rule 9).
@@ -416,8 +426,12 @@ description carries any longer justification.
   explains why not.
 - [ ] R5 — every non-default choice has a dated, signed `# Why:`
   comment.
+- [ ] R6 — derived tables (rule 1 escape hatch) inject date / slice
+  filters via `{% condition %}`, no hardcoded floors; `_is_filtered`
+  is not used as a Yes/No gate. See
+  [`derived_table_patterns.md`](./derived_table_patterns.md).
 
-A change that satisfies all 15 items is a clean refactor. A change
+A change that satisfies all 16 items is a clean refactor. A change
 that fixes 3 of them and leaves the rest untouched is fine —
 incremental refactors are the norm. The proposal block does not
 itemise which rules were touched (`refactor_proposal.md` keeps the

@@ -35,6 +35,19 @@ first file write. Quote the user's reply word back when applying
 <the new / changed LookML, or a tight diff sketch>
 ```
 
+**Numbers**:
+
+| Metric | Pre-change | Post-change (measured / modeled) | Source |
+|--------|-----------|----------------------------------|--------|
+| Wall-clock time | <baseline> | <target> | <`COUNT(*)` wrapper query / `query_sql` tile run / etc.> |
+| Result row count | <n> | <n — must match unless Tier 2> | <same query, `COUNT(*)` only> |
+| Sample sum check | <value> | <value — must match unless Tier 2> | <`SUM(<measure>)` query> |
+
+Modeled targets are tagged `(modeled)`; verification (Step 4 of
+[`optimizing_existing_projects.md`](./optimizing_existing_projects.md))
+replaces them with measured numbers and flags any drift between
+modeled and actual.
+
 **Affected**: <dashboard `<id>` "<title>": no value change | <old> → <new>>; or "None — sandbox / new file"
 
 **Rollback**: <`git revert <sha>` and ask user to redeploy | delete tile via UI | …>
@@ -56,6 +69,15 @@ Reply **`approve`** (or `yes` / `lgtm` / `ship it` / `looks good`) to apply.
 - **Change** — the actual LookML (or one-line diff bullets for
   multi-file). No more than ~20 lines pasted verbatim; longer
   diffs become bullets.
+- **Numbers** — required for any change that claims a perf win or
+  could move result values. Wall-clock row uses a `COUNT(*)` wrapper
+  around the slow subquery so the number reflects warehouse cost in
+  isolation. The row-count and sum rows are the correctness gate —
+  drift between pre- and post-change values fails Step 4 verification
+  regardless of how much the wall-clock improved. Tier 2 changes
+  list the intended new values instead of "must match". Pure
+  readability refactors with no perf claim can write
+  "No measurable change — readability only" in place of the table.
 - **Affected** — Tier 1: usually "no value change" per dashboard,
   but still name the dashboard. Tier 2: per-tile `<old> → <new>`,
   no "unknown" — pause and run the queries first if you can't

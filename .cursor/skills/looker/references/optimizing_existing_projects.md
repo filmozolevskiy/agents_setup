@@ -57,6 +57,29 @@ Record diagnostic numbers (warehouse query time, rows scanned, the
 generated SQL excerpt) in your reply before proposing fixes. Numbers
 before assertions.
 
+**Mandatory before any proposal — baseline + target table.** Every
+refactor proposal includes a measured baseline and a measured-or-modeled
+target. Paste both in the proposal block (see
+[`refactor_proposal.md`](./refactor_proposal.md) *Numbers* section),
+even when the target is your best estimate:
+
+| Metric | Pre-change | Post-change (measured / modeled) | Source |
+|--------|-----------|----------------------------------|--------|
+| Wall-clock time | 27.2s | ≤ 5s (modeled) | `mysql_query.py` with `COUNT(*)` wrapper on the slow subquery |
+| Result row count | 3,162,042 | 3,162,042 (must match unless Tier 2) | same query, `COUNT(*)` only |
+| Sample sum check | <value> | <value> (must match unless Tier 2) | `SUM(<measure>)` over the same window |
+
+The wall-clock row uses a `COUNT(*)` wrapper around the derived
+table / slow subquery, not the full tile, so the number reflects the
+warehouse cost in isolation (no row transfer, no Looker render). The
+result-row and sum rows are the correctness gate — drift between
+pre-change and post-change values fails the verification protocol in
+Step 4 regardless of how much the wall-clock improved. Modeled targets
+are explicitly tagged `(modeled)` so Step 4 can flag drift between
+modeled and actual.
+
+No baseline → no proposal.
+
 ## Step 2 — Tier 1: non-breaking optimizations (still gated)
 
 Each of these is invisible to existing dashboard tiles — field names
