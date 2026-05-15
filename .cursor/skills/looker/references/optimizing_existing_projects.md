@@ -57,6 +57,29 @@ Record diagnostic numbers (warehouse query time, rows scanned, the
 generated SQL excerpt) in your reply before proposing fixes. Numbers
 before assertions.
 
+**Mandatory before any proposal — baseline + target table.** Every
+refactor proposal includes a measured baseline and a measured-or-modeled
+target. Paste both in the proposal block (see
+[`refactor_proposal.md`](./refactor_proposal.md) *Numbers* section),
+even when the target is your best estimate:
+
+| Metric | Pre-change | Post-change (measured / modeled) | Source |
+|--------|-----------|----------------------------------|--------|
+| Wall-clock time | 27.2s | ≤ 5s (modeled) | `mysql_query.py` with `COUNT(*)` wrapper on the slow subquery |
+| Result row count | 3,162,042 | 3,162,042 (must match unless Tier 2) | same query, `COUNT(*)` only |
+| Sample sum check | <value> | <value> (must match unless Tier 2) | `SUM(<measure>)` over the same window |
+
+The wall-clock row uses a `COUNT(*)` wrapper around the derived
+table / slow subquery, not the full tile, so the number reflects the
+warehouse cost in isolation (no row transfer, no Looker render). The
+result-row and sum rows are the correctness gate — drift between
+pre-change and post-change values fails the verification protocol in
+Step 4 regardless of how much the wall-clock improved. Modeled targets
+are explicitly tagged `(modeled)` so Step 4 can flag drift between
+modeled and actual.
+
+No baseline → no proposal.
+
 ## Step 2 — Tier 1: non-breaking optimizations (still gated)
 
 Each of these is invisible to existing dashboard tiles — field names
@@ -298,6 +321,86 @@ Before claiming the change is done, regardless of tier:
    report the actual speed-up next to the predicted one.
 5. **If any unexpected drift**, revert the LookML commit immediately
    and surface the discrepancy. Do not "explain it away".
+
+## Step 5 — Publish the optimization plan (mandatory)
+
+After diagnosing the dashboard and before applying any changes, publish the
+plan to Notion and link it back to the project repo.
+
+### 5a. Create a child Notion page under the FlightHub Looker index
+
+Parent page: **FlightHub Looker**
+(`https://www.notion.so/FlightHub-Looker-360df8c49d3f80618286e5f94e2db16f`,
+ID `360df8c4-9d3f-8061-8286-e5f94e2db16f`).
+
+Before calling `notion-create-pages`, read the tool descriptor under
+`mcps/project-0-agents_setup-Notion/tools/notion-create-pages.json`.
+
+Page title format: `<Project name> — Optimization Plan (<YYYY-MM-DD>)`
+Example: `content_integration_optimizer — Optimization Plan (2026-05-14)`
+
+**Page structure — checklist format.**
+Each proposed change becomes its own `to_do` block (Notion's checklist
+block type). Use this hierarchy:
+
+```
+[heading_2]  Diagnosis
+[paragraph]  1–3 sentences: what is slow, why, artefact refs.
+
+[heading_2]  Proposed changes
+[to_do]  Change 1 — <title> (Tier 1 / Tier 2)
+[to_do]  Change 2 — <title> (Tier 1 / Tier 2)
+... one to_do per change ...
+
+[heading_2]  Verification protocol
+[to_do]  List every dashboard that uses the affected explore
+[to_do]  Run top-1 tile per dashboard pre- and post-change; numbers must match exactly
+[to_do]  Time slow query with query_sql + db_access; report actual vs predicted speed-up
+[to_do]  Revert immediately and surface any unexpected drift
+
+[heading_2]  Notes
+[paragraph]  Connection write-capability, blocked tiers, escalation triggers — anything
+             that shapes which changes are available.
+```
+
+All `to_do` blocks start unchecked (`checked: false`). Do not mark any
+item checked — that is the user's job as they work through the plan.
+
+Capture the returned Notion page URL. You will need it in 5b.
+
+### 5b. Add the Notion link to the project's GitHub repo
+
+After the Notion page is created, add its URL to the project repo so the
+plan is discoverable from the codebase.
+
+File: `OPTIMIZATION_PLANS.md` in the repo root. If the file does not
+exist, create it. If it exists, append a new row.
+
+Format (append, newest at top):
+
+```markdown
+# Optimization Plans
+
+| Date | Dashboard | Notion plan |
+|------|-----------|-------------|
+| 2026-05-14 | [Optimizer Dashboard (1642)](https://flighthub.looker.com/dashboards/1642) | [Optimization Plan](https://www.notion.so/<page-id>) |
+```
+
+Push the file via the GitHub MCP (`push_files`). Use commit message:
+`docs: add optimization plan link for dashboard <id> (<YYYY-MM-DD>)`.
+
+This push does **not** trigger the LookML approval gate — `OPTIMIZATION_PLANS.md`
+is not a `.lkml` file.
+
+### Order of operations
+
+1. Diagnose (Steps 1–3 above).
+2. Create Notion page (Step 5a) — do this before proposing any LookML change.
+3. Push `OPTIMIZATION_PLANS.md` link to the repo (Step 5b).
+4. Post LookML proposal(s) in chat per the approval gate in `../SKILL.md`.
+5. Verify (Step 4) after each approved change lands.
+
+---
 
 ## When to escalate instead of optimize
 

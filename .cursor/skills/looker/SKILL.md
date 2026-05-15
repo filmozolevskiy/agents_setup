@@ -279,9 +279,12 @@ that depend on it.
   doc, listing per-dashboard impact, before applying.
 
 Diagnostics first (`query_sql` + `db_access` timing on the warehouse,
-not "looks slow to me"). Verification protocol after every change,
-both tiers — exact-match numbers on the top tile of every affected
-dashboard, before vs after.
+not "looks slow to me"). After diagnosing, **publish the plan to Notion**
+as a child page under the FlightHub Looker index page and push an
+`OPTIMIZATION_PLANS.md` link to the project repo — both are mandatory
+before posting any LookML proposal (see Step 5 in the reference doc).
+Verification protocol after every change, both tiers — exact-match
+numbers on the top tile of every affected dashboard, before vs after.
 
 ## Files in this skill
 
