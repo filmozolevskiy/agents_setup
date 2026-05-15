@@ -6,11 +6,12 @@ description: >-
   "update the notion doc", "find in notion", "post the QA notes to notion".
   Single-purpose Notion delivery skill that talks to the
   `project-0-agents_setup-Notion` MCP server. All write operations are
-  hard-pinned to the **Flighthub QA** root page
-  (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) and its descendants — new pages
-  are created as children of that root, existing-page updates are allowed
-  only if the page lives under that subtree. Reads / searches across the
-  whole workspace are fine.
+  hard-pinned to two permitted roots: **Flighthub QA**
+  (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) and **FlightHub Looker**
+  (`360df8c4-9d3f-8061-8286-e5f94e2db16f`). New pages are created as
+  children of one of these roots; existing-page updates are allowed only
+  if the target's `parent` chain leads back to one of them. Reads /
+  searches across the whole workspace are fine.
 ---
 
 # Notion Assistant
@@ -21,12 +22,13 @@ documents while exploring.
 
 ## Scope (fixed)
 
-| Field | Value |
-|-------|-------|
-| Root page name | Flighthub QA |
-| Root page URL | https://www.notion.so/Flighthub-QA-35edf8c49d3f80eea5ffeaaa7aa9b3b9 |
-| Root page ID (dashed) | `35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9` |
-| Root page ID (hyphenless) | `35edf8c49d3f80eea5ffeaaa7aa9b3b9` |
+Two permitted roots. A write is in scope only if the target page IS one
+of these roots or its `parent` chain leads back to one of them.
+
+| Root name | URL | ID (dashed) | ID (hyphenless) | What lives there |
+|-----------|-----|-------------|-----------------|------------------|
+| Flighthub QA | https://www.notion.so/Flighthub-QA-35edf8c49d3f80eea5ffeaaa7aa9b3b9 | `35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9` | `35edf8c49d3f80eea5ffeaaa7aa9b3b9` | QA notes, smoke-test artefacts, ad-hoc reports from `qa_*` skills |
+| FlightHub Looker | https://www.notion.so/FlightHub-Looker-360df8c49d3f80618286e5f94e2db16f | `360df8c4-9d3f-8061-8286-e5f94e2db16f` | `360df8c49d3f80618286e5f94e2db16f` | Looker optimization plans (one child page per Looker project), written by the `looker` skill |
 
 Both ID forms work with the API. Prefer the dashed form when passing to
 MCP tools for readability; verify with the tool descriptor on first call.
@@ -76,15 +78,18 @@ MCP tools for readability; verify with the tool descriptor on first call.
 
 ### 1. Resolve the target
 
-- **Creating a new page:** parent defaults to the root
-  (`page_id: 35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`). If the user names a
+- **Creating a new page:** the caller picks the root. Default to
+  Flighthub QA (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) unless the
+  request is clearly Looker-related (a new optimization plan, a tile
+  audit, anything from the `looker` skill) — then default to FlightHub
+  Looker (`360df8c4-9d3f-8061-8286-e5f94e2db16f`). If the user names a
   sub-section ("under the Smoke Tests page"), `notion-search` or
   `notion-fetch` to find that sub-page's ID, confirm it is a descendant
-  of the root, then use it as `parent.page_id`.
+  of one of the permitted roots, then use it as `parent.page_id`.
 - **Updating an existing page:** the caller passes the page URL or ID.
   Call `notion-fetch` first. Walk `parent` references upward until you
-  hit the root ID. If you do not hit it, refuse and tell the user the
-  target is outside scope.
+  hit one of the two root IDs. If neither is reached, refuse and tell
+  the user the target is outside scope.
 
 ### 2. Read the descriptor for the chosen tool
 
@@ -120,9 +125,9 @@ proof-of-write.
 
 ## What not to do
 
-- Do not create a page outside the Flighthub QA subtree. If the user
-  asks for one, refuse and ask them to confirm a new root (and update
-  this SKILL.md in the same change).
+- Do not create a page outside the two permitted subtrees (Flighthub
+  QA, FlightHub Looker). If the user asks for one, refuse and ask them
+  to confirm a new root (and update this SKILL.md in the same change).
 - Do not omit `parent` on `notion-create-pages` — the descriptor
   defaults to a workspace-level private page, which violates the scope
   rule silently.
