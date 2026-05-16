@@ -339,32 +339,52 @@ Before calling `notion-create-pages`, read the tool descriptor under
 Page title format: `<Project name> — Optimization Plan (<YYYY-MM-DD>)`
 Example: `content_integration_optimizer — Optimization Plan (2026-05-14)`
 
-**Page structure — checklist format.**
-Each proposed change becomes its own `to_do` block (Notion's checklist
-block type). Use this hierarchy:
+**Page structure — keep it lean.**
+The page is a working artefact, not a design document. Diagnosis is a
+3-bullet root-cause list. Each proposed change is one `to_do` line
+(no rationale essays). Notes / Generated SQL inspection / connection
+write-capability paragraphs do **not** belong on this page — those
+live in the chat proposal or the commit message. The Verification
+results section is **added in place** after deploy (Step 4 below);
+do not pre-create it empty.
 
 ```
 [heading_2]  Diagnosis
-[paragraph]  1–3 sentences: what is slow, why, artefact refs.
+[paragraph]  ≤3 bullets: root causes only. One line per bullet.
+             No restated dashboard URL; no measured baselines (they
+             live in the chat proposal).
 
 [heading_2]  Proposed changes
-[to_do]  Change 1 — <title> (Tier 1 / Tier 2)
+[to_do]  Change 1 — <title> (Tier 1 / Tier 2). One-line "what" only.
+         Add `Shipped in <commit-sha>` inline once merged.
 [to_do]  Change 2 — <title> (Tier 1 / Tier 2)
 ... one to_do per change ...
 
-[heading_2]  Verification protocol
-[to_do]  List every dashboard that uses the affected explore
-[to_do]  Run top-1 tile per dashboard pre- and post-change; numbers must match exactly
-[to_do]  Time slow query with query_sql + db_access; report actual vs predicted speed-up
-[to_do]  Revert immediately and surface any unexpected drift
+[heading_2]  Verification results (<YYYY-MM-DD>, post-deploy)
+[paragraph]  **Status: PASS / FAIL.** Added in place after Step 4
+             verification lands. Two compact tables:
+             - Correctness table (per-row diff + aggregate sums, old vs new).
+             - Performance table (pre / post-cold / post-warm wall-clock + speedup).
+             No prose paragraphs, no generated-SQL dumps, no commentary.
 
-[heading_2]  Notes
-[paragraph]  Connection write-capability, blocked tiers, escalation triggers — anything
-             that shapes which changes are available.
+[heading_2]  Verification protocol
+[to_do]  Enumerate dashboards using the explore (via `get_dashboards`
+         + tile-JSON grep, not assumption). If you substituted assumption,
+         mark `[~]` and say so.
+[to_do]  Top-1 tile per dashboard pre/post compare; numbers must match exactly.
+         If pre-change snapshot wasn't captured before deploy, mark `[~]`
+         and substitute with inner-DT equivalence proof.
+[to_do]  Re-time slow query with query_sql + db_access; report actual vs modeled.
+[to_do]  Revert on any drift; do not explain it away.
 ```
 
-All `to_do` blocks start unchecked (`checked: false`). Do not mark any
-item checked — that is the user's job as they work through the plan.
+All `to_do` blocks under "Proposed changes" and "Verification protocol"
+start unchecked (`checked: false`). The Verification results section
+is omitted at creation time and **inserted in place after deploy** —
+never pre-created with placeholder text. Use `[~]` (literal markdown)
+to flag a protocol item completed by substitute evidence rather than
+the prescribed procedure; do not mark such items `[x]` to avoid
+overstating coverage.
 
 Capture the returned Notion page URL. You will need it in 5b.
 
@@ -395,14 +415,60 @@ is not a `.lkml` file.
 ### Order of operations
 
 1. Diagnose (Steps 1–3 above).
-2. Create Notion page (Step 5a) — do this before proposing any LookML change.
+2. Create Notion page (Step 5a) with Diagnosis + Proposed changes + Verification protocol only — **no Verification results section yet**.
 3. Push `OPTIMIZATION_PLANS.md` link to the repo (Step 5b).
 4. Post LookML proposal(s) in chat per the approval gate in `../SKILL.md`.
-5. Verify (Step 4) after each approved change lands.
+5. After deploy, run Step 4 verification and **update the Notion page in place** to (a) tick the `Proposed changes` to_dos, appending `Shipped in <sha>` to each, (b) tick the `Verification protocol` to_dos (or mark `[~]` with substitute), (c) insert the `Verification results` heading + two tables between `Proposed changes` and `Verification protocol`.
 
 ---
 
-## When to escalate instead of optimize
+## Owner report (on request)
+
+When the user asks for "a report for the dashboard owner" / "a short
+report for <name>" / "wrap-up for the owner" / similar, write it in
+the template below verbatim. Do not invent variations. The audience is
+the dashboard owner, not an engineer — no LookML / CTE / SQL terms;
+no headers beyond "Here is a short report"; no tables; first-person
+opener; reassurance close.
+
+```
+I was able to optimize the <board name> board.
+
+Here is a short report:
+
+Before: <one line on the pre-change state — single user-visible metric>
+After: <one line — cold + warm wall-clock + headline speedup multiple>
+Correctness: <one line — what was verified, at what scale, plus "Nothing to re-check on your end" if true>
+Where things live:
+- Repo: <github URL>
+- Full plan + verification numbers: <Notion page URL>
+
+Let me know if you spot anything off on the dashboard.
+```
+
+Notes on filling it in:
+
+- **Before / After / Correctness** are each *exactly one line*. If a
+  bullet is wrapping to two lines, cut adjectives or move detail to
+  the Notion page.
+- **Headline speedup multiple** — quote the warm path if there is one
+  (it's what the owner will actually feel); cite the cold number for
+  honesty. "~4× faster cold, ~50-100× faster on the warm path you'll
+  actually use day-to-day" beats "~7× faster" because the latter
+  hides the cold reality.
+- **Correctness** — say what you verified concretely ("row-by-row
+  across 2.7M rows" beats "thoroughly tested"). If the verification
+  was partial / substituted (see `[~]` items in the protocol), say
+  so honestly in one clause; don't promise more than you proved.
+- **Where things live** — repo link + Notion link only. No commit
+  SHAs, no Trello, no chat threads. The owner clicks one of those
+  two and finds the rest.
+- **Closing line** is verbatim. It's an invitation, not a sign-off.
+
+Skip the entire template — including the "Where things live" block —
+if the user asks for a non-owner audience (engineer, eng manager,
+product). For those, point them at the Notion page directly or
+expand from the chat history.
 
 - Slow query roots in warehouse layout (missing partition pruning,
   no clustering, missing indexes, materialized-view candidacy) —
