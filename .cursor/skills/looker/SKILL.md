@@ -286,6 +286,15 @@ before posting any LookML proposal (see Step 5 in the reference doc).
 Verification protocol after every change, both tiers — exact-match
 numbers on the top tile of every affected dashboard, before vs after.
 
+**Owner report on request.** When the user asks for "a report for
+the dashboard owner" / "a short report for <name>" / similar, write
+it verbatim in the template at the bottom of
+[`references/optimizing_existing_projects.md`](./references/optimizing_existing_projects.md)
+§ Owner report. First-person opener, three labeled one-liners
+(Before / After / Correctness), repo + Notion links, fixed closing
+line. No tables, no LookML / CTE / SQL terms, no headers beyond
+"Here is a short report".
+
 ## Files in this skill
 
 - [`SKILL.md`](./SKILL.md) — this file.
