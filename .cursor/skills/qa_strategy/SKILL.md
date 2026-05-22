@@ -23,18 +23,37 @@ Given a Trello card and its linked PR, produce a structured QA strategy — what
 
 **Read the code. Test the functionality.**
 
-Reading the PR (or the branch diff) is **mandatory** — the agent cannot write a useful plan without seeing what changed. But the diff is read to answer one question only: *what behaviour will a human or a log query notice differently after this change?* The output plan is written in terms of UI flows, agent screens, emails, and log shapes that QA can observe directly. Every checklist item must be something a human (end user or internal FH / JF agent) or a log query can verify without opening the codebase.
+Reading the PR (or the branch diff) is **mandatory** — the agent cannot write a useful plan without seeing what changed. But the diff is read to answer one question only: *what behaviour will a human or a log query notice differently after this change?* The output plan is written in terms of UI flows, internal screens, emails, and log shapes that QA can observe directly. Every checklist item must be something a human (end user or internal FH / JF agent) or a log query can verify without opening the codebase.
 
 If a change has no user-visible, agent-visible, or log-visible effect (pure refactor, internal renames, comment-only edits), the plan says so explicitly and is short — it does not invent code-coverage checks to fill space.
 
-## Scope (fixed)
+### Scope discipline
 
-| In scope | Out of scope |
-|----------|--------------|
-| What the **end user** sees: storefront search results, fare card, baggage / ancillary badges, checkout form, payment step, confirmation page, confirmation email | Internal class names, method names, abstract bases, DTOs, factories, refactor risks framed in code terms |
-| What the **internal agent** sees: FH / JF admin order view, ticketing console, refund / exchange UI, agent-facing error banners | Whether a non-changed code path "shares a file" or "shares a parent class" with the change |
-| What the **logs** show: `ota.debug_logs`, `ota.optimizer_logs`, supplier request / response payloads, ClickHouse error events, MySQL booking row state | Code-coverage-style sweeps ("re-test every caller of X") |
-| Supplier / GDS behaviour as observed through logs and the agent UI (PNR shape, fare basis, baggage tags, ticket numbers) | API consumer contracts framed as "DTO X must not break consumers" — phrase those as the user/agent symptom instead |
+Every checklist item must trace to the specific behaviour the PR changes. If the PR only touches the availability-check step, do **not** add checks for the confirmation page, the confirmation email, baggage selection, or seat selection just because they sit downstream — those belong on a plan for a PR that actually changes them. Drop any item you cannot tie to a file in the diff **and** a user / agent / log touchpoint that the diff modifies.
+
+### No code-level red flags in the output
+
+If the diff contains obvious code-quality concerns unrelated to behaviour QA can test (debug toggles flipped on, unconditional bypasses, commented-out guards, leftover `dd()` / `var_dump`), **do not** add this to the plan. The plan is QA workflow content, not code review. 
+
+### No staging fixtures — lean on production cases for negative paths
+
+The Staging section is reserved for flows that can be driven from a fresh search on staging without fabricated data. If staging cannot exercise a particular failure mode, say so explicitly in the plan.
+
+We do not maintain staging fixtures for malformed, stale, or otherwise contrived inputs. Andy checkt that verify specific logic (price not available, "no seats" ...) should be first found in prod DB and if possible, reproduced on staging. Otherwise, it should be the Post-deployment section, where real production traffic supplies the case naturally, and frame it as: "watch prod for sessions where <natural condition>; if such a session occurs, confirm the user saw <expected message> and the log shape is <expected>. If no such case is observed in the watch window, mark as 'not observed' — do not block on it."
+
+### A short "Why:" line under each non-trivial check
+
+Every checklist item that is not a one-line smoke check gets a short *Why:* line immediately under the bold name and above the numbered steps. The *Why:* explains, in one or two plain-language sentences, what would break or what specific behaviour-change makes this test worth running. It must tie back to the PR's diff — "this is the line of code the PR changed", "this is the back-fill the PR removed", "this is the new short-circuit the PR introduced", "this is shared code that runs for every supplier" — phrased in plain user / agent / log terms, no code names.
+
+### Every query is verified before it ships
+
+This applies to **every** query that appears in the plan, regardless of where it sits — "find a case" locators inside a staging check, monitoring queries in the Post-deployment section, prod-watching queries for negative paths. No copy-pasting column names from memory or pattern-matching against other skills. The minimum bar before pasting any query into a plan, a Notion page, or a Trello card:
+
+1. Open the table / collection's doc under `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every column / field referenced by the query exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing.
+2. Confirm the literal values you filter on (`gds = 'dida'`, `booking_step = '...verifyPriceOperation()'`, etc.) by running a tiny `SELECT DISTINCT col LIMIT 50` (or Mongo equivalent) against the live store via the `db_access` CLI (`scripts/clickhouse_query.py`, `scripts/mysql_query.py`, `scripts/mongo_query.py`).
+3. Run the query itself against a recent window. The result must come back non-empty and shaped as expected. Paste a one-line verification stamp next to the query in the plan: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.`
+
+If a query cannot be verified (store unreachable, table missing, no recent data), do not include it in the plan. State the limitation in prose and recommend what to add once data is available.
 
 ## When to use
 
@@ -53,7 +72,6 @@ If a change has no user-visible, agent-visible, or log-visible effect (pure refa
 |-------|--------------|
 | Trello card URL or shortLink | Required — from the user or caller |
 | GitHub repo | Default `mventures/genesis`; accept override |
-| `--mode comment` flag | Optional — when present, post the finished strategy to the card via `add_comment` |
 
 ## Tooling
 
@@ -117,94 +135,169 @@ Use this surface table when classifying. If a changed file does not map to any u
 
 Map the user / agent / log surface to test scenarios. Every checklist item describes something a human or a log query can directly observe; **never name a class, method, abstract base, factory, or DTO**.
 
-**Staging section** — checks before the PR is merged or deployed to production:
+**Staging section** — checks before the PR is merged or deployed to production. Only includes flows that can be driven from a fresh search on staging or reproduced from a real prod case; negative paths that cannot be reached either way move to Post-deployment (see "No staging fixtures" above).
+
+When a check needs a **specific** input — a particular carrier on a particular content source, a fare basis with a specific tag, a route that historically returned no ancillaries, a session that hit a specific error — do not handwave it. Include a concrete prod-DB query in the check's steps that finds a real example, so QA can pick one and reproduce the same search/route on staging. Anchor on whatever table or collection actually carries the dimension you need:
+
+| What you need to find | Where to query | Joinable to |
+|-----------------------|----------------|-------------|
+| A booked itinerary on carrier X with content source Y | MySQL `booking_contestants` (filter on `validating_carrier`, `content_source`, `booking_status = 'BOOKED'`) | `search_hash` → MongoDB `debug_logs.transaction_id` for the full session |
+| A session that hit a specific supplier error | ClickHouse `jupiter.jupiter_booking_errors_v2` (filter on `gds`, `booking_step`, `error_message`) | `search_id` → MongoDB `debug_logs.transaction_id` |
+| A session whose supplier response had / lacked a specific field | MongoDB `ota.debug_logs` (`$match` on `context`, then check `Response` / `response`) | `transaction_id` → MySQL `booking_contestants.search_hash` |
+
+Every such query carries a verification stamp per *Every query is verified before it ships* (Core principle). The point is to hand QA a real booking / route to replay, not to ask them to "find one yourself".
 
 - **Smoke tests**: the simplest end-to-end exercise of each changed user-visible flow (one search → one book → one confirmation; one supplier per content source affected).
-- **Happy-path flows**: scenarios the card description implies should now work, written as the user / agent journey (e.g. "search MTL→YYZ, add 1 checked bag, pay, confirm the bag appears on the confirmation page and on the agent order view").
-- **Edge cases**: inputs that exercise the boundary of the fix as seen by the user or agent (e.g. infant + adult mix on the pax form, currency mismatch shown to the user, supplier returning zero ancillaries shown as "no bags available").
-- **Regression risks (user-visible only)**: other user / agent flows that touch the same UI surface, the same supplier, the same log shape, or the same agent screen. Frame each as the symptom the user or agent would see if it broke ("a non-baggage Dida booking still confirms and the confirmation email shows the same totals"), never as the code path. If you cannot phrase a regression in user / agent / log terms, drop it.
+- **Happy-path flows**: scenarios the card description implies should now work, written as the user / agent journey (e.g. "search MTL→YYZ, add 1 checked bag, pay, confirm the bag appears on the ResPro page").
+- **Edge cases**: inputs that exercise the boundary of the fix and can be reached either from a fresh search or by replaying a real prod case (see the query table above). Edge cases that cannot be reached either way go to Post-deployment instead.
+- **Regression risks (user-visible only)**: other user / agent flows that touch the same UI surface, the same supplier, the same log shape, or the same ResPro page area. Frame each as the symptom the user or agent would see if it broke ("a non-baggage Dida booking still confirms and the totals on the ResPro page match the previous deploy"), never as the code path. When the regression needs a specific carrier / supplier combination, embed the query that finds one. If you cannot phrase a regression in user / agent / log terms, drop it.
 
-**Post-deployment section** — checks after the fix is live in production:
+**Post-deployment section** — checks after the fix is live in production. This is also where negative paths live when staging cannot reproduce them (stale flights, malformed identifiers, supplier outages). Each such check waits for real prod traffic to hit the case and confirms the observable response is the expected one; if no case is observed in the watch window, mark as "not observed" rather than blocking.
 
-- **Production checks**: quick manual verifications observable to a human (open one live booking that previously failed, confirm the error is gone on the agent order view and the user confirmation page).
+- **Production checks**: quick manual verifications observable to a human (open one live booking that previously failed, confirm the error is gone on the ResPro page).
 - **Monitoring queries**: copy-pasteable MySQL / ClickHouse / Mongo snippets that measure the fix through user-visible symptoms — booking success rates, error-code counts, debug-log document shape, supplier response shape. Use a 1-hour or 24-hour window; label the window and timezone.
+
+  Every query carries a verification stamp per *Every query is verified before it ships* (Core principle).
 - **Rollback signals**: concrete conditions a human or a log query can spot — error rate climb, a new user-facing error string, missing field on the confirmation email, a debug-log document that no longer carries an expected key. One sentence each.
 - **Watch window**: recommend how long to monitor before closing the card (default: 24 h for booking-path changes, 4 h for config-only changes).
 
 ### Step 4 — Output the strategy
 
-Emit the strategy as a structured markdown block:
+Emit the strategy as a structured markdown block. **Every checklist item is formatted as a short bold name followed by a *Why:* line (skip only for one-line obvious smoke checks) and a numbered list of concrete steps** — never a single-line bullet, never a paragraph. The name reads like a test-case title (3–6 words). The *Why:* line is one or two plain-language sentences tying the check to the PR's diff. The steps are imperative, one action per line, and end with what a human or log query observes to mark the check pass.
 
 ```markdown
 ## QA Strategy — <Card title>
 
 **PR:** <pr_url>
-**User / agent / log surface that changed:** <comma-separated list of touchpoints from the Step 2 table — e.g. "checkout (baggage selection), confirmation email, agent order view, debug_logs ancillary block">
+**Trello card:** <card_url>
+**What changes for QA:** <one to three plain-language sentences. Describe the user-visible behaviour change, then list the surfaces QA should watch (search results page, checkout page, ResPro page, debug log for the checkout step, etc.). No code terms.>
+
+**Note on fixtures:** Link to the staging if it's found in the Trello card or in the comments. 
 
 ---
 
 ### Staging
 
-**Smoke tests** (one end-to-end pass per affected supplier / content source)
-- [ ] <concrete user-visible step>
+**Smoke tests**
 
-**Happy-path flows** (the journey the card promises)
-- [ ] <concrete user / agent journey, with what to verify on screen and in the email>
+- [ ] **<Short name>**
+  1. <step>
+  2. <step>
+  3. <observable pass condition>
 
-**Edge cases** (boundary inputs as the user / agent sees them)
-- [ ] <concrete user / agent step>
+**Happy-path flows**
 
-**Regression risks (user-visible only)** (other journeys that share the same UI surface, supplier, agent screen, or log shape)
-- [ ] <user / agent symptom to confirm is unchanged> — <one-line why this journey could be affected, phrased in user / agent / log terms>
+- [ ] **<Short name>**
+  *Why:* <one or two sentences tying this check to the specific behaviour the PR changes — what would break if this check fails.>
+  1. <step>
+  2. <observable pass condition>
+
+**Edge cases** (reachable from a fresh search or replayed from a real prod case)
+
+- [ ] **<Short name>**
+  *Why:* <…>
+  *Find a case:* (only when the check needs a specific carrier / supplier / error / route — otherwise omit)
+  ```sql
+  -- e.g. find a recently booked itinerary on validating_carrier X, content_source Y
+  -- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.
+  <query>
+  ```
+  1. Pick one row from the query above; note `route`, `departure_date`, `validating_carrier`, `content_source`.
+  2. Reproduce the same search on staging.
+  3. <observable pass condition>
+
+**Regression risks (user-visible only)**
+
+- [ ] **<Short name>**
+  *Why:* <one or two sentences explaining why this journey could be affected — same supplier, same shared code, same surface — phrased in user / agent / log terms.>
+  *Find a case:* (when the regression needs a specific carrier / supplier / route)
+  ```sql
+  -- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.
+  <query>
+  ```
+  1. <step>
+  2. <observable pass condition that ties the journey back to the changed surface in plain user terms>
 
 ---
 
 ### Post-deployment
 
-**Production checks** (observable by a human on real bookings)
-- [ ] <concrete user-facing or agent-facing verification>
+**Production checks**
 
-**Monitoring queries** (measure user-visible symptoms via logs / DB)
+- [ ] **<Short name>**
+  *Why:* <…>  (skip for the generic "open one live booking and spot-check" check)
+  1. <step>
+  2. <observable pass condition>
+
+- [ ] **<Negative-path check that needed a fixture on staging>**
+  *Why:* <explain the new failure mode this PR introduces or surfaces, why staging can't reproduce it, and what observable behaviour we want to confirm when prod traffic hits it.>
+  1. After deploy, watch prod logs for <natural condition that produces the case>.
+  2. If such a case occurs, confirm <observable user / agent / log symptom>.
+  3. If no such case is observed in the watch window, mark this check as "not observed" — do not block on it.
+
+**Monitoring queries**
 
 ```sql
 -- <label, window, timezone>
+-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.
 <query>
 ```
 
-**Rollback signals** (what a human or a log query would notice)
+```javascript
+// <label, window>
+// Field shape verified <YYYY-MM-DD> on live <collection>: <fields used and what they look like>.
+// Run from mongosh.
+<pipeline>
+```
+
+**Rollback signals**
 - <user-visible or log-visible condition> → revert / escalate
 
 **Watch window:** <N hours>
 ```
 
-If `--mode comment` is set, post this block to the Trello card via:
+### Step 5 — Propose, wait for approval, then publish
 
-```bash
-curl -s -X POST "https://api.trello.com/1/cards/<id>/actions/comments" \
-  -d "key=$TRELLO_API_KEY" \
-  -d "token=$TRELLO_TOKEN" \
-  --data-urlencode "text=<strategy markdown>"
-```
+The plan is **always proposed in chat first** and only published after the user approves. Never auto-publish, never skip the proposal.
+
+1. **Propose.** Emit the full Step 4 markdown block in chat. End with one short question: "Approve and publish?" Do not pre-empt the user with edits, do not start publishing.
+2. **Wait.** If the user requests changes, iterate in chat. Re-emit the full updated block each round so the latest version is the one they approve. Do not publish partial / interim versions.
+3. **Publish (on approval).** Run two steps in order:
+   1. **Create a Notion page** via the `notion_assistant` skill. Parent: Flighthub QA root (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`). Title: `QA Strategy — <card title> (PR #<number>)`. Body: the approved markdown block. Capture the page URL returned by `notion-create-pages`.
+   2. **Append the Notion link to the bottom of the Trello card description** via the Trello REST API. Read the card's current `desc` first, then `PUT /1/cards/<id>` with `desc=<existing>\n\n---\n**QA Strategy:** <notion_url>`. The link goes in the description (not as a comment) so it lives with the card metadata and stays discoverable as comments accumulate.
+
+      ```bash
+      EXISTING=$(curl -s "https://api.trello.com/1/cards/<id>?fields=desc&key=$TRELLO_API_KEY&token=$TRELLO_TOKEN" | jq -r .desc)
+      curl -s -X PUT "https://api.trello.com/1/cards/<id>" \
+        -d "key=$TRELLO_API_KEY" \
+        -d "token=$TRELLO_TOKEN" \
+        --data-urlencode "desc=${EXISTING}
+
+---
+**QA Strategy:** <notion_url>"
+      ```
+
+      Before appending, check the existing description for an existing `**QA Strategy:**` line; if one is already there, replace it in place rather than stacking duplicates.
+
+4. **Report.** In chat, hand back the Notion URL and confirm the Trello card was updated.
+
+If either publish step fails, surface the error verbatim and stop — do not attempt cleanup or retry on a different surface without explicit user direction.
 
 ## What not to do
 
-- **Do not write checklist items in code terms.** No class names, method signatures, abstract bases, factories, DTOs, namespaces, or file paths in the output. The agent reading the plan must be able to execute every item without opening the repo. Counter-examples (forbidden phrasing):
+Concrete rules not already stated by the Core principle, the Workflow steps, or `GLOSSARY.md`:
+
+- **Forbidden-phrasing examples** (illustrating the glossary's "no code identifiers in prose" rule):
   - "`Mv_Ota_Air_Booker::createAncillaryServices()` — re-test existing factory-loaded baggage flow."
   - "`OptimizationResponseDto` must not break existing consumers."
   - "`Provider/Dida.php` shared abstract changes — spot-check one non-baggage Dida call."
   - "Older catalogue version `Service_StandaloneCatalogue_15_1` — confirm unaffected."
 
-  Replace each with the user / agent / log symptom it would produce — e.g. "book one non-baggage Dida itinerary end-to-end; confirm the confirmation page totals and the agent order view match the previous deploy", "search a fare that historically used the older Amadeus catalogue and confirm baggage badges still render".
-- Do not invent test cases for files not in the PR diff. Every checklist item must trace back to a changed file **and** a user / agent / log touchpoint.
-- Do not list a "regression risk" you cannot phrase as a user-visible, agent-visible, or log-visible symptom. If it only matters to a developer reading code, drop it.
+  Each one is replaced by the user / agent / log symptom it would produce.
 - Do not hardcode staging URLs. Reference the environment by name (e.g. "staging", "UAT") and let the QA engineer supply the host.
-- Do not post the strategy as a comment unless `--mode comment` is explicitly set or the user asks.
 - Do not include monitoring queries for tables unrelated to the change surface.
-- Do not add ownership / assignment fields to the output. No `QA owner`, `Assignee`, `Tester`, `Reviewer`, `Due date`, or similar header lines. Plan is workflow content only; ownership lives on the Trello card itself.
-- Do not skip Step 1 — the card description is required context; a PR diff alone does not capture the intent.
-- Do not skip Step 2 either. Reading the PR / branch diff is mandatory — the agent has to know what behaviour changed before writing the plan. "I'll just trust the card description" produces generic, useless plans.
-- Do not write the plan from the file path list alone. Read the diff hunks (or, for large PRs, read the most-changed files via `codebase_access`) so the plan reflects actual behaviour change, not guessed intent.
-- Do not call `get_pull_request_diff` for large PRs (>50 files); rely on `get_pull_request_files` plus targeted file reads via `codebase_access`.
+- Do not create a Notion page outside the Flighthub QA root. Pass the root ID (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) explicitly to `notion_assistant`; do not rely on its default.
+- Do not post the Notion link as a Trello comment. It goes in the card `desc` (Step 5), de-duped against any prior `**QA Strategy:**` line.
 
 ## References
 
@@ -213,3 +306,5 @@ curl -s -X POST "https://api.trello.com/1/cards/<id>/actions/comments" \
 - Reading genesis code for context on a large PR: [`../codebase_access/SKILL.md`](../codebase_access/SKILL.md).
 - Monitoring query patterns (MySQL bookability, ClickHouse errors): `.cursor/skills/bookability/SKILL.md`.
 - Post-deploy monitoring loop (for longer tracking): `.cursor/skills/post_deploy_tracker/SKILL.md`.
+- DB CLIs and schema docs (required for the query-verification step): [`../db_access/SKILL.md`](../db_access/SKILL.md) and `.cursor/skills/db_access/db-docs/<store>/`.
+- Notion delivery (writes pinned to the Flighthub QA root): [`../notion_assistant/SKILL.md`](../notion_assistant/SKILL.md).
