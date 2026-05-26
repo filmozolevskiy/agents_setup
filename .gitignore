@@ -9,6 +9,7 @@ __pycache__/
 # Ephemeral output
 reports/
 docs/
+.cache_workspace/
 
 # MCP Toolbox binary (downloaded via .cursor/skills/looker/scripts/install_mcp_toolbox.sh)
 bin/
