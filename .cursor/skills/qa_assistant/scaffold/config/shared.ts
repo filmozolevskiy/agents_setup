@@ -38,3 +38,28 @@ export const resproConfig = {
         return process.env.RESPRO_PASS;
     },
 };
+
+/**
+ * Summit (Momentum OTA-Admin) — internal per-search stats viewer used by
+ * `qa-summit-stats` to dump per-content-source outbound fare-fetch calls
+ * for a `search_hash`. **Staging only**: production Summit
+ * (`https://summit.flighthub.com`) is out of scope per
+ * `page_inventory.md § 6`. `SUMMIT_URL` is an optional override; when
+ * absent the staging2 host is used.
+ *
+ * Lazy getters mirror `resproConfig` so `loadEnv()` can populate
+ * `process.env` after this module is imported.
+ */
+export const summitConfig = {
+    get url(): string {
+        return (
+            process.env.SUMMIT_URL ?? 'https://staging2-summit.flighthub.com'
+        );
+    },
+    get user(): string | undefined {
+        return process.env.SUMMIT_USER;
+    },
+    get password(): string | undefined {
+        return process.env.SUMMIT_PASS;
+    },
+};

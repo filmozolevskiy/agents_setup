@@ -9,6 +9,7 @@
         "qa-book": "tsx runners/qa-book.ts",
         "qa-cleanup": "tsx runners/qa-cleanup.ts",
         "qa-search-telemetry": "tsx runners/qa-search-telemetry.ts",
+        "qa-summit-stats": "tsx runners/qa-summit-stats.ts",
         "qa-validate": "tsx runners/qa-validate.ts",
         "qa-report": "tsx runners/qa-report.ts",
         "test": "npm run test:flighthub:staging2 && npm run test:justfly:staging2",
