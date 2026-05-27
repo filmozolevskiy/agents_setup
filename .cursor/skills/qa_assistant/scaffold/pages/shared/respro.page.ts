@@ -15,18 +15,25 @@ export class ResproPage {
 
     // ==================== Locators ====================
 
+    // The ResPro /login page does not render <label>, placeholder, or
+    // aria-label attributes on its inputs (verified via DOM probe), so the
+    // getByLabel(...) approach times out at 30s. Anchor on the stable
+    // name="..."/id="..." attributes instead. Submit is an <input type="submit">
+    // (not a <button>), so getByRole('button', { name: 'Sign In' }) also
+    // misses; the id is "process-login".
     get usernameInput(): Locator {
-        return this.page.getByLabel(Messages.LOGIN_USERNAME_LABEL);
+        // eslint-disable-next-line playwright/no-raw-locators -- no label / aria / placeholder on this input; name= is the only stable anchor.
+        return this.page.locator('input[name="username"]');
     }
 
     get passwordInput(): Locator {
-        return this.page.getByLabel(Messages.LOGIN_PASSWORD_LABEL);
+        // eslint-disable-next-line playwright/no-raw-locators -- no label / aria / placeholder on this input; name= is the only stable anchor.
+        return this.page.locator('input[name="password"]');
     }
 
     get signInButton(): Locator {
-        return this.page.getByRole('button', {
-            name: Messages.SIGN_IN_BUTTON,
-        });
+        // eslint-disable-next-line playwright/no-raw-locators -- submit is <input type="submit">, not <button>, so getByRole misses.
+        return this.page.locator('#process-login');
     }
 
     get abortBookingLink(): Locator {

@@ -24,8 +24,17 @@ export const sharedConfig = {
  * flighthub and justfly. Consumed by `pages/shared/respro.page.ts` and
  * the `cancelBookingViaRespro` helper fixture.
  */
+// Lazy getters so each field is read from process.env at access time, not at
+// module-load time. The runners call loadEnv() AFTER this module is imported,
+// so eager initialisation would freeze every field to undefined.
 export const resproConfig = {
-    url: process.env.RESPRO_URL,
-    user: process.env.RESPRO_USER,
-    password: process.env.RESPRO_PASS,
+    get url(): string | undefined {
+        return process.env.RESPRO_URL;
+    },
+    get user(): string | undefined {
+        return process.env.RESPRO_USER;
+    },
+    get password(): string | undefined {
+        return process.env.RESPRO_PASS;
+    },
 };

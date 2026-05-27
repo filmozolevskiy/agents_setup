@@ -179,7 +179,7 @@ async function main(): Promise<void> {
             `SELECT * FROM ota.booking_passengers WHERE booking_id = ${bid}`
         ),
         mysqlQuery(
-            `SELECT * FROM ota.booking_segments WHERE booking_id = ${bid} ORDER BY position`
+            `SELECT * FROM ota.booking_segments WHERE booking_id = ${bid} ORDER BY departure_date, id`
         ),
         mysqlQuery(
             `SELECT * FROM ota.booking_statement_items WHERE booking_id = ${bid}`
@@ -200,13 +200,15 @@ async function main(): Promise<void> {
                   `SELECT * FROM ota.bookability_customer_attempts WHERE search_hash = '${sq(transactionId)}' ORDER BY id DESC LIMIT 10`
               )
             : Promise.resolve([]),
-        // Payhub capture summary
+        // Payhub capture summary. NOTE: ota.booking_statement_transactions
+        // does NOT have a billing_info_id column (it's on items, not
+        // transactions); previous version of this query referenced it and
+        // crashed every qa-validate run.
         mysqlQuery(
             `SELECT
                 CAST(COALESCE(SUM(amount), 0) AS CHAR) AS sum,
                 COUNT(*) AS row_count,
-                GROUP_CONCAT(DISTINCT currency ORDER BY currency SEPARATOR ',') AS currency_set,
-                GROUP_CONCAT(DISTINCT billing_info_id ORDER BY billing_info_id SEPARATOR ',') AS billing_info_ids
+                GROUP_CONCAT(DISTINCT currency ORDER BY currency SEPARATOR ',') AS currency_set
             FROM ota.booking_statement_transactions
             WHERE booking_id = ${bid}
               AND processor = 'payhub'
@@ -244,7 +246,7 @@ async function main(): Promise<void> {
                    AND bsi.fop = 'credit_card'
                    AND NOT EXISTS (
                        SELECT 1 FROM ota.booking_virtual_card_statement_items bvcsi
-                       WHERE bvcsi.booking_statement_item_id = bsi.id
+                       WHERE bvcsi.statement_item_id = bsi.id
                    )) AS agency_cc_billing_info_ids`
         ),
     ]);
@@ -271,7 +273,7 @@ async function main(): Promise<void> {
                   `SELECT
                       content_source, search_type, response,
                       num_packages_returned, num_packages_blocked, num_packages_won,
-                      response_time_ms, date_added
+                      response_time, date_added
                    FROM search_api_stats.gds_raw
                    WHERE search_id = '${sq(chSearchId)}'
                      AND date_added >= now() - INTERVAL ${searchTelemetryWindowHours} HOUR

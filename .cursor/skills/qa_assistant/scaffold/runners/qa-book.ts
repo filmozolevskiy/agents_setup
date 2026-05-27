@@ -37,6 +37,7 @@
 
 import { loadEnv } from './_lib/envLoader';
 import { emitOk, emitError, log } from './_lib/stdout';
+import { mysqlQuery } from './_lib/db';
 import { createScenarioDir, scenarioPath } from './_lib/scenarioDir';
 import { launchBrowser } from './_lib/browser';
 import {
@@ -131,13 +132,14 @@ async function main(): Promise<void> {
     }
 
     const cs = inputs.contentSource;
+    const officeId = inputs.officeId;
     const label = flags.label ?? `book-${cs ?? 'pkg' + (inputs.packageIndex ?? 0)}`;
     const scenarioDir = flags.scenarioDir ?? createScenarioDir(label);
 
     log(`brand=${brand} env=${env} mode=${inputs.mode}`);
     log(`search_url: ${flags.searchUrl}`);
     log(
-        `pin: content_source=${cs ?? '(none)'} package_index=${inputs.packageIndex ?? '(none)'}`
+        `pin: content_source=${cs ?? '(none)'} office_id=${officeId ?? '(none)'} package_index=${inputs.packageIndex ?? '(none)'}`
     );
     log(`failure_injection: ${inputs.failureInjection ?? '(none)'}`);
     log(`scenarioDir: ${scenarioDir}`);
@@ -146,6 +148,7 @@ async function main(): Promise<void> {
     process.stderr.write(
         `[qa-book banner] brand=${brand} env=${env} ` +
         `content_source=${cs ?? '(none)'} ` +
+        `office_id=${officeId ?? '(none)'} ` +
         `package_index=${inputs.packageIndex ?? '(none)'} ` +
         `failure_injection=${inputs.failureInjection ?? 'none'}\n`
     );
@@ -184,7 +187,7 @@ async function main(): Promise<void> {
         // onChange handler receives a recognized supplier slug. Selecting an
         // option re-runs the search; we wait for the results list to
         // re-populate before returning.
-        if (cs && brand === 'flighthub') {
+        if (cs) {
             // eslint-disable-next-line playwright/no-raw-locators
             const filterSelect = session.page.locator('select#gds');
             // The Debug Filters panel is React-rendered AFTER the results
@@ -231,19 +234,61 @@ async function main(): Promise<void> {
                         : (await fallbackOption.count()) > 0
                             ? (await fallbackOption.first().getAttribute('value')) ?? cs
                             : cs;
+                const preFilterCount = await resultsPage.resultCards
+                    .count()
+                    .catch(() => 0);
+                log(`pre-filter result cards: ${preFilterCount}`);
                 await filterSelect.selectOption(optionValue).catch(() => undefined);
                 log(`debug filter → ${optionValue} (matched --content-source ${cs})`);
-                await session.page.waitForTimeout(1500);
-                const postFilterCount = await resultsPage.resultCards.count().catch(() => 0);
+                // If --office-id was passed, also narrow the Office ID
+                // dropdown. The select is populated after the GDS choice
+                // (the option list is supplier-scoped), so wait for it.
+                if (officeId) {
+                    // eslint-disable-next-line playwright/no-raw-locators
+                    const officeSelect = session.page.locator('select#office_id');
+                    const officeMounted = await officeSelect
+                        .waitFor({ state: 'attached', timeout: 5000 })
+                        .then(() => true)
+                        .catch(() => false);
+                    if (officeMounted) {
+                        await officeSelect.selectOption(officeId).catch(() => undefined);
+                        log(`debug filter → office_id=${officeId}`);
+                    } else {
+                        log(`WARN: --office-id ${officeId} not applied — select#office_id did not mount within 5s. Post-book gds_account_id check still runs.`);
+                    }
+                }
+                // Selecting an option re-runs the search; the storefront
+                // re-renders the result list asynchronously. Wait for the
+                // "Done" progress indicator to come back, then poll the count
+                // until it stabilises (or we time out). Without this poll the
+                // count read races the re-render and sees 0 cards even when
+                // the rendered page eventually shows the pinned source.
+                await session.page
+                    .getByText(/^Done$/)
+                    .first()
+                    .waitFor({ state: 'visible', timeout: 30_000 })
+                    .catch(() => undefined);
+                let postFilterCount = 0;
+                const pollDeadline = Date.now() + 15_000;
+                while (Date.now() < pollDeadline) {
+                    postFilterCount = await resultsPage.resultCards
+                        .count()
+                        .catch(() => 0);
+                    if (postFilterCount > 0) break;
+                    await session.page.waitForTimeout(500);
+                }
                 log(`post-filter result cards: ${postFilterCount}`);
+                await session.page.screenshot({
+                    path: scenarioPath(scenarioDir, '001b-post-filter.png'),
+                    fullPage: false,
+                }).catch(() => undefined);
                 if (postFilterCount === 0) {
                     emitError('no_packages_after_filter', {
-                        detail: `--content-source ${cs} narrowed the results list to 0 packages on this route/date; pick a route/date where ${cs} has storefront inventory.`,
+                        detail: `--content-source ${cs} narrowed the results list to 0 packages on this route/date; pick a route/date where ${cs} has front-end inventory.`,
                         checkout_url: null,
                         scenario_dir: scenarioDir,
                     });
                 }
-                await resultsPage.waitForResults();
             } else {
                 log(`WARN: --content-source ${cs} pin not applied — select#gds did not mount within 6.5s (Debug Filters panel may be missing on this build); selecting first package (optimizer kill-switch still applies in checkout)`);
             }
@@ -295,13 +340,12 @@ async function main(): Promise<void> {
         // reaches genesis. UI-mode form submits naturally pick up whatever the
         // serialized form sends, which means a React-controlled <select> in UI
         // mode may have the same problem; the recommended path is API mode.
-        if (cs && brand === 'flighthub') {
-            const fhCheckout = checkoutPage as FlighthubCheckoutPage;
-            const hasToggle = await fhCheckout.disableOptimizerSelect.count()
+        if (cs) {
+            const hasToggle = await checkoutPage.disableOptimizerSelect.count()
                 .then((n) => n > 0)
                 .catch(() => false);
             if (hasToggle) {
-                await fhCheckout.setOptimizerDisabled(true).catch(() => undefined);
+                await checkoutPage.setOptimizerDisabled(true).catch(() => undefined);
                 log('Debug Options toggle clicked (UI display only — API mode also forces qa_debug_booking_optimizer_disabled=Yes in the POST body below)');
             } else {
                 log('Debug Options toggle NOT FOUND in DOM — relying on POST-body override only');
@@ -321,19 +365,27 @@ async function main(): Promise<void> {
         // come from our code, not from autofill defaults.
         if (inputs.mode === 'api') {
             if (env !== 'production') {
-                const autofillCalled = await (checkoutPage as FlighthubCheckoutPage)
-                    .clickAutofill()
+                const autofillCalled = await checkoutPage.clickAutofill()
                     .then(() => true)
                     .catch(() => false);
                 if (autofillCalled) log('autofill clicked (is_test=1 set)');
             }
 
             // Advance to the payment step if this is a two-step checkout so
-            // all payment DOM inputs are present before serialization.
-            if (brand === 'flighthub') {
-                await (checkoutPage as FlighthubCheckoutPage).continueToPayment()
-                    .catch(() => undefined);
-            }
+            // all payment DOM inputs are present before serialization. Both
+            // FlightHub and JustFly have a two-step flow; the .catch makes
+            // this a no-op on builds where the button is absent.
+            await checkoutPage.continueToPayment().catch(() => undefined);
+            // Continue-to-Payment triggers a supplier availability check
+            // (e.g. TravelFusion ProcessDetails). If we submit before that
+            // call returns, the supplier rejects the submit with
+            // "A newer ProcessDetails call is in progress for this routing
+            // session" and the booking fails with a generic GDS error.
+            // Settle here so the avail check completes before we POST.
+            await session.page.waitForLoadState('networkidle', {
+                timeout: 15_000,
+            }).catch(() => undefined);
+            await session.page.waitForTimeout(1500);
 
             // Serialize the autofill-populated DOM form.
             // Autofill pre-fills card data the server is configured to accept on staging —
@@ -368,7 +420,7 @@ async function main(): Promise<void> {
             // showed qa_debug_booking_optimizer_disabled=No despite a successful
             // Playwright toggle flip; booking 299450712 originally Pkfare was
             // optimized to Flightroutes24 mid-checkout.
-            if (cs && brand === 'flighthub') {
+            if (cs) {
                 const fieldName = 'qa_debug_booking_optimizer_disabled';
                 const before = formBody;
                 formBody = formBody
@@ -453,6 +505,57 @@ async function main(): Promise<void> {
             }
 
             log(`booking confirmed (api): id_hash=${idHash}`);
+
+            // Post-book pin verify. The runner's --content-source / --office-id
+            // flags drive the storefront-side filter, but the booker can still
+            // pivot mid-flight (optimizer / supplier fallback). Read the
+            // bookings row and surface gds + gds_account_id so the agent does
+            // not have to remember to verify; do not fail here — record the
+            // mismatch on the JSON so the caller decides.
+            let bookedGds: string | null = null;
+            let bookedGdsAccountId: string | null = null;
+            let bookedId: number | null = null;
+            let pinVerified: boolean | null = null;
+            let pinMismatch: string | null = null;
+            if (idHash) {
+                try {
+                    const rows = await mysqlQuery(
+                        `SELECT id, gds, gds_account_id FROM ota.bookings WHERE id_hash = '${idHash.replace(/'/g, "''")}' LIMIT 1`
+                    );
+                    if (rows.length > 0) {
+                        bookedId = (rows[0].id as number) ?? null;
+                        bookedGds = (rows[0].gds as string) ?? null;
+                        bookedGdsAccountId =
+                            (rows[0].gds_account_id as string) ?? null;
+                        const csOk = cs
+                            ? bookedGds?.toLowerCase() === cs.toLowerCase()
+                            : true;
+                        const officeOk = officeId
+                            ? bookedGdsAccountId?.toUpperCase() ===
+                              officeId.toUpperCase()
+                            : true;
+                        pinVerified = csOk && officeOk;
+                        if (!csOk) {
+                            pinMismatch = `content_source: pinned=${cs} booked=${bookedGds}`;
+                        } else if (!officeOk) {
+                            pinMismatch = `office_id: pinned=${officeId} booked=${bookedGdsAccountId}`;
+                        }
+                        log(
+                            `post-book pin verify: gds=${bookedGds} gds_account_id=${bookedGdsAccountId} pin_verified=${pinVerified}` +
+                                (pinMismatch ? ` mismatch=${pinMismatch}` : '')
+                        );
+                    } else {
+                        log(
+                            'post-book pin verify: booking row not found yet (replication lag?). Caller should re-check via qa-validate.'
+                        );
+                    }
+                } catch (e) {
+                    log(
+                        `post-book pin verify: SKIPPED (${(e as Error).message.slice(0, 120)})`
+                    );
+                }
+            }
+
             emitOk({
                 scenario_dir: scenarioDir,
                 brand,
@@ -460,8 +563,13 @@ async function main(): Promise<void> {
                 checkout_url: checkoutUrl,
                 portal_url: portalUrlFromJson,
                 id_hash: idHash,
-                booking_id: null,
+                booking_id: bookedId,
                 content_source_booked: cs ?? null,
+                office_id_pinned: officeId ?? null,
+                gds: bookedGds,
+                gds_account_id: bookedGdsAccountId,
+                pin_verified: pinVerified,
+                pin_mismatch: pinMismatch,
                 package_index_booked: inputs.packageIndex ?? null,
                 failure_injection: inputs.failureInjection ?? null,
                 screenshots: ['001-search-results.png', '002-checkout.png'],

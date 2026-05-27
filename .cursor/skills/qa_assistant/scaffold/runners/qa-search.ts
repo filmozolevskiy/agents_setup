@@ -130,10 +130,17 @@ async function main(): Promise<void> {
     log(`scenarioDir: ${scenarioDir}`);
 
     // Build the /flight/search URL (shared output field for qa-book handoff).
+    // IMPORTANT: the storefront URL uses the longform genesis enum
+    // ("Economy", "Business", …) for `seat_class`, NOT the single-letter IATA
+    // cabin codes ("Y", "C", …). Passing `Y` makes the storefront route to a
+    // reduced supplier set (Amadeus only on staging YUL-LIS), hiding
+    // TravelFusion / Onefly / etc. from the front-end. Verified empirically:
+    // `seat_class=Y` → 20/20 Amadeus packages; `seat_class=Economy` →
+    // 20/20 TravelFusion packages on the same search.
     const tripType = inputs.tripType === 'roundtrip' ? 'roundtrip' : 'oneway';
     const urlParams = new URLSearchParams({
         type: tripType,
-        seat_class: CABIN_TO_URL_CODE[inputs.fareType] ?? 'Y',
+        seat_class: CABIN_TO_SEAT_CLASS[inputs.fareType] ?? 'Economy',
         seg0_from: inputs.route!.origin,
         seg0_to: inputs.route!.dest,
         seg0_date: inputs.route!.depart,
@@ -150,6 +157,11 @@ async function main(): Promise<void> {
         urlParams.set('seg1_from', inputs.route!.dest);
         urlParams.set('seg1_to', inputs.route!.origin);
     }
+    // Point-of-sale + currency. The storefront defaults to USD/US when these
+    // params are absent. Forwarding them is required to exercise non-USD
+    // office routing (e.g. TravelFusion TFCAD on a CAD search).
+    if (inputs.pos) urlParams.set('pos', inputs.pos);
+    if (inputs.currency) urlParams.set('currency', inputs.currency);
     const searchUrl = `${appUrl}/flight/search?${urlParams.toString()}`;
 
     if (inputs.mode === 'api') {
@@ -211,6 +223,8 @@ async function runApiMode({
         initParams.set('seg1_from', inputs.route!.dest);
         initParams.set('seg1_to', inputs.route!.origin);
     }
+    if (inputs.pos) initParams.set('pos', inputs.pos);
+    if (inputs.currency) initParams.set('currency', inputs.currency);
 
     const apiSession = await createApiContext(appUrl);
     try {

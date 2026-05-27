@@ -48,7 +48,7 @@ function runPythonJson(
             if (code !== 0) {
                 reject(
                     new Error(
-                        `${script} exited with code ${code}. stderr: ${stderr.slice(0, 500)}`
+                        `${script} exited with code ${code}. stderr: ${stderr.slice(0, 4000)}`
                     )
                 );
                 return;
