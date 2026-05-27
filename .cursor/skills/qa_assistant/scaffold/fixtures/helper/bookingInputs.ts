@@ -186,6 +186,22 @@ export const BookingInputsSchema = z
         contentSource: z.string().min(1).optional(),
 
         /**
+         * Debug Filter office id (e.g. `TFCAD`, `TFVALCCAD`,
+         * `YKXC42100`). When set, qa-book pins the storefront Office ID
+         * dropdown AND asserts the resulting booking row's
+         * `gds_account_id` matches case-insensitively. Mostly used with
+         * `contentSource` to pin to a specific supplier office (e.g.
+         * `--content-source travelfusion --office-id TFCAD`); valid on
+         * its own when the user wants to test a single office without
+         * narrowing the supplier.
+         */
+        officeId: z
+            .string()
+            .min(1)
+            .regex(/^[A-Z0-9]+$/, 'must be uppercase alphanumeric (e.g. TFCAD, YKXC42100)')
+            .optional(),
+
+        /**
          * Marketing/validating-carrier IATA code (2-letter, e.g. "AC",
          * "BA"). The qa_assistant SKILL rule "When `--carrier` is
          * specified, it always means the marketing/validating carrier"
@@ -252,6 +268,7 @@ export interface NormalizedBookingInputs {
     currency: string;
     pos: string;
     contentSource?: string;
+    officeId?: string;
     carrier?: string;
     packageIndex?: number;
     route?: BookingInputs['route'];
@@ -304,6 +321,7 @@ export function parseFromCli(argv: readonly string[]): Record<string, unknown> {
     if ('currency' in flags) out.currency = flags.currency;
     if ('pos' in flags) out.pos = flags.pos;
     if ('content-source' in flags) out.contentSource = flags['content-source'];
+    if ('office-id' in flags) out.officeId = flags['office-id'];
     if ('carrier' in flags) out.carrier = flags.carrier;
     if ('package-index' in flags) {
         out.packageIndex = toIntOrPassThrough(flags['package-index']);
@@ -415,6 +433,7 @@ export function mergeWithFactoryDefaults(
         currency: inputs.currency ?? 'CAD',
         pos: inputs.pos ?? 'CA',
         contentSource: inputs.contentSource,
+        officeId: inputs.officeId,
         carrier: inputs.carrier,
         packageIndex: inputs.packageIndex,
         route: inputs.route,

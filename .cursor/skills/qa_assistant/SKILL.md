@@ -119,6 +119,46 @@ to this rule. Background on the auto-flip:
 [`references/known_issues.md`](references/known_issues.md)
 "Optimizer reroutes content-source-specific bookings".
 
+### Always verify the `gds` column after a content-source pin
+
+The runner's `content_source_booked` field in `qa-book` output is the
+**intent** the runner passed, not the **outcome** the booker landed on.
+Several supplier paths can pivot the booking mid-flight (optimizer
+re-route, supplier fallback, marketing-carrier swap), and at least one
+historical bug let JustFly bookings ignore the pin entirely. After every
+`--content-source <X>` run, query MySQL `ota.bookings` for the
+`booking_id` (or `id_hash`) and confirm `gds` matches `<X>` case-insensitively
+before reporting PASS. If it does not, the run is a FAIL even if the
+booking confirmed — record the actual `gds` and `gds_account_id` in the
+report so the discrepancy is visible.
+
+```sql
+SELECT id, id_hash, gds, gds_account_id, validating_carrier, currency, status, is_test
+FROM ota.bookings
+WHERE id_hash = '<id_hash from qa-book>';
+```
+
+## When `--office-id` is specified, the booking must land on that office
+
+The new `--office-id <OFFICE_ID>` flag (e.g. `TFCAD`, `TFVALCCAD`,
+`YKXC42100`) pins both the storefront-side Office ID dropdown in the
+Debug Filters panel **and** a post-book check against the
+`gds_account_id` column. The booker can still drop the pin under load
+(optimizer / supplier fallback paths that bypass the storefront-side
+filter), so verification is mandatory:
+
+```sql
+SELECT id, gds, gds_account_id
+FROM ota.bookings
+WHERE id_hash = '<id_hash from qa-book>';
+```
+
+Pass condition: `gds_account_id = '<OFFICE_ID>'`. If the booking landed
+on a different office of the same supplier (e.g. pinned `TFCAD` but
+booked on `TFVALCCAD`), record both values and report
+**UNCLEAR** — the office-routing-aware portion of the test did not run,
+even though the supplier matched.
+
 ## When `--carrier` is specified, it always means the marketing/validating carrier
 
 When the user names a specific carrier ("book on TK", "AC test
@@ -294,6 +334,35 @@ permalink. Format spec, per-invariant proof catalogue, and a worked
 example: [`references/report_format.md`](references/report_format.md).
 Do not free-form summarize in chat once `report.md` is written —
 quote it.
+
+### Proof must be a runnable artefact, not a narrative
+
+Every `Proof` cell is either (a) a short runnable query, or (b) a
+permalink. Prose-only proofs are forbidden — "I checked X" never
+substitutes for the query that observed X.
+
+- **DB evidence — two fenced blocks back-to-back**:
+  1. A `sql` or `javascript` (Mongo) fence with a short runnable query,
+     pinned to this run's `search_id` / `transaction_id` / `booking_id`
+     / `id_hash` on the smallest column set that decides the verdict.
+  2. A plain-text fence holding the literal result as a CLI-style
+     aligned table (header row, `-`+`+` separator under each column
+     boundary, padded columns, vertically aligned `|`). No
+     `→ value | value` inline shorthand, no narrative paraphrase.
+
+- **For any happy-path booking row, the proof must include the `gds`
+  and `gds_account_id` columns from `ota.bookings`** — those are the
+  only columns that prove the content-source pin actually held. A row
+  that omits them is not a valid proof for a `--content-source` run.
+
+- **Log evidence**: a permalink to the debug-logs UI scoped to the
+  transaction.
+
+- **UI evidence**: a screenshot path under the scenario dir plus one
+  sentence on what's visible.
+
+Skip the proof field only when the verdict itself doesn't depend on
+evidence (e.g. `NOT RUN — runner crashed`).
 
 ## Run summary: write for QA, not for the agent's author
 

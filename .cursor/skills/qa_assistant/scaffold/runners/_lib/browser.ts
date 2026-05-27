@@ -10,6 +10,18 @@ export interface BrowserSession {
 }
 
 /**
+ * Realistic Chrome user-agent. The default Playwright UA (`HeadlessChrome/...`)
+ * triggers upstream supplier bot-heuristics that strip TravelFusion (and
+ * likely other non-GDS sources) from the response — verified empirically on
+ * staging99 YUL→LIS 2026-06-17 CAD: default UA returns 0 TF packages winning
+ * the front-end dedup; real Chrome UA returns 20/20. Update the version
+ * occasionally to track current Chrome.
+ */
+const REAL_CHROME_UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+/**
  * Launches a Chromium browser for UI-mode runners (`ui-headless` or
  * `ui-headed`). Not used for `--mode api` (no browser needed).
  *
@@ -26,9 +38,11 @@ export async function launchBrowser(
 ): Promise<BrowserSession> {
     const headless = mode === 'ui-headless';
     const browser = await chromium.launch({ headless });
-    const context = await browser.newContext(
-        storageStatePath ? { storageState: storageStatePath } : {}
-    );
+    const context = await browser.newContext({
+        userAgent: REAL_CHROME_UA,
+        viewport: { width: 1440, height: 900 },
+        ...(storageStatePath ? { storageState: storageStatePath } : {}),
+    });
     const page = await context.newPage();
 
     return {

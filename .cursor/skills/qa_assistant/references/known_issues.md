@@ -62,6 +62,55 @@ a bug.
   prices in USD. `qa-validate`'s checklist treats
   `bookings.currency != currency_hint` as **AMBIGUOUS**, not FAIL.
 
+## `seat_class` storefront URL value must be the genesis enum, not the IATA code
+
+- The `/flight/search?seat_class=...` param expects the **genesis
+  cabin enum** (`Economy`, `EconomyPremium`, `Business`, `First`).
+  Passing the IATA single-letter code (`Y`, `W`, `C`, `F`) silently
+  routes the storefront to a reduced supplier set — empirically
+  Amadeus-only — and hides every non-GDS source (TravelFusion,
+  Onefly, etc.) from the front-end before any Debug Filter runs.
+- `qa-search` builds the URL with `CABIN_TO_SEAT_CLASS` (longform);
+  do not regress to `CABIN_TO_URL_CODE` here. The single-letter map
+  is only valid for `--package-index` callers that bypass the
+  supplier set, which we don't currently have.
+
+## How to identify the supplier behind a package on the front-end
+
+- `/storefront-api/search-result-fetch/<search_id>` returns each
+  package under `extra_info.info.gds` (`amadeus`, `travelfusion`,
+  `onefly`, ...) and `extra_info.info.gds_account_id` (the office id
+  — `TFCAD`, `YKXC42100`, ...). These are the canonical front-end
+  signals when ClickHouse and the rendered card disagree on which
+  source actually won the dedup.
+- The Debug Filters `select#gds` dropdown filters on this same
+  `extra_info.info.gds` value. If the filter narrows to 0 cards while
+  ClickHouse claims TF `num_packages_won > 0`, that means TF responded
+  to the supplier call but lost the front-end per-itinerary price
+  dedup — not a filter bug. Verify with an `/search-result-fetch`
+  intercept before chasing a runner fix.
+
+## Default Playwright User-Agent triggers reduced supplier inventory
+
+- Some upstream suppliers respond differently to the default
+  Chromium `HeadlessChrome/...` UA than to a real-Chrome UA, returning
+  reduced inventory or thinner package sets. `runners/_lib/browser.ts`
+  and `runners/_lib/apiRequest.ts` already pin a realistic Chrome UA on
+  every context; do not remove that. If a probe ever needs to A/B the
+  UA effect, run both configurations and compare
+  `extra_info.info.gds` distributions in the
+  `/search-result-fetch` JSON.
+
+## `pos` / `currency` must be forwarded explicitly
+
+- The storefront defaults to USD/US when `pos` and `currency` are
+  absent from the `/flight/search` URL **and** from `/storefront-api/
+  search-init`. They are not picked up from cookies on a fresh
+  Playwright session, so they must be passed on the URL of both
+  calls. `qa-search` does this when `--pos` and `--currency` are set;
+  forgetting either flag silently degrades CAD bookings to USD and
+  defeats CAD-office routing tests.
+
 ## Content source availability varies by day
 
 - Not every source publishes fares for every day. If a source has 0

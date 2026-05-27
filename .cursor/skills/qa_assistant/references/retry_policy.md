@@ -63,6 +63,34 @@ Stop immediately (no further retries) when:
   `missing_join_key`) → unknown failure
   mode, escalate.
 
+## TravelFusion `CommandExecutionFailure(3-8344: A newer ProcessDetails call is in progress)`
+
+A specific, transient supplier-side error worth its own ladder. When
+the booking submit returns `error_type=gds_error` and Mongo
+`debug_logs.context = travelfusion-booker-result` carries
+`process_details_response_error: CommandExecutionFailure(3-8344:A newer
+ProcessDetails call is in progress for this routing session)`, the
+booker raced its own availability check.
+
+- **Root cause**: the `Continue-to-Payment` click triggers a
+  TravelFusion `ProcessDetails` call (avail check). If the booking
+  POST fires before that call returns, TF rejects the POST because a
+  newer ProcessDetails is already in flight for the same routing
+  session. The fix in the runner is to wait for `networkidle` plus a
+  short settle after `Continue-to-Payment`; this entry is the manual
+  retry recipe if the wait turns out to be insufficient on a slow
+  network.
+- **Retry**: fresh `qa-search` (the previous search session is now
+  "locked" on TF's side; reusing it will keep hitting 3-8344), same
+  route / date / `--content-source travelfusion`. The 3-supplier-fail
+  terminator above still applies — three consecutive 3-8344 errors
+  on the same source mean the runner's settle window is too tight,
+  not a supplier outage. Escalate to a runner change rather than
+  a fourth retry.
+- **Do not** classify 3-8344 as a "flight not available" failure: it
+  is a race, not an inventory drop, and resetting the search session
+  is the correct cure.
+
 ## Stop and investigate after 3 supplier-side "flight not available" failures
 
 Three consecutive submit-time "flight not available" failures on the
