@@ -174,66 +174,102 @@ No booking number is shown on the page — must be looked up in MySQL.
 
 ## 6. Summit Stats Page
 
-Base URL: `https://staging2-summit.flighthub.com` (Momentum OTA-Admin).
-Stats are auth-gated; anonymous requests redirect to `/login`. The
-[`SummitStatsPage`](legacy_python/qa_automation/pages/summit_stats_page.py)
-runner logs in at the base URL and then navigates straight to
-`/flight-search/info/{search_hash}` (the `#searchIdForm` lookup just
-redirects to the same path — bypass it).
+Base URL: `https://staging2-summit.flighthub.com` (Momentum OTA-Admin),
+override via `SUMMIT_URL` in `.env`. Stats are auth-gated; anonymous
+requests redirect to `/login`. The
+[`SummitStatsPage`](scaffold/pages/shared/summitStats.page.ts) page
+object and the
+[`qa-summit-stats`](scaffold/runners/qa-summit-stats.ts) runner log in
+at the base URL and then navigate straight to
+`/flight-search/info/{search_hash}` (the dashboard `#searchIdForm`
+lookup just redirects to the same path — bypass it). Surfaced by Trello
+[`E7H61lm6`](https://trello.com/c/E7H61lm6).
 
 | Step | URL | Element | Selector |
 |------|-----|---------|----------|
-| Login | `/` | Login form wrapper | `form.login-form` |
-| Login | same | Username (Email) input | `#email` |
+| Login | `/` | Username (Email) input | `#email` |
 | Login | same | Password input | `#password` |
 | Login | same | Submit (`Sign In`) | `#process-login` |
 | Stats page wrapper | `/flight-search/info/{search_hash}` | Stats container | `#flightSearchStats` |
-| Stats page wrapper | same | Search ID lookup form | `#searchIdForm` |
-| Stats page wrapper | same | Search ID lookup input | `#search_id` |
-| Stats summary (per `search_hash`) | same | `Stats` fieldset summary | `#flightSearchStats fieldset.stats` |
-| Search urls table | same | `Search urls` table (per-API-call detail) | `#flightSearchStats fieldset#urlStats table` |
+| Search-level summary | same | `Stats` fieldset (dl head + counter columns) | `#flightSearchStats fieldset.stats` |
+| Aggregate timers / counters | same | `Extra Stats` fieldset | `#flightSearchStats fieldset.extraStats` |
+| Per-URL stats table | same | `Search urls` transposed table | `#flightSearchStats fieldset#urlStats table` |
+| Expiry signal | same | "Search not found" error fieldset | `<fieldset><legend>Error</legend>` containing `Search not found` |
+
+**`#urlStats` table is transposed.** Verified 2026-05-27 against a live
+hash with 59 outbound supplier calls. The table renders **one column
+per URL id** (`<thead>`: `Url id | 1 | 2 | 3 | …`) and **one row per
+attribute name** (`<tbody>`: `api url`, `gds`, `content_source`,
+`office_id`, `office_currency`, `runtime`, `received packages`,
+`priced packages`, `total packages`, `blocked.pricing`,
+`blocked.supplier`, `type`, `backend`, `no stats`, and every outbound
+query param). `SummitStatsPage.parseUrlStats()` flips it back to one
+`UrlStatRecord` per URL column; every row label is preserved verbatim
+in `attributes` so the parser stays forward-compatible when Summit adds
+new rows. Convenience fields (`api_url`, `content_source`, `gds`,
+`runtime`, `received_packages`, …) are plucked from the same map.
+
+**Raw supplier req/resp live one hop away (not on the page DOM).** The
+`api url` row carries the outbound URL via an `<a href>` anchor
+(Playwright pulls the href, not the link text). Summit pre-bakes
+`get_gds_exchange=1` into every printed api_url — replaying that URL
+(authed session) returns a small JSON wrapper whose body contains the
+`gds_request` and `gds_response` fields. Each is a
+`https://<summit-host>/data-exchange-debug/{uuid}` URL with a
+~3600-second TTL pointing at the raw supplier exchange (e.g. an IATA
+NDC SOAP envelope for `aircanadandc` request, the corresponding
+`AirShoppingRS` XML for the response). The `qa-summit-stats`
+`--fetch-exchange` flag automates the full chain — replay every
+api_url, harvest both URLs from the JSON body, download via the
+authed session, write to `<scenario_dir>/exchanges/<url_id>-<source>.{rq,rs}.<ext>`
+with an index `exchanges/README.md`. Limit by source via
+`--exchange-sources amadeus,aircanadandc`.
+
+The only debug-log link rendered on the page itself is the single
+search-level `Debug log` URL in `fieldset.stats` dl head
+(`https://staging2-reservations.voyagesalacarte.ca/debug/log/<search_hash>`),
+captured by `parseSummary().links['Debug log']`.
 
 **Notes:**
-- Summit's username field is named `email` in the DOM; we keep
-  `username_input` as the canonical selector key on `SummitSelectors`
-  for parity with `RESPRO.username_input`. The selector itself is
-  `#email`.
-- The keyed URL only renders a `fieldset.stats` summary when the search
-  is still in Summit's in-memory store. The summary's `Expire at` line
-  shows ~20 minutes after run, so anything older than that returns the
-  same template with an `Error: Search not found` fieldset and *no*
-  `fieldset.stats`. `SummitStatsPage.find_search_hash_row()` raises
-  `SelectorNotFound("summit.stats_row")` in that case — the `detail`
-  string distinguishes "expired vs selector rot" so callers can act on it.
-- `find_search_hash_row()` returns the `<dl><dt>/<dd>` pairs inside
-  `fieldset.stats` as a `{label: value}` dict (e.g. `Search id`,
-  `Started`, `Completed`, `Packages count`, `Runtime`, `Started at`,
-  `Expire at`, `Backend`). The keyed page also exposes `Web link`,
-  `Api link`, and `Debug log` URLs in the same `dl` head — use the
-  `<dd> > a[href]` if you need the underlying URLs (the dict carries
-  the link text only).
-- `qa-diag --page summit --url https://staging2-summit.flighthub.com/`
-  is the canonical anonymous probe and confirms the four login
-  selectors. The five `summit.stats_*` selectors require auth and only
-  appear in the dump produced by the throwaway logged-in inspector
-  (see card [`ue37vUp5`](https://trello.com/c/ue37vUp5)). A `qa-diag`
-  call against the keyed stats URL also lands on `/login` (anonymous
-  redirect) and will report `summit.stats_*` as missing — that is
-  expected, not selector rot. To detect rot in the stats portion, run
-  the page object end-to-end (login → `find_search_hash_row(<live hash>)`)
-  using a freshly-issued hash from `search_api_stats.gds_raw` (anything
-  inside the last ~20 min).
-- A live hash for confirmation: pull the most recent
+- The keyed URL only renders `fieldset.stats` while the search is still
+  in Summit's in-memory store. The summary's `Expire at` line shows
+  ~20 minutes after run; older hashes return a `<fieldset><legend>Error</legend>`
+  block containing `Search not found` and *no* `fieldset.stats`.
+  `SummitStatsPage.isSearchFound()` returns false on either signal;
+  `parseSummary()` / `parseUrlStats()` raise an error with
+  `code: 'SUMMIT_SEARCH_NOT_FOUND'` and the `qa-summit-stats` runner
+  exits with `error=summit_search_not_found` — distinguishable from
+  selector rot. Older Python docs cited `Error: Search not found`; the
+  rendered text is `Search not found` (without the `Error:` prefix —
+  that word lives in the fieldset legend).
+- `parseSummary()` returns `{ fields, links }` over the four dls inside
+  `fieldset.stats` (head + three column dls). `fields` carries the
+  `<dt>label</dt> <dd>value</dd>` pairs as text (so the `Debug log`
+  entry is just `"link"`); the underlying anchor URLs are harvested
+  separately into `links` (`Desktop Link`, `Api Link`, `Debug log`).
+- `parseExtraStats()` returns the `Extra Stats` fieldset as a flat
+  `{label: value}` map: `gds_urls_count`, `gds_timeouts_count`,
+  `gds_errors_count`, `gds_no_packages_received_count`, and the
+  `timer_*` rollups. Empty map when Summit omits the fieldset (it is
+  conditional on which search backend ran).
+- A live hash for end-to-end confirmation: pull the most recent
   `search_id` from
   `SELECT search_id FROM search_api_stats.gds_raw WHERE date_added >=
   now() - INTERVAL 5 MINUTE GROUP BY search_id ORDER BY
   max(date_added) DESC LIMIT 1`. Booking-derived hashes
   (`bookings.debug_transaction_id`) age out fast — most are already
-  `Search not found` by the time you run the inspector.
+  `Search not found` by the time you run the inspector. A fresh hash
+  triggered via `qa-search` is the easiest source.
+- Forensic DOM dump:
+  `npx tsx runners/_probes/summit-inspect.ts --search-hash <hash>`
+  logs in once and saves `flightSearchStats.html` + `urlStats.html` +
+  `page.png` under `scaffold/reports/_stdio/summit-probe-<hash>/`.
+  Not wired into `package.json` scripts — invoke directly when
+  selectors drift.
 - Summit production env (`https://summit.flighthub.com`) is **not**
-  covered by this section — production search/checkout/results selectors
-  are unified via `pages/selectors.py` (see sections 1–4 above and the
-  unioned constants in `selectors.py`).
+  covered by this skill — staging only. Storefront / checkout /
+  results selectors for production are unified inside `pages/` and
+  documented in sections 1–4 above.
 
 ---
 
