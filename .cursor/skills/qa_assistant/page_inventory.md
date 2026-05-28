@@ -209,13 +209,25 @@ in `attributes` so the parser stays forward-compatible when Summit adds
 new rows. Convenience fields (`api_url`, `content_source`, `gds`,
 `runtime`, `received_packages`, …) are plucked from the same map.
 
-**No raw-response URL on the page.** The `api url` row carries the
-outbound supplier URL via an `<a href>` anchor (Playwright pulls the
-href, not the link text). There is no `data-exchange-debug/{uuid}`
-anchor anywhere in `#flightSearchStats` — older notes referenced one
-but it was either removed or moved to a different tool. The only
-debug-log link on this page is the single search-level `Debug log` URL
-in the `fieldset.stats` dl head (`https://staging2-reservations.voyagesalacarte.ca/debug/log/<search_hash>`),
+**Raw supplier req/resp live one hop away (not on the page DOM).** The
+`api url` row carries the outbound URL via an `<a href>` anchor
+(Playwright pulls the href, not the link text). Summit pre-bakes
+`get_gds_exchange=1` into every printed api_url — replaying that URL
+(authed session) returns a small JSON wrapper whose body contains the
+`gds_request` and `gds_response` fields. Each is a
+`https://<summit-host>/data-exchange-debug/{uuid}` URL with a
+~3600-second TTL pointing at the raw supplier exchange (e.g. an IATA
+NDC SOAP envelope for `aircanadandc` request, the corresponding
+`AirShoppingRS` XML for the response). The `qa-summit-stats`
+`--fetch-exchange` flag automates the full chain — replay every
+api_url, harvest both URLs from the JSON body, download via the
+authed session, write to `<scenario_dir>/exchanges/<url_id>-<source>.{rq,rs}.<ext>`
+with an index `exchanges/README.md`. Limit by source via
+`--exchange-sources amadeus,aircanadandc`.
+
+The only debug-log link rendered on the page itself is the single
+search-level `Debug log` URL in `fieldset.stats` dl head
+(`https://staging2-reservations.voyagesalacarte.ca/debug/log/<search_hash>`),
 captured by `parseSummary().links['Debug log']`.
 
 **Notes:**

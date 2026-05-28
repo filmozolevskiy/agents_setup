@@ -32,6 +32,15 @@
  * Usage:
  *   cd .cursor/skills/qa_assistant/scaffold
  *   npm run qa-summit-stats -- --search-hash <hash> [--mode ui-headless|ui-headed] [--scenario-dir reports/<UTC>-<label>]
+ *
+ *   # Also download every supplier's raw NDC/SOAP request and response
+ *   # (api_url has `get_gds_exchange=1` baked in by Summit; replaying it
+ *   # returns gds_request / gds_response URLs that we then download via
+ *   # the authed Summit session):
+ *   npm run qa-summit-stats -- --search-hash <hash> --fetch-exchange
+ *
+ *   # Limit the harvest to one supplier:
+ *   npm run qa-summit-stats -- --search-hash <hash> --fetch-exchange --exchange-sources aircanadandc
  */
 
 import * as fs from 'node:fs';
@@ -42,6 +51,8 @@ import { createScenarioDir, scenarioPath } from './_lib/scenarioDir';
 import { launchBrowser } from './_lib/browser';
 import { SummitStatsPage } from '../pages/shared/summitStats.page';
 import type { Mode } from '../fixtures/helper/bookingInputs';
+import type { BrowserContext } from '@playwright/test';
+import type { UrlStatRecord } from '../pages/shared/summitStats.page';
 
 interface RunnerFlags {
     searchHash?: string;
@@ -49,6 +60,22 @@ interface RunnerFlags {
     label?: string;
     mode?: Mode;
     env?: string;
+    /**
+     * When set, after parsing the Summit `#urlStats` table the runner
+     * replays each printed `api_url` (which already carries
+     * `get_gds_exchange=1`), reads `gds_request` / `gds_response` URLs
+     * from the JSON body, and downloads both payloads via the authed
+     * Summit session. Files land in `<scenario_dir>/exchanges/`. Opt-in
+     * because replaying every outbound URL costs real time (~10–30 s
+     * for a 30-call search) and re-issues the supplier query.
+     */
+    fetchExchange?: boolean;
+    /**
+     * Skip any url_stats record whose `content_source` is not in this
+     * comma-separated allowlist. Defaults to all sources. Useful when
+     * you only need one supplier's exchange (e.g. `--exchange-sources aircanadandc`).
+     */
+    exchangeSources?: string[];
 }
 
 function parseFlags(argv: string[]): RunnerFlags {
@@ -87,6 +114,25 @@ function parseFlags(argv: string[]): RunnerFlags {
             flags.env = env;
             continue;
         }
+        // Boolean toggle — accept `--fetch-exchange` and
+        // `--fetch-exchange=true|false`.
+        if (tok === '--fetch-exchange') {
+            flags.fetchExchange = true;
+            continue;
+        }
+        if (tok.startsWith('--fetch-exchange=')) {
+            const value = tok.slice('--fetch-exchange='.length).toLowerCase();
+            flags.fetchExchange = value !== 'false' && value !== '0';
+            continue;
+        }
+        const sources = pick('exchange-sources');
+        if (sources !== undefined) {
+            flags.exchangeSources = sources
+                .split(',')
+                .map((s) => s.trim().toLowerCase())
+                .filter((s) => s.length > 0);
+            continue;
+        }
     }
     return flags;
 }
@@ -100,6 +146,192 @@ interface UrlStatRow {
     priced_packages: string | null;
     total_packages: string | null;
     api_url: string | null;
+}
+
+interface ExchangeOutcome {
+    url_id: number;
+    content_source: string | null;
+    /** `ok` (both downloaded), `replay_failed`, `no_exchange`, `download_failed`. */
+    status: 'ok' | 'replay_failed' | 'no_exchange' | 'download_failed';
+    gds_request_url?: string;
+    gds_response_url?: string;
+    rq_file?: string;
+    rs_file?: string;
+    rq_bytes?: number;
+    rs_bytes?: number;
+    error?: string;
+}
+
+interface FareFetchReplayBody {
+    gds_request?: string;
+    gds_response?: string;
+    gds_exchange_ttl?: number;
+}
+
+/**
+ * For each url_stats record, replays the printed `api_url` (already
+ * carries `get_gds_exchange=1`), then downloads the `gds_request` and
+ * `gds_response` payloads via the authed Summit session.
+ *
+ * Sequential (~ 30 records × 3 HTTP calls = ~90 requests for a typical
+ * search; serial keeps the load predictable and the failure modes
+ * easier to reason about). The api_url replay re-issues the supplier
+ * call — this is opt-in for that reason.
+ *
+ * Output filenames follow `<url_id>-<content_source>.{rq,rs}.<ext>` so
+ * a directory listing is self-describing. Extension is derived from
+ * the `content-type` header (xml / json / fallback txt).
+ */
+async function harvestExchanges(
+    context: BrowserContext,
+    records: UrlStatRecord[],
+    outDir: string,
+    sourceAllowlist?: string[]
+): Promise<ExchangeOutcome[]> {
+    fs.mkdirSync(outDir, { recursive: true });
+    const outcomes: ExchangeOutcome[] = [];
+
+    const pickExt = (contentType: string): string => {
+        const ct = contentType.toLowerCase();
+        if (ct.includes('xml')) return '.xml';
+        if (ct.includes('json')) return '.json';
+        return '.txt';
+    };
+
+    for (const rec of records) {
+        const source = rec.content_source ?? 'unknown';
+        if (
+            sourceAllowlist &&
+            sourceAllowlist.length > 0 &&
+            !sourceAllowlist.includes(source.toLowerCase())
+        ) {
+            continue;
+        }
+
+        const base: ExchangeOutcome = {
+            url_id: rec.url_id,
+            content_source: rec.content_source,
+            status: 'no_exchange',
+        };
+
+        if (!rec.api_url) {
+            outcomes.push({
+                ...base,
+                status: 'no_exchange',
+                error: 'api_url missing on this row',
+            });
+            continue;
+        }
+
+        let body: FareFetchReplayBody;
+        try {
+            const resp = await context.request.get(rec.api_url);
+            if (!resp.ok()) {
+                outcomes.push({
+                    ...base,
+                    status: 'replay_failed',
+                    error: `HTTP ${resp.status()} from api_url replay`,
+                });
+                continue;
+            }
+            // Some fare-fetch backends wrap the body in non-JSON
+            // frames when nothing fetched (e.g. `no_stats: true` rows).
+            // Treat parse failures as `no_exchange` rather than fatal.
+            const text = await resp.text();
+            try {
+                body = JSON.parse(text) as FareFetchReplayBody;
+            } catch (parseErr) {
+                outcomes.push({
+                    ...base,
+                    status: 'no_exchange',
+                    error: `replay body not JSON: ${String(parseErr)}`,
+                });
+                continue;
+            }
+        } catch (e) {
+            outcomes.push({
+                ...base,
+                status: 'replay_failed',
+                error: String(e),
+            });
+            continue;
+        }
+
+        if (!body.gds_request || !body.gds_response) {
+            outcomes.push({
+                ...base,
+                status: 'no_exchange',
+                gds_request_url: body.gds_request,
+                gds_response_url: body.gds_response,
+                error: 'replay body did not include both gds_request and gds_response (likely a cache hit or `no stats=true` row)',
+            });
+            continue;
+        }
+
+        try {
+            const [rqResp, rsResp] = await Promise.all([
+                context.request.get(body.gds_request),
+                context.request.get(body.gds_response),
+            ]);
+            if (!rqResp.ok() || !rsResp.ok()) {
+                outcomes.push({
+                    ...base,
+                    status: 'download_failed',
+                    gds_request_url: body.gds_request,
+                    gds_response_url: body.gds_response,
+                    error: `HTTP rq=${rqResp.status()} rs=${rsResp.status()}`,
+                });
+                continue;
+            }
+            const rqBytes = await rqResp.body();
+            const rsBytes = await rsResp.body();
+            const stem = `${String(rec.url_id).padStart(3, '0')}-${source}`;
+            const rqFile = path.join(
+                outDir,
+                `${stem}.rq${pickExt(rqResp.headers()['content-type'] ?? '')}`
+            );
+            const rsFile = path.join(
+                outDir,
+                `${stem}.rs${pickExt(rsResp.headers()['content-type'] ?? '')}`
+            );
+            fs.writeFileSync(rqFile, rqBytes);
+            fs.writeFileSync(rsFile, rsBytes);
+            outcomes.push({
+                ...base,
+                status: 'ok',
+                gds_request_url: body.gds_request,
+                gds_response_url: body.gds_response,
+                rq_file: rqFile,
+                rs_file: rsFile,
+                rq_bytes: rqBytes.length,
+                rs_bytes: rsBytes.length,
+            });
+        } catch (e) {
+            outcomes.push({
+                ...base,
+                status: 'download_failed',
+                gds_request_url: body.gds_request,
+                gds_response_url: body.gds_response,
+                error: String(e),
+            });
+        }
+    }
+
+    return outcomes;
+}
+
+function renderExchangesIndex(outcomes: ExchangeOutcome[]): string {
+    const header =
+        '| url_id | content_source | status | rq_bytes | rs_bytes | rq_file | rs_file | error |';
+    const sep =
+        '|--------|----------------|--------|----------|----------|---------|---------|-------|';
+    const body = outcomes
+        .map(
+            (o) =>
+                `| ${o.url_id} | ${o.content_source ?? ''} | ${o.status} | ${o.rq_bytes ?? ''} | ${o.rs_bytes ?? ''} | ${o.rq_file ? path.basename(o.rq_file) : ''} | ${o.rs_file ? path.basename(o.rs_file) : ''} | ${o.error ?? ''} |`
+        )
+        .join('\n');
+    return `${header}\n${sep}\n${body}\n`;
 }
 
 function renderMarkdownTable(rows: UrlStatRow[]): string {
@@ -196,6 +428,33 @@ async function main(): Promise<void> {
             api_url: r.api_url,
         }));
 
+        let exchanges: ExchangeOutcome[] | undefined;
+        if (flags.fetchExchange) {
+            const filter = flags.exchangeSources;
+            log(
+                `harvesting raw supplier exchanges${
+                    filter && filter.length > 0
+                        ? ` for sources: ${filter.join(', ')}`
+                        : ''
+                } — this replays every outbound api_url`
+            );
+            exchanges = await harvestExchanges(
+                session.context,
+                urlStats,
+                path.resolve(scenarioDir, 'exchanges'),
+                filter
+            );
+            fs.writeFileSync(
+                path.resolve(scenarioDir, 'exchanges', 'README.md'),
+                renderExchangesIndex(exchanges)
+            );
+            const ok = exchanges.filter((o) => o.status === 'ok').length;
+            const skipped = exchanges.length - ok;
+            log(
+                `harvested ${ok}/${exchanges.length} exchanges (${skipped} skipped or failed — see exchanges/README.md)`
+            );
+        }
+
         const payload = {
             scenario_dir: scenarioDir,
             search_hash: flags.searchHash,
@@ -204,6 +463,7 @@ async function main(): Promise<void> {
             extra_stats: extraStats,
             url_stats_count: urlStats.length,
             url_stats: urlStats,
+            ...(exchanges ? { exchanges } : {}),
         };
 
         fs.writeFileSync(
