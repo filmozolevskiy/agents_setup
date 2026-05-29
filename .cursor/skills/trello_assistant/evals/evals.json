@@ -1,0 +1,26 @@
+{
+  "skill_name": "trello-content-integration",
+  "evals": [
+    {
+      "id": 0,
+      "name": "amadeus-card-draft",
+      "prompt": "Draft a Trello card for this issue (markdown only — do not call any Trello MCP tools). We are seeing 'NO FARE FOR CLASS' on AMADEUS BookFlight for office YYZAA38AA over the last 14 days. Sample debug-log permalinks:\n- https://reservations.voyagesalacarte.ca/debug-logs/log-group/abc123#65f1\n- https://reservations.voyagesalacarte.ca/debug-logs/log-group/def456#65f2\n- https://reservations.voyagesalacarte.ca/debug-logs/log-group/ghi789#65f3\n\nProduce: the card title and the full description body (markdown) that we'd paste into Trello.",
+      "expected_output": "Title `AMADEUS: <short concrete summary>`. Body has exactly two `⊙` sections — `⊙ **Summary**` (1–3 sentences, plain language, covers what fails / where / why we care) and `⊙ **Numbers/ quantity/ Examples:**` (Scale line + `some examples` permalink block + `mongo_query:` fenced javascript block with leading `$match` and either Shape A or Shape B). AI attribution footer at the very end. No extra `⊙` sections, no `## Summary`, no jargon-stacked Summary, no row-metadata parentheticals.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "grooming-procedure",
+      "prompt": "Walk me through exactly what you would do to prep the weekly grooming report (developer-centric in-flight roll-up). I want: which lists to fetch (with IDs), which MCP calls in what order, which script to run with what arguments, and what NOT to do. Do not actually run anything — just write the procedure.",
+      "expected_output": "Lists exactly 6 in-flight lists (In Progress, Ready for Dev, Blocked, Staging, Fixes needed, Ready for Deployment) with the correct IDs. Names `set_active_board` + `get_cards_by_list_id` per list, then `grooming_report.py` with `--list \"Name:/path\"` flags and `--out reports/...`. Calls out the no-filter-by-dateLastActivity rule, the dev-mapping-honesty rule, the per-dev sub-bucket ordering, and the 14d STALE marker. Does NOT include QA / Done / Parking lists.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "todo-query-comment",
+      "prompt": "An existing Trello card on the Content Integration board has this TODO in its description: `TODO: Write a query to verify this — count how often we hit this error on debug_logs for context Downtowntravel::BookFlight, regex 'INVALID_AGE_FOR_PAX_TYPE' on the Response field, last 30 days. Permalinks too please.`\n\nDraft the comment text you'd post on the card. Do not actually call Trello.",
+      "expected_output": "One short lead sentence naming the slice, then ONE debuggable Mongo query (leading `$match` encoding context + regex + date_added bounds) in a fenced javascript block. Either Shape B (count + flat links array — preferred for cards) or Shape A (per-row), pasteable into Compass with `ISODate(...)`. NO verification essay, NO multi-section narrative, NO code-path pointers, NO architectural clarifications. At most a one-line side note at the end if anything outside the ask matters.",
+      "files": []
+    }
+  ]
+}
