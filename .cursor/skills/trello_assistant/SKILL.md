@@ -10,11 +10,12 @@ description: >-
   in-flight roll-up across Ready for Dev / In Progress / Blocked / Staging /
   Fixes needed / Ready for Deployment. Use for Automation-board cards too
   (short human-written intake) — different board, lighter template. Covers
-  dedup before creating, card title and the H3 `⊙` description template
+  dedup before creating, an approval gate that shows every card write in chat
+  for sign-off before sending, card title and the H3 `⊙` description template
   (mandatory Short description / Details / Visibility; optional Possible
-  solution / Credentials / QA notes; debuggable CTE / Shape A/B Mongo
-  pipelines), mandatory Filipp-as-member and AI footer rules, weekly grooming
-  roll-up, and the one-card → one-branch → one-PR lifecycle.
+  solution / Credentials / QA notes / Similar-relevant cards; debuggable CTE /
+  Shape A/B Mongo pipelines), mandatory Filipp-as-member and AI footer rules,
+  weekly grooming roll-up, and the one-card → one-branch → one-PR lifecycle.
 ---
 
 # Trello: Content Integration board
@@ -45,14 +46,24 @@ Use the **user-trello** MCP server. Before each tool call, read that tool's JSON
 
 **Archiving:** `archive_card`. Add a descriptive comment first (e.g. "Project stopped", "Duplicate of X") before archiving.
 
+## Approval gate (every card write)
+
+Before any Trello write — create, update, move, label, member change, comment, archive — **show the full proposed change in the chat and wait for the user's explicit approval.** Only call the write tool after they say go.
+
+- **New card:** post the title + the full description body (the exact markdown you would send) in the chat. Then wait.
+- **Update:** name the card and show what changes — the new or edited section text, the label / member / list change. For a body rewrite, show the full new body. Then wait.
+- **Comment / archive:** show the comment text, or state what you are archiving and why. Then wait.
+- Read-only steps (dedup search, `get_board_members`, fetching a card) need no approval — run them first so the proposal is complete.
+- Approval is per change. A new instruction is a new change; re-propose and wait again. Do not batch several writes behind one approval unless the user approved the batch.
+
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: `add_card_to_list` on Backlog with `name` per the title rule, `description` = the three mandatory `⊙` sections (`Short description` + `Details` + `Visibility`) plus any applicable optional sections + AI footer (template in [`references/card_anatomy.md`](references/card_anatomy.md)), optional `labels`, **`idMembers` includes Filipp**.
-3. **Edits:** `update_card_details` / `move_card` / checklist tools. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
+2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the three mandatory `⊙` sections — `Short description` + `Details` + `Visibility` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**, then on approval `add_card_to_list` on Backlog with `name` per the title rule, optional `labels`, **`idMembers` includes Filipp**.
+3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
 4. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
 
-## Card-description sections (3 mandatory + 3 optional)
+## Card-description sections (3 mandatory + 4 optional)
 
 Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **No blank line after a heading** — content sits directly under it; **one blank line after each section's content** separates the sections. **Plain, ESL-friendly language** — short common words, one idea per sentence ("sometimes" not "intermittently", "in some cases" not "on a share of attempts", "real users on the front end are not affected" not "does not surface on the storefront flow"). Each section does one job; keep content in its own section. Full templates, Mongo shapes, formatting, plain-language table, and glossary rules in [`references/card_anatomy.md`](references/card_anatomy.md).
 
@@ -67,6 +78,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **N
 4. **`### ⊙ Possible solution / expected behavior`** — a concrete fix hypothesis or what should happen instead. Plain language.
 5. **`### ⊙ Credentials / access`** — **new-integration cards only**; labeled placeholder the card owner fills by hand. Not on bug / error cards — put any access note in Details there. The agent never fabricates office codes / PCCs / logins.
 6. **`### ⊙ QA notes`** — only when there is a shipped fix to verify; omit by default. Staging repro + post-deploy signal, observable by a human or a log query.
+7. **`### ⊙ Similar / relevant cards`** — when the dedup pass or scope overlap turns up related cards. One `[title](shortUrl) — short note on the overlap` per line. Omit when nothing relevant.
 
 **Glossary:** use [`GLOSSARY.md`](../../../GLOSSARY.md) terms — "ResPro page" (never "Voyages a la carte ResPro"), "the user" / "the agent", "search results page", "content source". No class / method / file-path names in prose.
 
@@ -75,7 +87,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **N
 ## Mandatory rules (no card ships without these)
 
 1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
-2. **Three mandatory `⊙` sections, in order** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
+2. **Three mandatory `⊙` sections, in order** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
 3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. On create, pass his member ID in `idMembers`. On update, add him via `update_card_details` if not already a member. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
@@ -102,12 +114,14 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 
 ## What not to do
 
+- Do not call any Trello write tool (`add_card_to_list`, `update_card_details`, `move_card`, `add_comment`, checklist / label / member tools, `archive_card`) before showing the proposed change in the chat and getting the user's explicit approval. See [Approval gate](#approval-gate-every-card-write).
+- Do not batch several card writes behind one approval unless the user approved the batch; a new instruction needs a fresh proposal.
 - Do not create new cards outside Backlog unless the user explicitly asks.
 - Do not skip the dedup pass before creating a card.
 - Do not ship a card (new or updated) without Filipp (delivery manager) as a member.
 - Do not invent booking IDs, hashes, or log URLs.
 - Do not add a `⊙ **Credentials / access**` section to a bug / error card — it is for new-integration cards only. When present, never fabricate a value; write placeholder prompt lines and let the card owner fill office codes, PCCs, and logins by hand.
-- Do not include optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`) as empty stubs. Omit a section that has nothing real to say. The three mandatory sections always ship.
+- Do not include optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) as empty stubs. Omit a section that has nothing real to say. The three mandatory sections always ship.
 - Do not draft `⊙ **QA notes**` speculatively — include it only when there is a shipped fix to verify.
 - Do not use bare `⊙ **…**` lines, `## `, or H1/H2 for section headings. Section headings are H3: `### ⊙ **…**` with the content directly under each heading (**no blank line after the heading**) and **one blank line after each section** to separate them.
 - Do not use heavy or formal words a non-native reader would trip on. Write plainly ("sometimes", "in some cases", "real users are not affected") — see the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md). Error codes and supplier names stay as-is.
@@ -128,7 +142,7 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 
 ## References
 
-- [`references/card_anatomy.md`](references/card_anatomy.md) — title, the 3 mandatory + 3 optional `⊙` sections, H3 / blank-line formatting, glossary terms, Shape A vs B Mongo pipelines, debuggable-CTE rule, smartCard URL rules.
+- [`references/card_anatomy.md`](references/card_anatomy.md) — title, the 3 mandatory + 4 optional `⊙` sections, H3 / blank-line formatting, glossary terms, Shape A vs B Mongo pipelines, debuggable-CTE rule, smartCard URL rules.
 - [`references/dedup.md`](references/dedup.md) — pre-create dedup pass + `filter_cards.py`.
 - [`references/grooming.md`](references/grooming.md) — weekly developer-centric in-flight report.
 - [`references/todo_responses.md`](references/todo_responses.md) — narrow TODO / direct-request scope rules.
