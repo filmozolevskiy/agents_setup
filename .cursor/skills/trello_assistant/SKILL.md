@@ -10,10 +10,11 @@ description: >-
   in-flight roll-up across Ready for Dev / In Progress / Blocked / Staging /
   Fixes needed / Ready for Deployment. Use for Automation-board cards too
   (short human-written intake) — different board, lighter template. Covers
-  dedup before creating, card title and two-section description templates
-  (Summary + Numbers/Examples with debuggable CTE / Shape A/B Mongo pipelines),
-  mandatory Filipp-as-member and AI footer rules, weekly grooming roll-up, and
-  the one-card → one-branch → one-PR lifecycle.
+  dedup before creating, card title and the H3 `⊙` description template
+  (mandatory Short description / Details / Visibility; optional Possible
+  solution / Credentials / QA notes; debuggable CTE / Shape A/B Mongo
+  pipelines), mandatory Filipp-as-member and AI footer rules, weekly grooming
+  roll-up, and the one-card → one-branch → one-PR lifecycle.
 ---
 
 # Trello: Content Integration board
@@ -47,36 +48,34 @@ Use the **user-trello** MCP server. Before each tool call, read that tool's JSON
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: `add_card_to_list` on Backlog with `name` per the title rule, `description` = `⊙ **Summary**` + `⊙ **Numbers/ quantity/ Examples:**` + AI footer (template in [`references/card_anatomy.md`](references/card_anatomy.md)), optional `labels`, **`idMembers` includes Filipp**.
-3. **Edits:** `update_card_details` / `move_card` / checklist tools. Preserve the card's existing first-section heading (older cards use `⊙ **Describe the situation in detail**:`; do not rename on edits). Refresh the body to match current scope.
-4. **Layout references:** [#2676](https://trello.com/c/2dEgDoSr/2676-dtt-passenger-type-or-count-does-not-match-error) (field layout), [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean Summary + Numbers), [#2677](https://trello.com/c/n0x26K2m/2677-dtt-verifyprice-errors) (multi-signature), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
+2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: `add_card_to_list` on Backlog with `name` per the title rule, `description` = the three mandatory `⊙` sections (`Short description` + `Details` + `Visibility`) plus any applicable optional sections + AI footer (template in [`references/card_anatomy.md`](references/card_anatomy.md)), optional `labels`, **`idMembers` includes Filipp**.
+3. **Edits:** `update_card_details` / `move_card` / checklist tools. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
+4. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
 
-## Card-description areas (mental checklist before drafting)
+## Card-description sections (3 mandatory + 3 optional)
 
-Every description covers these areas across the two `⊙` sections. Full templates and Mongo shapes in [`references/card_anatomy.md`](references/card_anatomy.md).
+Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **No blank line after a heading** — content sits directly under it; **one blank line after each section's content** separates the sections. **Plain, ESL-friendly language** — short common words, one idea per sentence ("sometimes" not "intermittently", "in some cases" not "on a share of attempts", "real users on the front end are not affected" not "does not surface on the storefront flow"). Each section does one job; keep content in its own section. Full templates, Mongo shapes, formatting, plain-language table, and glossary rules in [`references/card_anatomy.md`](references/card_anatomy.md).
 
-**`⊙ Summary` — plain language, 1–3 sentences (~25–80 words):**
+**Mandatory, in order:**
 
-1. **What fails** — short clause, everyday verbs.
-2. **Where** — flow / integration / supplier in plain words.
-3. **Why we are tracking it** — impact, hypothesis, or trend signal.
+1. **`### ⊙ Short description`** — one sentence: what fails + where, plain language. The triage TL;DR. No stacked acronyms, no counts.
+2. **`### ⊙ Details`** — the flow explained end to end, why it breaks, the hypothesis. Debug-log permalinks embedded **inline at the step they prove** (one URL per line). All narrative lives here.
+3. **`### ⊙ Visibility`** — how we track it: one debuggable query (Mongo leading `$match` / MySQL CTE) + the measured count + window when known (omit the count line if not measured — never fabricate). *OR* a fenced breakdown table — never both. Scale lives here only.
 
-**`⊙ Numbers/ quantity/ Examples:` — lean by default:**
+**Optional — include only when they apply (never as empty stubs):**
 
-4. **Scale** — one short line (how often + window + distinct `transaction_id`) *OR* a fenced **breakdown text table** (per-day / per-bucket). Never both.
-5. **Evidence** — `some examples` block with full permalinks.
-6. **Reproduction** — `mongo_query:` / `MySQL:` block, debuggable CTE / leading `$match`, Shape A or B chosen explicitly.
-7. **Related work** — one line `[title](shortUrl)` only when dedup or scope split requires it.
-8. **Optional one-liners** (each ≤ 1 line, only when they change a decision) — correlation hint, breakdown buckets, second query, regex rationale, `IN (...)` hash list verbatim.
+4. **`### ⊙ Possible solution / expected behavior`** — a concrete fix hypothesis or what should happen instead. Plain language.
+5. **`### ⊙ Credentials / access`** — **new-integration cards only**; labeled placeholder the card owner fills by hand. Not on bug / error cards — put any access note in Details there. The agent never fabricates office codes / PCCs / logins.
+6. **`### ⊙ QA notes`** — only when there is a shipped fix to verify; omit by default. Staging repro + post-deploy signal, observable by a human or a log query.
 
-**Footer (mandatory):**
+**Glossary:** use [`GLOSSARY.md`](../../../GLOSSARY.md) terms — "ResPro page" (never "Voyages a la carte ResPro"), "the user" / "the agent", "search results page", "content source". No class / method / file-path names in prose.
 
-9. AI attribution block as the last lines. No text after it.
+**Footer (mandatory):** AI attribution block as the last lines, after a `---` rule. No text after it.
 
 ## Mandatory rules (no card ships without these)
 
-1. **Title** — `SOURCE_OR_AREA: Short concrete summary`, source prefix ALL CAPS. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
-2. **Two `⊙` sections only** — `⊙ **Summary**` (or whatever first-section heading the card already uses) + `⊙ **Numbers/ quantity/ Examples:**`. No extra `⊙` blocks for investigation, repro, QA, solution; fold into Numbers/Examples.
+1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
+2. **Three mandatory `⊙` sections, in order** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
 3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. On create, pass his member ID in `idMembers`. On update, add him via `update_card_details` if not already a member. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
@@ -107,23 +106,29 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 - Do not skip the dedup pass before creating a card.
 - Do not ship a card (new or updated) without Filipp (delivery manager) as a member.
 - Do not invent booking IDs, hashes, or log URLs.
-- Do not trim real `IN (...)` hash lists, SQL filters, or Mongo bounds inside Numbers/Examples just to shorten the card — those lists are often the reproducible slice.
-- Do not omit `⊙ **Numbers/ quantity/ Examples:**` when there are examples, queries, or patterns.
-- Do not bury related-card context in a long standalone section; use one or two bullets under Numbers/Examples.
-- Do not omit the first-section heading or replace it with only the card title; preserve the heading the card already uses (`⊙ **Summary**` / `⊙ **Describe the situation in detail**:` / etc.) when editing.
-- Do not write a jargon-heavy Summary (long technical sentences, stacked acronyms, supplier payload walkthroughs). Put that under Numbers/Examples with permalinks and queries.
-- Do not pad Numbers/Examples with long Scale preambles, correlation essays, histograms, or extra mongosh tips when Scale + some examples + `mongo_query:` already reproduces the issue.
-- Do not duplicate a breakdown table's totals in a prose `Scale - …` line above it. When a per-day / per-bucket fenced text table is present, the table IS the Scale.
-- Do not append row-metadata parentheticals (`gds=`, `cancel_reason=`, `booking_date=`, task IDs, …) after a ResPro / Trello / other smartCard-rendered example URL.
-- Do not add post-query runbook prose after `mongo_query:` ("Scope (counts):", "reuse the same `$match`", "append `{ $count: … }`"). Put measured numbers in Scale instead; counting mechanics stay in skills, not on Trello.
+- Do not add a `⊙ **Credentials / access**` section to a bug / error card — it is for new-integration cards only. When present, never fabricate a value; write placeholder prompt lines and let the card owner fill office codes, PCCs, and logins by hand.
+- Do not include optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`) as empty stubs. Omit a section that has nothing real to say. The three mandatory sections always ship.
+- Do not draft `⊙ **QA notes**` speculatively — include it only when there is a shipped fix to verify.
+- Do not use bare `⊙ **…**` lines, `## `, or H1/H2 for section headings. Section headings are H3: `### ⊙ **…**` with the content directly under each heading (**no blank line after the heading**) and **one blank line after each section** to separate them.
+- Do not use heavy or formal words a non-native reader would trip on. Write plainly ("sometimes", "in some cases", "real users are not affected") — see the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md). Error codes and supplier names stay as-is.
+- Do not write "Voyages a la carte ResPro" or other off-glossary terms; use [`GLOSSARY.md`](../../../GLOSSARY.md) wording ("ResPro page", "the user" / "the agent", "search results page", "content source").
+- Do not write a long title with trailing qualifiers — keep it one concrete clause after the ALL-CAPS prefix.
+- Do not trim real `IN (...)` hash lists, SQL filters, or Mongo bounds inside Visibility / Details just to shorten the card — those lists are often the reproducible slice.
+- Do not put scale / counts anywhere but Visibility. Short description and Details state no numbers.
+- Do not dump debug-log permalinks in a trailing block — embed them inline in Details at the step each one proves.
+- Do not write a jargon-heavy Short description (long technical sentences, stacked acronyms, supplier payload walkthroughs). One sentence; proof goes to Details.
+- Do not pad any section with correlation essays, histograms, or extra mongosh tips when the query + count already reproduce the issue.
+- Do not duplicate a breakdown table's totals in a prose count line above it. When a per-day / per-bucket fenced text table is present, the table IS the count.
+- Do not append row-metadata parentheticals (`gds=`, `cancel_reason=`, `booking_date=`, task IDs, …) after a ResPro / Trello / other smartCard-rendered URL.
+- Do not add post-query runbook prose after a query ("Scope (counts):", "reuse the same `$match`", "append `{ $count: … }`"). Put measured numbers in Visibility instead; counting mechanics stay in skills, not on Trello.
 - Do not edit an existing card the user pointed to as a reference-only example unless they explicitly ask.
-- Do not add extra description sections (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `QA`, `Solution`, `## Summary` blocks, optimization-only multi-`⊙` layouts). Fold everything into the two allowed sections.
+- Do not add `⊙` sections beyond the six defined (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `## Summary` blocks). Fold extra prose into Details.
 - Do not expand a narrow TODO or direct request into a multi-section verification essay. See [`references/todo_responses.md`](references/todo_responses.md).
 - Do not write aggregation or example queries without a CTE (MySQL / ClickHouse) or without a leading `$match` stage (Mongo).
 
 ## References
 
-- [`references/card_anatomy.md`](references/card_anatomy.md) — title, Summary tone, Numbers/Examples structure, Shape A vs B Mongo pipelines, debuggable-CTE rule, smartCard URL rules.
+- [`references/card_anatomy.md`](references/card_anatomy.md) — title, the 3 mandatory + 3 optional `⊙` sections, H3 / blank-line formatting, glossary terms, Shape A vs B Mongo pipelines, debuggable-CTE rule, smartCard URL rules.
 - [`references/dedup.md`](references/dedup.md) — pre-create dedup pass + `filter_cards.py`.
 - [`references/grooming.md`](references/grooming.md) — weekly developer-centric in-flight report.
 - [`references/todo_responses.md`](references/todo_responses.md) — narrow TODO / direct-request scope rules.

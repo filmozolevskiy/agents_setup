@@ -5,7 +5,7 @@ Never create a card until the board has been checked for existing work covering 
 ## Procedure
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce` once per session, then `get_lists`.
-2. Pull cards from every active-work list — **Backlog**, **Ready for Dev**, **In Progress**, **Blocked**, **Staging**, **Fixes needed**, **Ready for Deployment**, **QA**, **QA Tracking 👀**, **Parking**, **On hold**, **Done**, **Archive**. Skip **INFORMATION** (dashboard / meta). Use `get_cards_by_list_id` per list and save each response as JSON.
+2. Pull cards from every list. Use `get_cards_by_list_id` per list and save each response as JSON.
 3. Filter with the repo script — never shell-pipe huge JSON.
 
    ```bash
@@ -24,7 +24,7 @@ Never create a card until the board has been checked for existing work covering 
 ## Outcomes
 
 - **Duplicate:** do not create. Tell the user which card(s) cover it (use `shortUrl` / `url`). Offer to add new examples, queries, or links via `add_comment` or `update_card_details` on that card.
-- **Similar but not duplicate:** create the new card on Backlog and note overlaps as one or two bullets under `⊙ **Numbers/ quantity/ Examples:**` (e.g. `Related: [title](shortUrl) — same office, different error`). No separate "Related cards" section unless the user asks.
+- **Similar but not duplicate:** create the new card on Backlog and note overlaps inline in `⊙ **Details**` as `[title](shortUrl) — same office, different error`. No separate "Related cards" section unless the user asks.
 - **Nothing related:** create. Do not add a "none found" line unless it helps the team.
 
-When the user explicitly wants a new card even though a close duplicate exists (e.g. split scope), note the duplicate under Numbers/Examples and explain the split in one short bullet.
+When the user explicitly wants a new card even though a close duplicate exists (e.g. split scope), note the duplicate inline in Details and explain the split in one short sentence.
