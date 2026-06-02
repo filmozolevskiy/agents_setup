@@ -13,6 +13,7 @@ Optional — include only when they apply:
 4. `### ⊙ **Possible solution / expected behavior**` — what we think should happen or how to fix it.
 5. `### ⊙ **Credentials / access**` — **new-integration cards only**; a labeled placeholder the card owner fills by hand.
 6. `### ⊙ **QA notes**` — only when there is a shipped fix to verify; omit by default.
+7. `### ⊙ **Similar / relevant cards**` — related cards the dedup pass or scope overlap turned up.
 
 Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out.
 
@@ -99,7 +100,7 @@ The flow explained end to end so a developer understands what happens and why it
   - Debug logs: `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<log_id>`
   - Optimizer logs: swap the base for the optimizer-log tool URL.
 - Every factual claim has a link or query behind it. No artefact → mark it `Assumption:` and say what would prove it.
-- Reference related cards inline as `[title](shortUrl)` when scope overlaps. No separate "Related cards" section.
+- Related cards go in the optional `Similar / relevant cards` section, not inline here.
 
 ```markdown
 ### ⊙ **Details**
@@ -171,6 +172,16 @@ If the user dictates specific access details, paste exactly what they gave and n
 ### `### ⊙ **QA notes**` (optional)
 
 Only when there is a shipped fix to verify. Omit by default. When present: staging repro steps in plain user language, what to check across MySQL / ClickHouse / Mongo, and the post-deploy signal. Observable by a human or a log query only — no class / method / file-path mentions.
+
+### `### ⊙ **Similar / relevant cards**` (optional)
+
+When the dedup pass or scope overlap turns up related cards. One per line: `[title](shortUrl) — short note on the overlap`. Omit when nothing relevant. This is where related-card links live — keep them out of Details.
+
+```markdown
+### ⊙ **Similar / relevant cards**
+[AMADEUS: NO FARE FOR CLASS on BookFlight office YYZAA38AA](https://trello.com/c/abcd1234) — same error, different office.
+[RESPRO: Downtowntravel booking fails at payment](https://trello.com/c/efgh5678) — related payment-step failure.
+```
 
 ### Footer (mandatory)
 
