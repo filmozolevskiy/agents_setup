@@ -1,6 +1,6 @@
 ## Optimizer join pattern (5-table canonical query)
 
-Cross-reference for the five tables that together describe one Optimizer run: **`optimizer_attempts`**, **`optimizer_candidates`**, **`optimizer_attempt_bookings`**, **`optimizer_candidate_tags`**, **`optimizer_tags`**. This is the read-side shape; it is used by the `optimizer` skill and ad-hoc audits.
+Cross-reference for the tables that together describe one Optimizer run: **`optimizer_attempts`**, **`optimizer_candidates`**, **`optimizer_attempt_bookings`**, **`optimizer_candidate_tags`**, **`optimizer_attempt_tags`** ([doc](optimizer_attempt_tags.md) — attempt-level tags, e.g. `VccRequired`, `Seats`, `Upgrade`), **`optimizer_tags`**. This is the read-side shape; it is used by the `optimizer` skill and ad-hoc audits.
 
 All tables live in `ota`. Per-table detail is in the individual docs in this folder.
 
@@ -39,6 +39,8 @@ All tables live in `ota`. Per-table detail is in the individual docs in this fol
 | `optimizer_attempts oa`   | `optimizer_attempt_bookings oab` | `oab.attempt_id = oa.id` (shortcut: attempt → booking without candidates) |
 | `optimizer_candidates oc` | `optimizer_candidate_tags oct` | `oct.candidate_id = oc.id` |
 | `optimizer_candidate_tags oct` | `optimizer_tags ot` | `ot.id = oct.tag_id` |
+| `optimizer_attempts oa` | `optimizer_attempt_tags oat` | `oat.attempt_id = oa.id` (attempt-level tags; same catalog) |
+| `optimizer_attempt_tags oat` | `optimizer_tags ot` | `ot.id = oat.tag_id` |
 
 ### Canonical query — all candidates for a window, with booking link + tag roll-up
 
