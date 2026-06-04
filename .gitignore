@@ -11,6 +11,9 @@ reports/
 docs/
 .cache_workspace/
 
+# Skill eval workspaces (per-iteration run outputs / benchmarks / viewer logs — kept locally, not in git)
+.cursor/skills/*-workspace/
+
 # MCP Toolbox binary (downloaded via .cursor/skills/looker/scripts/install_mcp_toolbox.sh)
 bin/
 

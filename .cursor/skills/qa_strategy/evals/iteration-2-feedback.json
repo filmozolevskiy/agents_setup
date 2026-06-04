@@ -1,0 +1,20 @@
+{
+  "reviews": [
+    {
+      "run_id": "eval-0-fr24-booking-sync-with_skill-run-1",
+      "feedback": "1. Keep the language accessible to ESL people. For example, instead of \"we do not sweep them by hand\" use \"we will not verify them manually\".\n3. Keep the description minimal. The shorter the QA strategy, the better. \n2. I still don't see bookability_contestant_attempes query in the tracking. we need it because sometimes when we fail at this step, we don't make records to the bookings table. If we have issues before we get records in bookings, we might miss it. ",
+      "timestamp": "2026-06-03T21:21:32.641Z"
+    },
+    {
+      "run_id": "eval-1-onefly-check-availability-with_skill-run-1",
+      "feedback": "1. This test case is not correct \"Unchanged price proceeds cleanly\". We do rewrite package, but we don't show the new price to the passenger. The customer shoud pay the prive agreed at search. If we charge a different price, this is overcharge/undercharge. \n2. This one is wrong \"Unavailable fare blocks the booking\".  When we get Flight no longer available error in check availability, we still go further and hope that the optimizer will find other candidates. We should not try the original contestant though. \n3 change the format of Mongo queries. It should be runable in mongodb compas \n\nExample of the forrmat we need\n[\n  { $match: {\n      context: { $regex: \"^Onefly::check-availability\", $options: \"i\" },\n      date_added: { $gt: new Date(Date.now() - 6*3600*1000) }\n  } },\n  { $group: { _id: \"$context\", c: { $sum: 1 } } },\n  { $sort: { c: -1 } }\n]",
+      "timestamp": "2026-06-03T21:21:32.641Z"
+    },
+    {
+      "run_id": "eval-2-kiwi-scope-tag-with_skill-run-1",
+      "feedback": "1. Use our GLOSSARY. We should not use this word \"storefront\"\n2. We are missing a case here. We should verify that this logic works for other content sources because `check-availability-response`, `check-availability-comparison-report` are gds agnostic. ",
+      "timestamp": "2026-06-03T21:21:32.641Z"
+    }
+  ],
+  "status": "in_progress"
+}
