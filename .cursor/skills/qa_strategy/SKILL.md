@@ -83,6 +83,32 @@ Describe the **behaviour change and the observable risk — never the code mecha
 
 One carve-out: a supplier API operation name that literally appears in the debug-log context (the string QA sees in the log group) is a log-surface term — use it in backticks when it helps QA find the entry. A class that merely shares that name is not.
 
+#### No method or class names in *Why:* lines
+
+The "no code identifiers in prose" rule from `GLOSSARY.md` extends to *Why:* lines literally. Method names and class names cannot stand in for "what the PR changed", even when they feel concise. QA does not read code; a *Why:* line built around `getSegmentPnrs`, `isOnefly()`, `actionValidatePackageDeeply`, `hasTickets`, `Throwable` tells them nothing they can verify.
+
+Translate the identifier into the observable it produces:
+
+- Not "*Why:* this is the back-fill `getSegmentPnrs` adds" → "*Why:* the per-segment airline PNR row on the ResPro page is now populated when the supplier returned per-passenger PNRs".
+- Not "*Why:* the `isOnefly()` gate keeps other suppliers out of the new path" → "*Why:* only Onefly checkouts hit the new check availability path; other suppliers are unchanged — a sanity booking on another supplier confirms its `debug_logs` group is the same shape as before the PR".
+- Not "*Why:* this is the new scope the PR pushes around `actionValidatePackageDeeply`" → "*Why:* the deep re-check step on a non-Kiwi package routed through Kiwi now writes its debug-log entries with the `Deep Check Flights` scope attached".
+- Not "*Why:* the `hasTickets` branch returns early when no tickets exist" → "*Why:* a booking issued seconds ago with no ticket numbers yet must still load on the ResPro page without an error banner".
+
+The same rule applies to **pass conditions** under the numbered steps — a step ending in "confirm `getTickets()` returns the populated array" is wrong; "confirm the ResPro page shows the ticket number for each passenger" is right.
+
+#### No code-path verbs in pass conditions
+
+QA cannot verify that a code path *ran*; they can only verify what they *see*. Pass conditions and *Why:* lines built around code-path verbs are unobservable and let regressions through. **Banned verbs (and equivalents):** *exercises*, *enters*, *hits*, *runs through*, *executes*, *goes through*, *triggers the branch*, *reaches the code*, *invokes*, *calls into*. These describe execution, not a symptom QA can confirm on a page, in a log, in a row, or in an email.
+
+Translate the execution into the observable it produces:
+
+- Not "*Why:* one booking exercises the entry into the new branch" → "*Why:* the `debug_logs` group for the smoke `booking_id` contains exactly one entry whose `context` starts with `Onefly::check-availability` and ends in `::Success`".
+- Not "pass: the request enters the new dispatcher" → "pass: the `debug_logs` entry for `<context>` shows `_scopes` containing `Check Availability` for this `search_id`".
+- Not "pass: the call hits the updated wrapper" → "pass: the supplier response payload in the `<context>` entry now has the `<field>` key populated".
+- Not "pass: the failure path triggers" → "pass: the `optimizer_candidates` row for the attempt shows `status='dropped'` and a sibling row with a different `candidate_id` was created".
+
+If a check genuinely has no observable symptom — the change is internal and produces no user / agent / log surface — the check does not belong in the plan. Drop it, or rewrite it as a code-review concern in run-notes.
+
 ### Staging shares the data stores with production
 
 ClickHouse, MySQL `ota`, and Mongo `ota` are shared across production and every staging environment. Treat this as ambient knowledge — **do not surface it in the plan output, do not add a "Shared databases" header, do not explain it to QA**. Instead, write queries that work correctly under that constraint:
@@ -125,7 +151,9 @@ If verification fails (store unreachable, table missing, no recent data), drop t
 
 - **Trello REST API** — `GET /1/cards/<id>?attachments=true&actions=commentCard` to read the card. Credentials `TRELLO_API_KEY` / `TRELLO_TOKEN` from `.env`. Base URL `https://api.trello.com/1/`.
 - **GitHub MCP** (`GitHub` server) — `get_pull_request`, `get_pull_request_files`, `get_pull_request_diff` (PRs ≤ 50 files). Reading diff content (not just file paths) is mandatory for small / medium PRs.
-- **Package-transfer tool** — https://summit.flighthub.com/tools/package-transfer. Takes a real production package and re-issues it onto a staging environment. Use it to force conditions that a fresh staging search will not produce: a stale package (so the supplier returns a different price or "unavailable" on the staging check availability call), a specific carrier / fare basis / route, a multi-passenger configuration that staging traffic rarely creates. The transferred package keeps its production shape; checkout on staging then drives the live supplier with that shape and exercises the changed code paths against a realistic input.
+- **Package-transfer tool** — https://summit.flighthub.com/tools/package-transfer. Takes a real production package and re-issues it onto a staging environment as a **checkout state**. Use it to force conditions that a fresh staging search will not produce on the **check availability call**: a stale package (so the supplier returns a different price or "unavailable" on the staging check availability call), a specific carrier / fare basis / route, a multi-passenger configuration that staging traffic rarely creates. The transferred package keeps its production shape; checkout on staging then drives the live supplier with that shape against the changed code path.
+
+  **Scope discipline — the tool produces a checkout, not a booking.** It drives the supplier on the check availability call only. It never creates a booking, never produces a `bookings` row, and cannot reproduce any state that exists only after booking submit or after ticketing — no post-issuance state, no `bookings.status='issued'`, no `booking_segments.control_number` shape, no confirmation email, no post-booking debug logs. Any check that needs a state past the checkout page must drive a real booking end-to-end on staging, or move to a Post-deployment watch on production.
 
 ## Workflow
 
@@ -343,6 +371,10 @@ Concrete rules not already stated by Core principle, Workflow, or `GLOSSARY.md`:
 - **No `db.collection.aggregate(...)` / `db.collection.find(...)` Mongo blocks.** Mongo blocks are bare aggregation-pipeline arrays so QA can paste them into MongoDB Compass — see the example in Step 4.
 
 - **No `bookings`-only post-deploy spot-check.** Pre-booking failures leave no row in `bookings`. The attempts query must read `bookability_contestant_attempts` (joined to `booking_contestants`) so failures before a booking row exists are visible.
+
+- **No package-transfer for post-issuance / post-ticketing states.** The tool drives a checkout against a chosen package and stops at the supplier's check availability response. It does not create a booking, never produces a `bookings` row, and cannot reconstruct `bookings.status='issued'`, `booking_segments.control_number` shapes, confirmation emails, or any post-booking debug logs. Checks for those states must drive a real booking end-to-end on staging, or move to a Post-deployment watch.
+
+- **No code-path verbs in pass conditions** (*exercises / enters / hits / runs through / executes / goes through / triggers / reaches / invokes / calls into*) and **no method or class names in *Why:* lines** (`getSegmentPnrs`, `isOnefly()`, `actionValidatePackageDeeply`, etc.). Both fail the "QA can observe this" test — see the *Why:* / pass-condition guidance in Core principle for the translation pattern.
 
 - Do not hardcode staging URLs. Reference the environment by name and let the QA engineer supply the host (the `Staging:` header field is a link the user added to the card, not a hard-coded environment).
 - Do not include monitoring queries for tables unrelated to the change surface.
