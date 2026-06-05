@@ -393,7 +393,7 @@ These are applied mechanically when the chat-preview markdown is converted into 
 | `**Baseline (…):** <text>` | `<callout icon="📊" color="yellow_bg">` with **Baseline (…)** as bold first line + the text body. Omit when absent. |
 | `---` separator after the header | drop — the toggles below provide the visual break. |
 | `### Staging` / `### Post-deployment` / `### Monitoring queries` (preview H3) | `## <Section> {toggle="true"}` — three peer top-level toggle headings, in this fixed order. |
-| `**Smoke tests**` / `**Happy-path flows**` / `**Edge cases**` / `**Regression risks**` (preview bold lines under `### Staging`); `**Production checks**` (preview bold line under `### Post-deployment`) | `### <Subsection>` headings nested inside the parent toggle. Drop the subsection heading entirely when it has no items. |
+| `**Smoke tests**` / `**Happy-path flows**` / `**Edge cases**` / `**Regression risks**` (preview bold lines under `### Staging`); `**Production checks**` (preview bold line under `### Post-deployment`) | `### <Subsection> {toggle="true"}` — toggle heading nested inside the parent section toggle, with its own to-dos / code blocks indented one tab deeper than the subsection line. Drop the subsection heading entirely when it has no items. |
 | `- [ ] **<Short name>**` / `- [x] **<Short name>**` | `to_do` block (unchecked / checked) at the top of the check. |
 | `*Why:* <text>` (nested under the to_do) | italic `paragraph` indented under the `to_do`. |
 | Numbered steps (nested under the to_do) | `numbered_list_item` blocks indented under the `to_do`. |
@@ -401,6 +401,21 @@ These are applied mechanically when the chat-preview markdown is converted into 
 | `📎 <label>: <link>` (nested under the to_do) | plain `paragraph` under the `to_do`, the 📎 emoji kept literal. |
 | Fenced ```` ```sql ```` / ```` ```javascript ```` block (under a check or under `### Monitoring queries`) | Notion `code` block with the same language. Notion supplies its own copy button and syntax highlighting; do not add a custom one. |
 | `**<one-line monitoring query title>**` line above a code block (under `### Monitoring queries`) | `paragraph` with bold rich-text directly above the code block; no heading. |
+
+##### Tab-indentation rule for toggles and callouts (mandatory)
+
+Notion-flavored Markdown only treats blocks as children of a toggle heading or callout if every child line is **tab-indented one level deeper than the parent**. Without the indent the toggle / callout renders empty and the children become peer top-level blocks. This bites every section of this plan.
+
+Apply mechanically at publish time:
+
+- **Section toggles** (`## Staging {toggle="true"}` / `## Post-deployment {toggle="true"}` / `## Monitoring queries {toggle="true"}`): every line that belongs inside the section gets **one** leading tab. Under `## Staging` and `## Post-deployment` that one tabbed line is the subsection toggle (`### Smoke tests {toggle="true"}` etc.). Under `## Monitoring queries` the tabbed lines are the bold query-title paragraphs and the fenced code blocks.
+- **Subsection toggles** (`### Smoke tests {toggle="true"}` / `### Happy-path flows {toggle="true"}` / `### Edge cases {toggle="true"}` / `### Regression risks {toggle="true"}` / `### Production checks {toggle="true"}`): every direct child gets **two** leading tabs (one for the section, one for the subsection). That covers the `- [ ] **<Short name>**` to-do line.
+- **To-do children** under a subsection toggle (the *Why:* paragraph, numbered steps, `**Find a case:**` / `**Find the cases:**` paragraph, and any fenced code block under the to-do): **three** leading tabs (section + subsection + to-do). Code-block fences and every code line inside take the same three-tab indent.
+- **Callouts** (`<callout …>` for *What changes for QA* / *Notes for QA* / *Baseline*): the bold first line and the body paragraph each get one leading tab. The closing `</callout>` stays at column 0.
+
+Indent inside fenced code blocks the same as the fence — Notion preserves leading whitespace inside code blocks but treats fences without a matching indent level as breaking out of the parent toggle. Use literal tab characters, not spaces.
+
+Smoke-test the rendered page after every publish: open each section toggle and confirm the to-dos are visible inside it (not as peer top-level blocks below an empty toggle). If a section toggle reads empty, the indent was lost — re-publish with the missing tabs.
 
 Page title: `QA Strategy — <Card title>` — no PR suffix, no branch suffix, regardless of how many PRs the card carries.
 
