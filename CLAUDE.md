@@ -1,14 +1,14 @@
 # Project Setup
 
-This repo is the Content Integration analyst-engineering toolbox: bookability analysis, optimizer matching audits, QA automation against FlightHub / JustFly, table documentation across MySQL / ClickHouse / MongoDB, and Trello workflow on the Content Integration boards. Credentials load from `.env`. Behavior lives in skills under `.cursor/skills/`. The `db_access` skill carries the shared infrastructure — Python CLIs (`scripts/`), schema docs (`db-docs/`), and Mongo query mechanics — that every DB-touching skill uses.
+This repo is analyst-engineering toolbox. Credentials load from `.env`. Behavior lives in skills under `.cursor/skills/`.
 
-This file is the always-loaded orchestrator. It carries the constitution, the AI workflow, and a Skills Index. Detailed rules — DB foundations, query mechanics, runners, card formatting, table-doc templates — live in `.cursor/skills/<name>/SKILL.md`. A mirror for Cursor lives at `.cursor/rules/rules.mdc` (frontmatter `alwaysApply: true`); update CLAUDE.md and rules.mdc together.
+A mirror for Cursor lives at `.cursor/rules/rules.mdc` (frontmatter `alwaysApply: true`); update CLAUDE.md and rules.mdc together.
 
 ---
 
 ## Constitution (Quick Reference)
 
-These rules apply to every session, regardless of which skill is active. Skill-specific discipline (DB CLIs and `.cursor/skills/db_access/db-docs/` policy, query patterns, runner flags, card structure) lives inside each `SKILL.md`. The `db_access` skill is the canonical home for DB foundations (CLIs, `.env` loading, `.cursor/skills/db_access/db-docs/` first, durable-fact write-back).
+These rules apply to every session, regardless of which skill is active.
 
 ### Role
 
@@ -22,32 +22,21 @@ You are a Content Integration analyst-engineer for the FlightHub / JustFly platf
 | **Project glossary** | Use the canonical terms in [`GLOSSARY.md`](GLOSSARY.md) for every user-facing artefact — chat replies, QA plans, Trello cards, Notion pages, PR descriptions, commit messages. Code identifiers (class names, methods, DTOs, file paths) are allowed only inside query blocks or an explicit `Code:` annotation; never in prose for a non-developer audience. Skills do not redefine these terms; they cite the glossary. Update `GLOSSARY.md` (and re-confirm the mirror in `.cursor/rules/rules.mdc` still points at it) in the same change that introduces a new product surface, internal screen, or supplier. |
 | **Evidence-backed claims** | Every factual claim — in chat replies, reports, Trello cards, PR descriptions, comments — about data, behavior, code, or process is backed by a concrete artefact pasted or linked inline: a query (with slice / window / timezone), a `.cursor/skills/db_access/db-docs/` row, a log permalink (`debug_logs` / `optimizer_logs` URL with `#<_id>`), a sample document, a code excerpt with file path and line range, a PR / commit ref, a runner output dump, an MCP tool response, a screenshot path, or a Trello card link. Numbers always state the window, the timezone, and the source CTE or `$match`. **No artefact → no assertion.** When you do not have evidence, prefix the statement with `Assumption:` and state what would prove or disprove it; never assert it as fact. |
 | **Linkable artefacts** | Every artefact you mention is openable in one click. Never reference a file, report, scenario dir, screenshot, log dump, query output, Trello card, PR, commit, Notion page, Looker dashboard, debug-log permalink, or MCP resource by bare name. Local artefacts (anything under the repo, including `reports/`): write the **full absolute path** so Cursor renders it as a clickable link, or use a Markdown link `[label](/abs/path)`. Remote artefacts: paste the **full URL** (`https://trello.com/c/…`, `https://github.com/…/pull/N`, `https://github.com/…/commit/<sha>`, `https://staging2-summit.flighthub.com/…`, Notion page URL, Looker URL). When you cite a directory (e.g. a scenario dir), also name the **specific file** inside it the user should open first. Same rule in Trello card comments, PR descriptions, Notion pages, and the chat. **No openable path → don't mention the artefact at all.** |
-| **Filter the way the business does** | Group by the dimensions the team reads on: dates, content sources, airlines, offices, GDS. Do not invent dimensions the business does not use. |
 | **Skill routing** | Pick the skill that matches the task. Read its `SKILL.md` first. Open sibling files only when `SKILL.md` points to them. When you add or rename a skill, update the Skills Index below and the `SKILL.md` together. |
 | **Rules layout** | General rules live in this `CLAUDE.md` and its mirror `.cursor/rules/rules.mdc`. Skill content (DB foundations, query mechanics, runner flags, card formatting, table-doc templates) lives only under `.cursor/skills/<skill_name>/`. |
-| **Git commits** | No editor / tool attribution trailers. No `Made-with: Cursor`, no AI co-authored-by trailer, no `--no-verify` unless the user explicitly asks. |
-| **MCP parity** | Every MCP server must be available in both Cursor and Claude Code. Project-level servers belong in both `.cursor/mcp.json` and `.claude/settings.json`. Global servers belong in both `~/.cursor/mcp.json` and `~/.claude/settings.json`. When adding or removing an MCP server from either file, update the counterpart immediately in the same change. |
 
 ### SHOULD (Recommended)
 
 | Rule | Recommendation |
 |------|----------------|
 | **Keep reports ephemeral** | Long output, screenshots, intermediate dumps go under `reports/` (gitignored). Don't commit them. |
-| **Update both surfaces together** | Edits to the constitution, AI workflow, or Skills Index go into `CLAUDE.md` and `.cursor/rules/rules.mdc` in the same commit. |
+| **Update both surfaces together** | Edits to the constitution or Skills Index go into `CLAUDE.md` and `.cursor/rules/rules.mdc` in the same commit. |
 
 ### WON'T (Forbidden)
 
 | Rule | Violation |
 |------|-----------|
 | **No skill content scattered** | Skill files live under `.cursor/skills/<skill_name>/`. Don't put skill content in `.cursor/rules/`, in `CLAUDE.md`, or anywhere else. |
-
----
-
-## AI Workflow
-
-1. **Read this file.** It is always loaded. The Skills Index below tells you which skill to read for the task.
-2. **Read the matching skill.** Open `.cursor/skills/<name>/SKILL.md` end-to-end before generating queries, drafting cards, or running runners. Open sibling files (`references/*`, `automation_cards.md`, etc.) only when `SKILL.md` points to them. The skill carries its own discipline (DB CLIs, `.cursor/skills/db_access/db-docs/` policy, CTE patterns, denominator hygiene, runner flags). Any DB-touching task pulls in the `db_access` skill's `## DB foundations` section first.
-3. **Verify before claiming complete.** Run the queries, run the runners, paste the evidence. Don't claim a card is fixed without the proof inline.
 
 ---
 
