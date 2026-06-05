@@ -167,7 +167,7 @@ If no PR URL is found, ask the user to paste one before proceeding. Do not guess
 
 ### Step 2 — Read the PR / branch (mandatory)
 
-For each linked PR (limit to 3 — if more, ask the user which to use):
+For each linked PR (no cap — the published page lists every PR the card carries on the header line, comma-separated; all linked PRs are read at this step too):
 
 ```
 get_pull_request(owner, repo, pull_number)
@@ -176,6 +176,8 @@ get_pull_request_diff(owner, repo, pull_number)   # PRs ≤ 50 files only
 ```
 
 For PRs > 50 files: skip `get_pull_request_diff` and rely on `get_pull_request_files` plus targeted reads via `codebase_access`. For a branch with no PR yet, use `compare_commits(owner, repo, base, head)` and read the resulting diff the same way.
+
+When the card links many PRs, read each one's diff at this step — there is no cap. If diff fetching across all of them blows the context window for a particular PR (e.g. a single PR > 50 files), apply the `get_pull_request_files`-only fallback to that PR alone; do not drop other PRs from the analysis.
 
 Read the **substantive code changes**, not the file paths alone. For each meaningful cluster of changed files, answer three questions in canonical glossary terms (see `GLOSSARY.md`):
 
@@ -241,16 +243,20 @@ When a check needs a specific real-world case (carrier / supplier / error / rout
   3. <observable pass condition>
 ```
 
-Full plan template:
+Full plan template (chat-preview shape — plain markdown only, no Notion-only decorations). This is what the reviewer sees during Step 5. The published Notion page applies the styling conventions in Step 5; **do not** include `<callout>`, `<details>`, `{toggle="true"}`, or `<span color=…>` tags in the preview.
 
 ```markdown
 ## QA Strategy — <Card title>
 
-**PR:** <pr_url>
+**PR:** <pr_url_1>, <pr_url_2>, …    ← every PR linked from the card, comma-separated; no cap
 **Trello card:** <card_url>
 **Staging:** <staging URL from card / comments — omit the line if none>
+
 **What changes for QA:** <one to three plain-language sentences. List the surfaces to watch (search results page, checkout page, ResPro page, debug log, etc.). No code terms.>
+
 **Notes for QA:** <optional — staging limitations and shared-code context that are NOT tests: "this PR touches shared code, so other content sources are in scope but we will not verify them manually", "multi-ticket cannot be reproduced on staging". Omit the line if there are none.>
+
+**Baseline (<date>, <window>):** <optional one-liner — the current pre-deploy rate / count the fix is expected to move. Omit the line when there is no measurable baseline.>
 
 ---
 
@@ -260,19 +266,24 @@ Full plan template:
 
 - [ ] **<Short name>**
   1. <step>
-  2. <observable pass condition>
+  2. **PASS:** <observable pass condition>
 
 **Happy-path flows**
 
-- [ ] **<Short name>** + *Why:* + steps
+- [ ] **<Short name>**
+  *Why:* <one or two sentences tying this check to the PR's diff>
+  1. <step>
+  2. <step>
+  3. **PASS:** <observable pass condition>
+  📎 <optional label>: <debug-log permalink>
 
-**Edge cases** (reachable from a fresh search or replayed from a real prod case)
+**Edge cases** (reachable from a fresh search, replayed from a real prod case, or forced via the package-transfer tool)
 
-- [ ] **<Short name>** + *Why:* + optional **Find a case:** + steps
+- [ ] **<Short name>** + *Why:* + optional **Find a case:** + steps + **PASS:** <observable pass condition>
 
 **Regression risks (user-visible only)**
 
-- [ ] **<Short name>** + *Why:* + optional **Find a case:** + steps
+- [ ] **<Short name>** + *Why:* + optional **Find a case:** + steps + **PASS:** <observable pass condition>
 
 ---
 
@@ -280,7 +291,7 @@ Full plan template:
 
 **Production checks**
 
-- [ ] **<Short name>** + (*Why:* unless it's a generic spot check) + steps
+- [ ] **<Short name>** + (*Why:* unless it's a generic spot check) + steps + **PASS:** <observable pass condition>
   **Find the attempts:** (required for any "spot-check a real booking" item — reads `bookability_contestant_attempts`, not `bookings`, so pre-booking failures are visible)
   ```sql
   -- Recent contestant attempts on the affected surface — successes + failures — last N hours.
@@ -298,7 +309,11 @@ Full plan template:
   2. If such a case occurs, confirm <observable symptom>.
   3. If not observed in the watch window, mark "not observed" — do not block.
 
-**Monitoring queries**
+---
+
+### Monitoring queries
+
+**<one-line title for the first query — what / window / timezone>**
 
 ```sql
 -- <label, window, timezone>
@@ -307,7 +322,7 @@ Full plan template:
 <query>
 ```
 
-Mongo blocks are written as **bare aggregation-pipeline arrays** so QA can paste them straight into MongoDB Compass — never `db.collection.aggregate(...)`, never `db.collection.find(...)`, no surrounding shell wrapper. State the target collection in the comment above the array. Window expressions like `new Date(Date.now() - N*3600*1000)` are fine because Compass evaluates them.
+**<one-line title for the next query>**
 
 ```javascript
 // ota.debug_logs — Compass aggregation. Last 6h. UTC.
@@ -324,15 +339,24 @@ Mongo blocks are written as **bare aggregation-pipeline arrays** so QA can paste
 ```
 ```
 
+Mongo blocks stay **bare aggregation-pipeline arrays** so QA can paste them straight into MongoDB Compass — never `db.collection.aggregate(...)`, never `db.collection.find(...)`, no surrounding shell wrapper. State the target collection in the comment above the array. Window expressions like `new Date(Date.now() - N*3600*1000)` are fine because Compass evaluates them.
+
+Section ordering is fixed: Staging → Post-deployment → Monitoring queries. Drop a whole section, or any subsection, when it has zero items. The plan never carries a Rollback signals section, a progress bar, or per-section counters — healthy-vs-unhealthy expectations live inside each monitoring query's comment header.
+
 ### Step 5 — Propose, wait for approval, then publish
 
 The plan is **always proposed in chat first** and only published after approval. Never auto-publish.
 
-1. **Propose.** Emit the full Step 4 markdown block in chat. End with: *"Approve and publish?"* Do not pre-empt with edits.
-2. **Iterate.** If the user wants changes, update and re-emit the full block.
-3. **Publish (on approval), in order:**
-   1. **Create a Notion page** via the `notion_assistant` skill. Parent: Flighthub QA root (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`). Title: `QA Strategy — <card title> (PR #<number>)` — substitute the branch name for `PR #<number>` if no PR exists. Body: the approved markdown. Capture the page URL.
-   2. **Append the Notion link to the bottom of the Trello card `desc`** — never as a comment. The append is idempotent: any prior `**QA Strategy:** <url>` line (and its preceding `---` separator) is stripped before the new link is added.
+1. **Propose.** Emit the Step 4 chat-preview markdown in chat. End with: *"Approve and publish?"* Do not pre-empt with edits. Do not include any Notion-only tags (`<callout>`, `<details>`, `{toggle="true"}`, `<span color=…>`) in the preview — those are applied at publish per the *Notion render rules* table below.
+2. **Iterate.** If the user wants changes, update and re-emit the full chat-preview block.
+3. **Publish (on approval).**
+
+   1. **Find the target Notion page.** Fetch the current Trello card `desc` (`GET /1/cards/<id>?fields=desc`). If `desc` contains a `**QA Strategy:** <notion_url>` line, parse the page ID from the URL and call `notion-fetch` on it. If the fetch succeeds **and** the page's `parent` chain still leads back to the Flighthub QA root (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`), treat this as an in-place update. Otherwise (no prior line, fetch fails, or the page moved out of the QA root), treat this as a first publish.
+   2. **Render the page body.** Convert the approved chat preview into the Notion-native form per the *Notion render rules* table below. The body **never** includes the `## QA Strategy — …` title line — Notion's `title` property carries it.
+   3. **Publish.**
+      - **First publish:** call `notion-create-pages` with `parent.page_id = 35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`, `properties.title = "QA Strategy — <card title>"`, `icon = "🧪"`, `content = <rendered body>`. Capture the page URL.
+      - **In-place update:** call `notion-update-page` with `command = "replace_content"`, `page_id = <parsed id>`, `new_str = <rendered body>`. Page title and icon are left untouched. The full body is wiped and replaced — no carve-out for ticked `to_do` boxes or human-added comments. Notion's per-page revision history is the recovery surface; surface it explicitly when the user asks "where did my edits go?".
+   4. **Refresh the Notion link in the Trello card `desc`** — never as a comment. The append is idempotent: any prior `**QA Strategy:** <url>` line (and its preceding `---` separator) is stripped before the new link is added.
 
       Algorithm:
       1. Fetch the current `desc` via `GET /1/cards/<id>?fields=desc`.
@@ -352,9 +376,35 @@ The plan is **always proposed in chat first** and only published after approval.
 **QA Strategy:** <notion_url>"
       ```
 
-4. **Report.** Hand back the Notion URL in chat and confirm the Trello card was updated.
+4. **Report.** Hand back the Notion URL in chat. Say whether this was a first publish or an in-place update so the reviewer knows whether previous human edits were wiped from the live view (still recoverable from page history).
 
-If either publish step fails, surface the error verbatim and stop. Don't retry on a different surface without user direction.
+If any publish step fails, surface the error verbatim and stop. Don't retry on a different surface without user direction.
+
+#### Notion render rules (publish-time decorations)
+
+These are applied mechanically when the chat-preview markdown is converted into the Notion page body. The reviewer does not see them per-card; the conventions are pinned here.
+
+| Preview element | Notion render |
+|---|---|
+| `## QA Strategy — <Card title>` (preview only) | Notion page `title` property + page icon `🧪`. **Not** written into the body. |
+| `**PR:** <link>, <link>, …` / `**Trello card:** <link>` / `**Staging:** <link>` | three `paragraph` lines at the very top of the body, kept as bold-labelled rich text. Drop the Staging line if the preview omits it. |
+| `**What changes for QA:** <text>` | `<callout icon="💡" color="blue_bg">` with **What changes for QA** as bold first line + the text body. |
+| `**Notes for QA:** <text>` | `<callout icon="📝" color="gray_bg">` with **Notes for QA** as bold first line + the text body. Omit the callout entirely when the preview line is absent. |
+| `**Baseline (…):** <text>` | `<callout icon="📊" color="yellow_bg">` with **Baseline (…)** as bold first line + the text body. Omit when absent. |
+| `---` separator after the header | drop — the toggles below provide the visual break. |
+| `### Staging` / `### Post-deployment` / `### Monitoring queries` (preview H3) | `## <Section> {toggle="true"}` — three peer top-level toggle headings, in this fixed order. |
+| `**Smoke tests**` / `**Happy-path flows**` / `**Edge cases**` / `**Regression risks**` (preview bold lines under `### Staging`); `**Production checks**` (preview bold line under `### Post-deployment`) | `### <Subsection>` headings nested inside the parent toggle. Drop the subsection heading entirely when it has no items. |
+| `- [ ] **<Short name>**` / `- [x] **<Short name>**` | `to_do` block (unchecked / checked) at the top of the check. |
+| `*Why:* <text>` (nested under the to_do) | italic `paragraph` indented under the `to_do`. |
+| Numbered steps (nested under the to_do) | `numbered_list_item` blocks indented under the `to_do`. |
+| `**PASS:** <condition>` (final step's trailing clause) | wrap the trailing pass clause as `<span color="green_bg">**PASS:** <condition></span>` — applied to the pass text, not to the whole step. |
+| `📎 <label>: <link>` (nested under the to_do) | plain `paragraph` under the `to_do`, the 📎 emoji kept literal. |
+| Fenced ```` ```sql ```` / ```` ```javascript ```` block (under a check or under `### Monitoring queries`) | Notion `code` block with the same language. Notion supplies its own copy button and syntax highlighting; do not add a custom one. |
+| `**<one-line monitoring query title>**` line above a code block (under `### Monitoring queries`) | `paragraph` with bold rich-text directly above the code block; no heading. |
+
+Page title: `QA Strategy — <Card title>` — no PR suffix, no branch suffix, regardless of how many PRs the card carries.
+
+Multi-PR header: every PR URL the card carries is listed on the `**PR:**` line, comma-separated. No cap. Order matches the order the PRs appear in the card's `desc` / comments.
 
 ## What not to do
 
@@ -378,8 +428,13 @@ Concrete rules not already stated by Core principle, Workflow, or `GLOSSARY.md`:
 
 - Do not hardcode staging URLs. Reference the environment by name and let the QA engineer supply the host (the `Staging:` header field is a link the user added to the card, not a hard-coded environment).
 - Do not include monitoring queries for tables unrelated to the change surface.
-- Do not create a Notion page outside the Flighthub QA root. Pass the root ID (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) explicitly to `notion_assistant`; do not rely on its default.
+- Do not create a Notion page outside the Flighthub QA root. Pass the root ID (`35edf8c4-9d3f-80ee-a5ff-eaaa7aa9b3b9`) explicitly when creating a page; do not rely on any default.
 - Do not post the Notion link as a Trello comment. It goes in the card `desc` (Step 5), de-duped against any prior `**QA Strategy:**` line.
+- Do not include Notion-only decoration tags (`<callout>`, `<details>`, `{toggle="true"}`, `<span color=…>`) in the chat-preview markdown. They are added mechanically at publish time per the *Notion render rules* table.
+- Do not write a `Rollback signals` section, a progress bar, or per-section counters into the plan. Healthy-vs-unhealthy expectations belong inside each monitoring query's comment header.
+- Do not cap the number of PRs listed on the `**PR:**` header line. List every PR linked from the card.
+- Do not put a `(PR #<N>)` or branch suffix in the Notion page title. Title is `QA Strategy — <Card title>` only.
+- Do not create a new Notion page on every republish. If the Trello card `desc` already has a `**QA Strategy:** <url>` line and the page is still under the QA root, update it in place via `notion-update-page` `replace_content`.
 
 ## References
 
