@@ -1,0 +1,26 @@
+{
+  "skill_name": "qa-strategy",
+  "evals": [
+    {
+      "id": 0,
+      "name": "fr24-booking-sync",
+      "prompt": "QA strategy for https://trello.com/c/jPCKypll/2920-fr24-booking-sync-fails",
+      "expected_output": "Two-section QA plan (Staging + Post-deployment) for the FR24 booking-sync failure, derived from the card and its linked PR diff, framed in user/agent/log terms with verified locator + monitoring queries and per-check Why: lines. No code identifiers in prose.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "onefly-check-availability",
+      "prompt": "QA strategy for https://trello.com/c/mrasebFb/2908-onefly-implement-check-availability",
+      "expected_output": "Two-section QA plan for the OneFly check-availability implementation, derived from the PR diff. Staging smoke/happy-path/edge driven from a fresh search; post-deploy monitoring of the new availability-check call and its log shape. Observable phrasing only.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "kiwi-scope-tag",
+      "prompt": "QA strategy for https://trello.com/c/ra8NqjLu/2923-kiwi-add-a-scope-tag-to-all-check-availability-logs",
+      "expected_output": "Two-section QA plan for the Kiwi log scope-tag change. Likely a log-shape-only change — plan should be short, focus on the debug_logs/optimizer_logs field addition, verify the new tag appears via a pinned per-search_id query on staging and an aggregate watch in prod. Should explicitly note limited user-visible surface.",
+      "files": []
+    }
+  ]
+}

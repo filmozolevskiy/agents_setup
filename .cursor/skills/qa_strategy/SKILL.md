@@ -5,9 +5,7 @@ description: >-
   post-deploy checklist derived from a Trello card and its linked PR —
   trigger phrases: "QA strategy for this card", "test plan for",
   "staging checklist", "post-deploy checks", "what to QA on <card
-  link>". Reads the card and PR diff, writes a two-section plan
-  (Staging + Post-deployment) framed in user / agent / log terms only —
-  never code identifiers.
+  link>".
 ---
 
 # QA Strategy Generator
@@ -18,7 +16,15 @@ Given a Trello card and its linked PR, produce a structured QA strategy — what
 
 **Read the code. Test the functionality.**
 
-Reading the PR (or branch diff) is **mandatory** — without it the plan degrades into generic boilerplate. The diff is read to answer one question: *what behaviour will a human or a log query notice differently after this change?* The output plan is written in terms of UI flows, internal screens, emails, and log shapes QA can observe directly — every checklist item must be verifiable without opening the codebase. If a change has no user-visible, agent-visible, or log-visible effect (pure refactor, internal rename, comment-only edit), the plan says so explicitly and stays short.
+Reading the PR (or branch diff) is **mandatory**. The diff is read to answer one question: *what behaviour will a human or a log query notice differently after this change?* The output plan is written in terms of UI flows, internal screens, emails, and log shapes QA can observe directly — every checklist item must be verifiable without opening the codebase. If a change has no user-visible, agent-visible, or log-visible effect, the plan says so explicitly and stays short.
+
+### Brevity over completeness
+
+The shorter the plan, the more likely QA reads and runs every item. Default to the minimum viable plan. Cut every check that does not change QA's next action. For a small change, three checks total can be the right answer — don't pad the optional sections to look thorough. If a section has nothing to add, drop the section header entirely.
+
+### Plain ESL wording
+
+Write the plan in short, plain sentences with everyday verbs. Prefer "we will not verify them manually" over "we do not sweep them by hand"; prefer "the log no longer fills with duplicate lines" over "the log stops repeating entries". No idioms, no metaphors ("sweep", "blast radius", "in flight", "land cleanly"), no Latin abbreviations, no playful phrasing.
 
 ### Scope discipline
 
@@ -28,13 +34,80 @@ Every checklist item traces to a file in the diff **and** a user / agent / log s
 
 Debug toggles flipped on, unconditional bypasses, commented-out guards, leftover `dd()` / `var_dump` — surface those in the chat reply outside the plan block. The plan is QA workflow, not code review.
 
-### No staging fixtures — lean on production cases
+### No staging fixtures — lean on production cases or the package-transfer tool
 
-We don't maintain staging fixtures for malformed, stale, or contrived inputs. Any check that needs a specific input (a particular carrier, a stale package, a specific error signature) is first found in a prod DB and then reproduced on staging. If a failure mode cannot be reproduced either way, move it to Post-deployment and frame it as: *"watch prod for sessions where <natural condition>; if such a session occurs, confirm <expected user / agent / log symptom>. If not observed in the watch window, mark as 'not observed' — do not block on it."*
+We don't maintain staging fixtures for malformed, stale, or contrived inputs. Any check that needs a specific input (a particular carrier, a stale package, a specific error signature, a multi-passenger / multi-PNR shape) is reproduced on staging through one of two paths, **in this order**:
+
+1. **Find a production case and replay the same search on staging.** The plan embeds a `**Find a case:**` query that returns a real prod row with the condition; the steps then describe how to drive the same search on staging.
+2. **If a fresh search will not reproduce the condition** (a stale package, a different-price re-quote, an unavailable response, a specific package the user already chose), **use the package-transfer tool** at https://summit.flighthub.com/tools/package-transfer. Pick the prod row, transfer the package onto the staging environment, then walk through checkout. The supplier is called live against the transferred shape and exercises the changed code path.
+
+Only when **both** paths fail — no representative prod row exists, and the package-transfer tool cannot recreate the condition — move the check to Post-deployment and frame it as: *"watch prod for sessions where <natural condition>; if such a session occurs, confirm <expected user / agent / log symptom>. If not observed in the watch window, mark as 'not observed' — do not block on it."* The post-deploy watch is the last resort, not the default.
+
+### Each check must trigger the specific logic it claims to verify
+
+Before writing the steps for any check, answer: *what condition does the changed code require to execute?* If the answer is "more than one passenger with a distinct PNR", "a stale package that re-quotes at a different price", "a fare with the `XYZ` tag", "an unavailable response from the supplier" — the steps must produce that condition. Never write "use the booking from the smoke test" for a check that only fires under a condition the smoke booking does not hit.
+
+Apply the test: read the check's *Why:* line, then re-read its steps. If the steps could pass on a booking that does not satisfy the condition the *Why:* describes, the check is broken — either change the steps to drive the condition (prod-row replay or package-transfer), fold the check into another booking that already has the condition (see *Bundle checks that share a booking* below), or drop the check.
+
+### Bundle checks that share a booking into one block
+
+When several checks can be done with the same booking attempt present them as **one** booking with N ordered observations, never N separate bookings. QA runs one booking; the plan reads as a single block; nothing is duplicated.
+
+Use a `**Booking and observations:**` block. The booking is described once at the top (driver / route / passengers / supplier / any condition the booking has to satisfy); each observation is a sub-bullet with its own *Why:* line and pass condition.
+
+```markdown
+- [ ] **<Short name for the bundle, e.g. "FR24 multi-PNR booking + post-issuance observations">**
+  *Why:* <one or two sentences tying the bundle to the PR's diff — name the condition the booking must satisfy>
+  **Booking and observations:**
+  1. Drive one FR24 booking on staging94 with <route / passenger config / condition>. Note the booking_id.
+  2. On the ResPro page for that booking, observe:
+     - **<Observation 1 short name>** — *Why:* … — <observable pass condition>.
+     - **<Observation 2 short name>** — *Why:* … — <observable pass condition>.
+  3. In the debug log group for the booking_id, observe:
+     - **<Observation 3 short name>** — *Why:* … — <observable pass condition / row-count expectation>.
+  4. Open the confirmation email sent to the passenger address:
+     - **<Observation 4 short name>** — *Why:* … — <observable pass condition>.
+```
+
+Only split into separate checks when the bookings must differ in a way the bundle cannot accommodate (different supplier, different passenger count when that *is* the condition under test, different staging environment). Two checks that need the same shape of booking are always a single bundle.
 
 ### A *Why:* line on each non-trivial check
 
-Every checklist item that isn't a one-line smoke check carries a one-or-two-sentence *Why:* line under the bold name, tying the check to the PR's diff in plain user / agent / log terms — "this is the back-fill the PR removed", "this is the new short-circuit the PR introduced". No code names.
+Every checklist item that isn't a one-line smoke check carries a one-or-two-sentence *Why:* line under the bold name, tying the check to the PR's diff in plain user / agent / log terms — "this is the back-fill the PR removed", "this is the new short-circuit the PR introduced".
+
+Describe the **behaviour change and the observable risk — never the code mechanics**. QA reads this line; phrases like "untyped writer", "push/pop in a try/finally", "closure-style scope helper", "memoized lookup", "early return", "backtrace", "request/response DTO" name *how the code was rewritten* and tell QA nothing to watch for. The "no code identifiers" rule (`GLOSSARY.md`) bans the names; this bans the jargon. Translate the mechanic into what it produces:
+
+- Not "switched to a typed document writer that adds a backtrace" → "the supplier request/response is still logged, now with more diagnostic detail".
+- Not "rewrote the call site as an explicit push/pop in a try/finally" → "the availability call was restructured — confirm its logs still open and close cleanly, with no scope left dangling".
+- Not "the PR memoizes the ticket lookup" → "the ticket lookup now runs once instead of repeating — the log should stop filling with duplicate lines".
+
+One carve-out: a supplier API operation name that literally appears in the debug-log context (the string QA sees in the log group) is a log-surface term — use it in backticks when it helps QA find the entry. A class that merely shares that name is not.
+
+#### No method or class names in *Why:* lines
+
+The "no code identifiers in prose" rule from `GLOSSARY.md` extends to *Why:* lines literally. Method names and class names cannot stand in for "what the PR changed", even when they feel concise. QA does not read code; a *Why:* line built around `getSegmentPnrs`, `isOnefly()`, `actionValidatePackageDeeply`, `hasTickets`, `Throwable` tells them nothing they can verify.
+
+Translate the identifier into the observable it produces:
+
+- Not "*Why:* this is the back-fill `getSegmentPnrs` adds" → "*Why:* the per-segment airline PNR row on the ResPro page is now populated when the supplier returned per-passenger PNRs".
+- Not "*Why:* the `isOnefly()` gate keeps other suppliers out of the new path" → "*Why:* only Onefly checkouts hit the new check availability path; other suppliers are unchanged — a sanity booking on another supplier confirms its `debug_logs` group is the same shape as before the PR".
+- Not "*Why:* this is the new scope the PR pushes around `actionValidatePackageDeeply`" → "*Why:* the deep re-check step on a non-Kiwi package routed through Kiwi now writes its debug-log entries with the `Deep Check Flights` scope attached".
+- Not "*Why:* the `hasTickets` branch returns early when no tickets exist" → "*Why:* a booking issued seconds ago with no ticket numbers yet must still load on the ResPro page without an error banner".
+
+The same rule applies to **pass conditions** under the numbered steps — a step ending in "confirm `getTickets()` returns the populated array" is wrong; "confirm the ResPro page shows the ticket number for each passenger" is right.
+
+#### No code-path verbs in pass conditions
+
+QA cannot verify that a code path *ran*; they can only verify what they *see*. Pass conditions and *Why:* lines built around code-path verbs are unobservable and let regressions through. **Banned verbs (and equivalents):** *exercises*, *enters*, *hits*, *runs through*, *executes*, *goes through*, *triggers the branch*, *reaches the code*, *invokes*, *calls into*. These describe execution, not a symptom QA can confirm on a page, in a log, in a row, or in an email.
+
+Translate the execution into the observable it produces:
+
+- Not "*Why:* one booking exercises the entry into the new branch" → "*Why:* the `debug_logs` group for the smoke `booking_id` contains exactly one entry whose `context` starts with `Onefly::check-availability` and ends in `::Success`".
+- Not "pass: the request enters the new dispatcher" → "pass: the `debug_logs` entry for `<context>` shows `_scopes` containing `Check Availability` for this `search_id`".
+- Not "pass: the call hits the updated wrapper" → "pass: the supplier response payload in the `<context>` entry now has the `<field>` key populated".
+- Not "pass: the failure path triggers" → "pass: the `optimizer_candidates` row for the attempt shows `status='dropped'` and a sibling row with a different `candidate_id` was created".
+
+If a check genuinely has no observable symptom — the change is internal and produces no user / agent / log surface — the check does not belong in the plan. Drop it, or rewrite it as a code-review concern in run-notes.
 
 ### Staging shares the data stores with production
 
@@ -51,6 +124,8 @@ Applies to every query in the plan — locator queries inside staging checks, mo
 1. Open `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every referenced column / field exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing.
 2. Confirm the literal filter values by running a tiny `SELECT DISTINCT col LIMIT 50` (or Mongo equivalent) via the `db_access` CLI scripts.
 3. Run the query against a recent window. The result must come back non-empty and shaped as expected. Paste a stamp next to the query: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.`
+
+   If no representative row exists in a recent window (the fixed condition is now rare or zero), confirm the schema and the literal filter values instead, then downgrade the stamp so the gap is explicit — never imply a populated result you did not see: `-- Schema-confirmed only <YYYY-MM-DD> against <table> (no representative row in last N days; <columns> + filter values verified).`
 
 If verification fails (store unreachable, table missing, no recent data), drop the query and state the limitation in prose.
 
@@ -76,6 +151,9 @@ If verification fails (store unreachable, table missing, no recent data), drop t
 
 - **Trello REST API** — `GET /1/cards/<id>?attachments=true&actions=commentCard` to read the card. Credentials `TRELLO_API_KEY` / `TRELLO_TOKEN` from `.env`. Base URL `https://api.trello.com/1/`.
 - **GitHub MCP** (`GitHub` server) — `get_pull_request`, `get_pull_request_files`, `get_pull_request_diff` (PRs ≤ 50 files). Reading diff content (not just file paths) is mandatory for small / medium PRs.
+- **Package-transfer tool** — https://summit.flighthub.com/tools/package-transfer. Takes a real production package and re-issues it onto a staging environment as a **checkout state**. Use it to force conditions that a fresh staging search will not produce on the **check availability call**: a stale package (so the supplier returns a different price or "unavailable" on the staging check availability call), a specific carrier / fare basis / route, a multi-passenger configuration that staging traffic rarely creates. The transferred package keeps its production shape; checkout on staging then drives the live supplier with that shape against the changed code path.
+
+  **Scope discipline — the tool produces a checkout, not a booking.** It drives the supplier on the check availability call only. It never creates a booking, never produces a `bookings` row, and cannot reproduce any state that exists only after booking submit or after ticketing — no post-issuance state, no `bookings.status='issued'`, no `booking_segments.control_number` shape, no confirmation email, no post-booking debug logs. Any check that needs a state past the checkout page must drive a real booking end-to-end on staging, or move to a Post-deployment watch on production.
 
 ## Workflow
 
@@ -107,6 +185,16 @@ Read the **substantive code changes**, not the file paths alone. For each meanin
 
 If a changed file maps to none of these, it does not generate a checklist item — code-only refactors are out of scope.
 
+#### Validate every pass condition against how the flow actually behaves
+
+Before writing a check, confirm the *expected* user / agent / log outcome matches the real flow. The plan is wrong when it asserts behaviour the system does not have, even if the steps run cleanly. Known traps — re-check the code (via `codebase_access`) and the debug logs whenever a check touches any of these surfaces:
+
+- **Check availability does not change the price shown or charged to the user.** The price agreed at search stands. A pass condition like "the new repriced total appears on checkout" is wrong — the user never sees a re-price. If the supplier returns a different price, the agent path is to drop the contestant and let the optimizer try another, not to re-prompt the user.
+- **"Flight no longer available" does not block the booking.** On an unavailable response from check availability, the flow falls through to the optimizer and the original contestant is excluded from retry. A pass condition like "the user is blocked with an error" is wrong — the correct condition is "the original contestant is not retried; the optimizer attempts another contestant; the user either gets a different fare or, only after all contestants are exhausted, sees no-availability".
+- **A failure before the `bookings` row is written does not show up in `bookings`.** Pre-booking failures (during contestant attempts) are visible only on the **contestant-attempts** surface. A check that watches `bookings` for "did the booking fail" will miss them — see Step 3 production checks.
+
+When in doubt, open the relevant code path (`Mv/Ota/Air/Booker/Optimizer.php`, the check-availability dispatcher for the content source) or grep recent `debug_logs` to see the actual outcome shape. Phrase the pass condition in the words a QA reader would observe — the page they land on, the field they see on ResPro, the row count they expect from a log query.
+
 ### Step 3 — Derive the strategy
 
 Map the diff-derived surface to test scenarios. When a check needs a **specific** input — a particular carrier on a particular content source, a fare basis with a tag, a session that hit a specific error — embed a concrete prod-DB query that finds a real example, so QA can pick one and reproduce on staging:
@@ -114,22 +202,25 @@ Map the diff-derived surface to test scenarios. When a check needs a **specific*
 | What to find | Where to query | Joinable to |
 |--------------|----------------|-------------|
 | A booked itinerary on carrier X with content source Y | MySQL `booking_contestants` (`validating_carrier`, `content_source`, `booking_status = 'BOOKED'`) | `search_hash` → MongoDB `debug_logs.transaction_id` |
+| A **contestant attempt** (success or pre-booking failure) on content source Y | MySQL `bookability_contestant_attempts` joined to `booking_contestants` (see `bookability` skill and `.cursor/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md`) — captures attempts that never reached the `bookings` table | `search_hash` → MongoDB `debug_logs.transaction_id` |
 | A session that hit a specific supplier error | ClickHouse `jupiter.jupiter_booking_errors_v2` (`gds`, `booking_step`, `error_message`) | `search_id` → MongoDB `debug_logs.transaction_id` |
 | A session whose supplier response had / lacked a specific field | MongoDB `ota.debug_logs` (`$match` on `context`, then check `Response` / `response`) | `transaction_id` → MySQL `booking_contestants.search_hash` |
 
-**Staging section** — only flows that can be driven from a fresh search on staging or replayed from a real prod case:
+**Staging section** — only flows that can be driven from a fresh search on staging, replayed from a real prod case, or forced via the package-transfer tool. Apply the *Each check must trigger the specific logic it claims to verify* rule and the *Bundle checks that share a booking* rule from above before listing checks here:
 
-- **Smoke tests** — one end-to-end per affected content source.
+- **Smoke tests** — one end-to-end per affected content source. If one of the checks below requires a specific booking shape (multi-PNR, multi-passenger, multi-ticket), make the smoke booking itself satisfy that shape and bundle the dependent checks as observations on it — don't write a generic smoke plus a separate "now do it again with multi-PNR" check.
 - **Happy-path flows** — the journey the card promises.
-- **Edge cases** — boundary inputs reachable from a fresh search or by replaying a prod case. Anything that needs a fabricated input moves to Post-deployment.
-- **Regression risks (user-visible only)** — other journeys sharing the same UI surface, supplier, log shape, or ResPro page area. Phrase each as a symptom; embed a locator query when a specific carrier / supplier is needed. If you can't phrase a regression in observable terms, drop it.
+- **Edge cases** — boundary inputs reachable from a fresh search, by replaying a prod case, or by transferring a prod package onto staging. Anything that none of those three paths can reach moves to Post-deployment.
+- **Regression risks (user-visible only)** — other journeys sharing the same UI surface, supplier, log shape, or ResPro page area. Phrase each as a symptom; embed a locator query when a specific carrier / supplier is needed. If you can't phrase a regression in observable terms, drop it. A **broad "is everything else still fine" sweep** that exists only because the PR touches shared code (e.g. "confirm all other content sources still search and book") is not a checklist item — it is a blast-radius note. Put it in the **Notes for QA** header instead, so the agent treats it as context, not a test to run.
 
 **Post-deployment section** — checks after the fix is live. Also where negative paths land when staging can't reproduce them:
 
-- **Production checks** — human verifications observable on real bookings.
-- **Monitoring queries** — copy-pasteable MySQL / ClickHouse / Mongo snippets, 1-hour or 24-hour window, label window + timezone.
-- **Rollback signals** — one-sentence conditions a human or log query can spot.
-- **Watch window** — default 24h for booking-path changes, 4h for config-only.
+- **Production checks** — human verifications observable on real bookings. A spot-check ("confirm the first real booking after deploy") must come with a query that surfaces recent **contestant attempts** on the affected surface — both successes and failures — so QA can see at a glance whether attempts are failing and pick a real attempt to validate. Read the **contestant-attempts** surface (MySQL `bookability_contestant_attempts` joined to `booking_contestants` — see the `bookability` skill for the canonical CTE), **not** `bookings` alone: a failure that happens *before* a `bookings` row is written (auth error, supplier 500 on price, malformed availability response) leaves nothing in `bookings` and is invisible to a `bookings`-only query. Never write "pick a booking" without the attempts query that finds it.
+- **Monitoring queries** — copy-pasteable MySQL / ClickHouse / Mongo snippets, 1-hour or 24-hour window, label window + timezone. State the healthy vs unhealthy shape in the query comment (e.g. `-- healthy after deploy: 0 rows; any row = the fix did not land — revert / escalate`), so the revert signal travels with the query instead of in a separate section.
+
+#### Cross-content-source coverage for shared log contexts
+
+When the changed code path runs for more than one content source — e.g. a log context like `*::check-availability-response` or `*::check-availability-comparison-report` that fires for every supplier, a shared dispatcher, an abstract base — the plan **must** add an explicit verification case for at least one other content source, not just the supplier named on the card. The pass condition is the same observable shape; only the supplier filter changes. Skip this only when the diff is provably scoped to one supplier's adapter (e.g. `Provider/Kiwi.php` with no shared call site changed).
 
 ### Step 4 — Output the strategy
 
@@ -159,6 +250,7 @@ Full plan template:
 **Trello card:** <card_url>
 **Staging:** <staging URL from card / comments — omit the line if none>
 **What changes for QA:** <one to three plain-language sentences. List the surfaces to watch (search results page, checkout page, ResPro page, debug log, etc.). No code terms.>
+**Notes for QA:** <optional — staging limitations and shared-code context that are NOT tests: "this PR touches shared code, so other content sources are in scope but we will not verify them manually", "multi-ticket cannot be reproduced on staging". Omit the line if there are none.>
 
 ---
 
@@ -189,6 +281,16 @@ Full plan template:
 **Production checks**
 
 - [ ] **<Short name>** + (*Why:* unless it's a generic spot check) + steps
+  **Find the attempts:** (required for any "spot-check a real booking" item — reads `bookability_contestant_attempts`, not `bookings`, so pre-booking failures are visible)
+  ```sql
+  -- Recent contestant attempts on the affected surface — successes + failures — last N hours.
+  -- Reads bookability_contestant_attempts joined to booking_contestants (see bookability skill).
+  -- Verified <YYYY-MM-DD> against bookability_contestant_attempts, returned <N rows / shape summary>.
+  <query that lists recent contestant attempts with their final status>
+  ```
+  1. Run the query; confirm attempts are not failing in bulk.
+  2. Open the first successful attempt's booking on the ResPro page; confirm <observable pass condition>.
+  3. Open one failed attempt (if any); confirm the failure reason matches an expected mode, not the change under test.
 
 - [ ] **<Negative-path check that staging couldn't reach>**
   *Why:* <new failure mode, why staging can't reproduce, what observable behaviour to confirm>
@@ -200,16 +302,26 @@ Full plan template:
 
 ```sql
 -- <label, window, timezone>
+-- healthy after deploy: <expected shape>; <unhealthy shape> → revert / escalate.
 -- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.
 <query>
 ```
 
-Mongo blocks use the same shape with `// Field shape verified ...` and `// Run from mongosh.`.
+Mongo blocks are written as **bare aggregation-pipeline arrays** so QA can paste them straight into MongoDB Compass — never `db.collection.aggregate(...)`, never `db.collection.find(...)`, no surrounding shell wrapper. State the target collection in the comment above the array. Window expressions like `new Date(Date.now() - N*3600*1000)` are fine because Compass evaluates them.
 
-**Rollback signals**
-- <user-visible or log-visible condition> → revert / escalate
-
-**Watch window:** <N hours>
+```javascript
+// ota.debug_logs — Compass aggregation. Last 6h. UTC.
+// Field shape verified <YYYY-MM-DD> against ota.debug_logs (context, date_added).
+// healthy after deploy: <expected shape>; <unhealthy shape> → revert / escalate.
+[
+  { $match: {
+      context: { $regex: "^Onefly::check-availability", $options: "i" },
+      date_added: { $gt: new Date(Date.now() - 6*3600*1000) }
+  } },
+  { $group: { _id: "$context", c: { $sum: 1 } } },
+  { $sort: { c: -1 } }
+]
+```
 ```
 
 ### Step 5 — Propose, wait for approval, then publish
@@ -253,6 +365,16 @@ Concrete rules not already stated by Core principle, Workflow, or `GLOSSARY.md`:
   - "`OptimizationResponseDto` must not break existing consumers."
   - "`Provider/Dida.php` shared abstract changes — spot-check one non-baggage Dida call."
   - "Older catalogue version `Service_StandaloneCatalogue_15_1` — confirm unaffected."
+
+- **Banned glossary terms.** Do not write `storefront` or `storefront page` anywhere in the plan (header lines, *Why:* lines, steps, Notes for QA, Notion title). Use the specific page name (`search results page`, `checkout page`, `confirmation page`) or "FlightHub / JustFly". See [`../../../GLOSSARY.md`](../../../GLOSSARY.md) for the full banned-terms list.
+
+- **No `db.collection.aggregate(...)` / `db.collection.find(...)` Mongo blocks.** Mongo blocks are bare aggregation-pipeline arrays so QA can paste them into MongoDB Compass — see the example in Step 4.
+
+- **No `bookings`-only post-deploy spot-check.** Pre-booking failures leave no row in `bookings`. The attempts query must read `bookability_contestant_attempts` (joined to `booking_contestants`) so failures before a booking row exists are visible.
+
+- **No package-transfer for post-issuance / post-ticketing states.** The tool drives a checkout against a chosen package and stops at the supplier's check availability response. It does not create a booking, never produces a `bookings` row, and cannot reconstruct `bookings.status='issued'`, `booking_segments.control_number` shapes, confirmation emails, or any post-booking debug logs. Checks for those states must drive a real booking end-to-end on staging, or move to a Post-deployment watch.
+
+- **No code-path verbs in pass conditions** (*exercises / enters / hits / runs through / executes / goes through / triggers / reaches / invokes / calls into*) and **no method or class names in *Why:* lines** (`getSegmentPnrs`, `isOnefly()`, `actionValidatePackageDeeply`, etc.). Both fail the "QA can observe this" test — see the *Why:* / pass-condition guidance in Core principle for the translation pattern.
 
 - Do not hardcode staging URLs. Reference the environment by name and let the QA engineer supply the host (the `Staging:` header field is a link the user added to the card, not a hard-coded environment).
 - Do not include monitoring queries for tables unrelated to the change surface.
