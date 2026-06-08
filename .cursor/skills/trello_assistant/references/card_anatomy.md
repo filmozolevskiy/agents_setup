@@ -215,10 +215,9 @@ WITH slice AS (
   WHERE ...   -- the named slice; window, content source, error filter
 )
 SELECT COUNT(*) FROM slice;
--- SELECT booking_id, transaction_id, created_at FROM slice ORDER BY created_at DESC LIMIT 20;
 ```
 
-The counterpart goes in as a commented-out outer `SELECT` from the same CTE. Reviewers swap count ↔ examples without re-validating the filter.
+Ship one outer statement only — count or examples, whichever the card needs. Do **not** paste the counterpart as a commented-out `SELECT`; reviewers can rerun the CTE with a different outer statement themselves.
 
 **Mongo:** the leading `$match` stage is the slice. Branch between aggregation (`$group` / `$sum` / `$addToSet`) and one of the two canonical permalink shapes below.
 
