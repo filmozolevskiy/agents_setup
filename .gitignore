@@ -9,6 +9,7 @@ __pycache__/
 # Ephemeral output
 reports/
 docs/
+!.cursor/skills/*/docs/
 .cache_workspace/
 
 # Skill eval workspaces (per-iteration run outputs / benchmarks / viewer logs — kept locally, not in git)

@@ -1,0 +1,3 @@
+# Chat-first output with gated post-back
+
+The skill emits review findings to chat by default and never posts to GitHub without an explicit user `approve` shown against the full proposed payload. Auto-posting was rejected because the first false-positive on JP's team's PR would permanently damage trust in the tool, most invocations are self-checks on draft PRs that should never reach the PR thread, and aligning the gate with `trello_assistant`'s "every write needs sign-off" rule keeps the agent's write discipline uniform across skills. The gated post-back posts comments only — never an approval or request-changes state.
