@@ -378,6 +378,7 @@ rule:
 **Smell to detect:** A log / event call whose first positional or `message:` argument is a literal string describing the action (`"check-in modify"`, `"booker save failed"`, `headline(...)`); a `Psr\Log` call with a one-line label that duplicates the enclosing method name; a log inside a closure or free function that uses a literal string when `callee()` would resolve to the caller frame.
 
 **Evidence:**
+- https://github.com/mventures/genesis/pull/49839#discussion_r2510659181 — "You can also use `callee()` to get the stack's context (in this case, `Momentum\\Booking\\Package\\Commission\\Builder::apply()`)"
 - https://github.com/mventures/genesis/pull/50783#discussion_r2586362408 — "Or `$context = callee(1);`"
 - https://github.com/mventures/genesis/pull/51840#discussion_r2813723835 — "`headline()` is cute but it doesn't leave much behind in terms of 'Where is this log from?' … `message: callee()`"
 - https://github.com/mventures/genesis/pull/52123#discussion_r2861498699 — "When `__METHOD__` is not applicable (because inside a callable or not in a class), `callee()` does the job just fine"
