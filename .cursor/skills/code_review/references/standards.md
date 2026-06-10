@@ -321,6 +321,7 @@ rule:
 - https://github.com/mventures/genesis/pull/53764#discussion_r3313222883 — "This could happen A LOT… Why not report the exception instead? Use `topThrowable()` instead of `topUserError()`"
 - https://github.com/mventures/genesis/pull/52550#discussion_r2976146461 — "I would recommend catching something else than `Throwable` as this will silence everything that's not an `Exception`"
 - https://github.com/mventures/genesis/pull/53251#discussion_r3250912363 — "Throwing now breaks the flow; would instead report the exception to APM with `Apm::traceable()->topThrowable($e);`"
+- https://github.com/mventures/genesis/pull/52088#discussion_r2854209020 — "Exceptions should be reported as such to the APM, otherwise we lose the callstack (`Apm::traceable()->topThrowable()`)"
 
 **Severity:** nit
 
@@ -339,7 +340,48 @@ rule:
 **Evidence:**
 - https://github.com/mventures/genesis/pull/53403#discussion_r3228351301 — "Why is this it the optimizer's job to add the merchant fee to the package? Reprice methods are updating the fares and calculating the merchant fee…"
 - https://github.com/mventures/genesis/pull/52961#discussion_r3101862844 — "Why is the API responsible to optimizer a package?"
+- https://github.com/mventures/genesis/pull/51078#discussion_r2611605370 — "Make `Momentum\Optimizer\Repricer\NewOptimizerRepricer::getOfficeCurrency()` `protected` + `static` and move it to `Momentum\Optimizer\OptimizerRepricer`"
+- https://github.com/mventures/genesis/pull/51071#discussion_r2611352602 — "Would move the logger call to `__construct()`"
 
 **Severity:** nit
 
 **last_evidence_at:** 2026-05-13
+
+---
+
+### R17: Make value-holder fields `public readonly` in a promoted constructor, and drop the getter
+
+**Rule:** A class whose job is to carry data declares its fields as `public readonly` in a promoted constructor; when every field is immutable, mark the whole class `readonly` and remove the getter / setter pair.
+
+**Why:** A `readonly` property cannot be mutated after construction, so a getter adds no encapsulation — it is pure boilerplate that hides which fields the class actually exposes and forces every caller through an extra method.
+
+**Smell to detect:** A new request / DTO / value object under `src/Supplier/<X>/Api/Operations/**`, `src/Supplier/Amadeus/SoapApi/**`, `src/GdsCommandIssuer/**`, or `src/Booking/**` that declares a `private readonly` field plus a one-line `get<Field>()` method; a constructor body that only assigns `$this->field = $field` for every parameter (should be promoted); a class with no mutators that is not marked `readonly`.
+
+**Evidence:**
+- https://github.com/mventures/genesis/pull/50586#discussion_r2550770213 — "Or make the class `readonly` and keep properties `public`, no need for getters"
+- https://github.com/mventures/genesis/pull/51618#discussion_r2743640702 — "Properties could be promoted in the constructor directly"
+- https://github.com/mventures/genesis/pull/51786#discussion_r2775614697 — "If `$pnr` is readonly, then it cannot be mutated; it might as well be public and we can ditch the getter below"
+- https://github.com/mventures/genesis/pull/52094#discussion_r2855126408 — "Might as well make the whole class readonly at this point"
+
+**Severity:** nit
+
+**last_evidence_at:** 2026-02-25
+
+---
+
+### R18: Self-identify a log call site with `__METHOD__` or `callee()`, not a hand-written headline string
+
+**Rule:** Use `__METHOD__` (or `callee()` from inside a closure / free function) as the log message identifier instead of a hand-written headline string.
+
+**Why:** A hand-written headline drifts from the method name on every rename and tells the on-call reader nothing about where the log originates; `__METHOD__` / `callee()` self-identify the call site and stay correct under refactor.
+
+**Smell to detect:** A log / event call whose first positional or `message:` argument is a literal string describing the action (`"check-in modify"`, `"booker save failed"`, `headline(...)`); a `Psr\Log` call with a one-line label that duplicates the enclosing method name; a log inside a closure or free function that uses a literal string when `callee()` would resolve to the caller frame.
+
+**Evidence:**
+- https://github.com/mventures/genesis/pull/50783#discussion_r2586362408 — "Or `$context = callee(1);`"
+- https://github.com/mventures/genesis/pull/51840#discussion_r2813723835 — "`headline()` is cute but it doesn't leave much behind in terms of 'Where is this log from?' … `message: callee()`"
+- https://github.com/mventures/genesis/pull/52123#discussion_r2861498699 — "When `__METHOD__` is not applicable (because inside a callable or not in a class), `callee()` does the job just fine"
+
+**Severity:** nit
+
+**last_evidence_at:** 2026-02-27
