@@ -1,19 +1,16 @@
 # Card anatomy — title and sections
 
-Everything a Content Integration card carries. **Three mandatory sections, up to three optional ones, then the AI footer.**
+Everything a Content Integration card carries. **Three mandatory sections, up to four optional ones, then the AI footer.**
 
-Mandatory, in order:
+Section order (mandatory + optional interleaved):
 
-1. `### ⊙ **Short description**` — one sentence, the scannable TL;DR.
-2. `### ⊙ **Details**` — the flow explained, with debug-log permalinks inline to verify.
-3. `### ⊙ **Visibility**` — how we track it: the debuggable query + count/window.
-
-Optional — include only when they apply:
-
-4. `### ⊙ **Possible solution / expected behavior**` — what we think should happen or how to fix it.
-5. `### ⊙ **Credentials / access**` — **new-integration cards only**; a labeled placeholder the card owner fills by hand.
-6. `### ⊙ **QA notes**` — only when there is a shipped fix to verify; omit by default.
-7. `### ⊙ **Similar / relevant cards**` — related cards the dedup pass or scope overlap turned up.
+1. `### ⊙ **Short description**` *(mandatory)* — one sentence, the scannable TL;DR.
+2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
+3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
+4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
+5. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
+6. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
+7. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
 
 Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out.
 
@@ -73,8 +70,9 @@ Format: **`SOURCE_OR_AREA: short concrete summary`**. Keep it short — one conc
 - Investigations with no fix yet: `(Investigation Pending) SOURCE: …`.
 - Concrete symptom after the colon, not vague.
 - Align wording with existing titles on the same source after the dedup pass.
+- **Supplier operation names are allowed in the title** (`VerifyPrice`, `BookFlight`, `OrderCreate`, `PNR_AddMultiElements`, `Fare_PriceUpsellWithoutPNR`, etc.) when they anchor the card better than a plain-language paraphrase — especially when the same operation is used in several flows (Check Availability + Booker + ancillary re-quote, for example) and naming the operation is more precise than naming one flow. The body still stays plain.
 
-Good: `RESPRO: Downtowntravel booking fails at payment`. `OPTIMIZATION: FLX NDC optimizer misses a cheaper contestant fare`. `AMADEUS: NO FARE FOR CLASS on BookFlight office YYZAA38AA`.
+Good: `RESPRO: Downtowntravel booking fails at payment`. `OPTIMIZATION: FLX NDC optimizer misses a cheaper contestant fare`. `AMADEUS: NO FARE FOR CLASS on BookFlight office YYZAA38AA`. `DIDA: Modify VerifyPrice to see fare price changes` (operation name anchors a card that touches multiple flows).
 
 ## The sections
 
@@ -93,7 +91,7 @@ BookFlight on Amadeus office YYZAA38AA fails with NO FARE FOR CLASS — looks li
 
 ### `### ⊙ **Details**` (mandatory)
 
-The flow explained end to end so a developer understands what happens and why it breaks. The only section that carries narrative.
+The flow explained end to end so a developer understands what happens and why it breaks. The only section that carries narrative. **Describe what changed, not how to fix it** — fix hypotheses go in `Possible solution / expected behavior`.
 
 - Walk the flow: what the user / agent does, what we send, where the response goes wrong, the hypothesis for why.
 - Embed **debug-log permalinks inline** at the step they illustrate, so the reader verifies each claim as they read — not a permalink dump at the bottom. One URL per line.
@@ -101,6 +99,8 @@ The flow explained end to end so a developer understands what happens and why it
   - Optimizer logs: swap the base for the optimizer-log tool URL.
 - Every factual claim has a link or query behind it. No artefact → mark it `Assumption:` and say what would prove it.
 - Related cards go in the optional `Similar / relevant cards` section, not inline here.
+- **No code paths, file names, or line ranges in the prose.** Wrong: a `Code:` bullet block citing `include/Mv/Ota/Air/Booker/Dida.php:305`, `src/Supplier/Dida/Operation/AbstractResponse.php:25-40`. Right: describe the behavior (the supplier operation, the user-visible symptom, the debug log). Code-path citations belong in the PR description, not on the card.
+- **No "things we still need to figure out" sub-lists.** Wrong: "Two things still need our attention: 1) confirm `handleFareChange` runs end to end, 2) handle the `segment.cabin` change." Open questions either fold into one line in `Possible solution / expected behavior`, or stay in the chat — not on the card.
 
 ```markdown
 ### ⊙ **Details**
@@ -148,11 +148,18 @@ mongo_query:
 
 ### `### ⊙ **Possible solution / expected behavior**` (optional)
 
-Include when there is a concrete hypothesis for the fix or a clear statement of what should happen instead. Plain language, no code identifiers.
+When present, this section sits **right after Details and before Visibility** — the dev reads what changed, then immediately reads what should happen, then the scale evidence.
+
+Include when there is a clear statement of what should happen instead. Plain language, no code identifiers. One or two short sentences — **state the outcome, not the implementation**.
+
+- **No numbered developer to-do lists** ("1. verify the new payload, 2. add cabin handling, 3. keep the error branch, 4. ship behind a flag"). The dev decides how. The card says what.
+- When the upstream change is already live on a staging / sandbox / test environment, name that environment in one line so the dev knows where to test, and attach any supplier confirmation (Slack screenshot, email PDF) on the card.
 
 ```markdown
 ### ⊙ **Possible solution / expected behavior**
-Expected: the class we book matches the class still sold at book time. Likely fix: re-check class availability at BookFlight and re-price if it changed, instead of forwarding the search-time class blind.
+We need to read the new fare from the success response and run our standard fare-change flow on both Check Availability and the booker re-quote.
+
+The change is already activated on the Dida sandbox.
 ```
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)
@@ -175,7 +182,9 @@ Only when there is a shipped fix to verify. Omit by default. When present: stagi
 
 ### `### ⊙ **Similar / relevant cards**` (optional)
 
-When the dedup pass or scope overlap turns up related cards. One per line: `[title](shortUrl) — short note on the overlap`. Omit when nothing relevant. This is where related-card links live — keep them out of Details.
+Cards that **directly inform** this one — same code path, same supplier behavior, same root cause, or known overlap of fix. One per line: `[title](shortUrl) — short note on the overlap`. **Drop neighbouring-area cards that only share the supplier or only share the board area** — "another Dida bug" is not enough. If a dev would not open the linked card while working on this one, it does not belong here.
+
+Omit when nothing qualifies. This is where related-card links live — keep them out of Details.
 
 ```markdown
 ### ⊙ **Similar / relevant cards**
