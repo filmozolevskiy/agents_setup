@@ -117,17 +117,27 @@ ClickHouse, MySQL `ota`, and Mongo `ota` are shared across production and every 
 - Aggregate / time-window queries are allowed only in the **Post-deployment** section, where production volume dominates and staging traffic is negligible.
 - If a staging check genuinely needs an aggregate (e.g. "did supplier X get called at all on staging"), reframe it as a per-`search_id` row count instead.
 
-### Every query is verified before it ships
+### Every query is verified before it ships — no exceptions
 
-Applies to every query in the plan — locator queries inside staging checks, monitoring queries, prod-watch queries. Before pasting any query into the plan, Notion page, or Trello card:
+Applies to every query in the plan — locator queries inside staging checks, monitoring queries, prod-watch queries, queries pasted in chat preview, queries pasted in the published Notion page, queries pasted in any Trello card comment, queries proposed in the chat preview only to be approved by the user. **Writing a query from memory and shipping it is forbidden.** Every column name, table name, field name, filter value, and supplier identifier in any query must be verified against the real schema and real data before the query enters any artefact the user reads.
 
-1. Open `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every referenced column / field exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing.
-2. Confirm the literal filter values by running a tiny `SELECT DISTINCT col LIMIT 50` (or Mongo equivalent) via the `db_access` CLI scripts.
-3. Run the query against a recent window. The result must come back non-empty and shaped as expected. Paste a stamp next to the query: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.`
+**Mandatory pre-paste sequence** (in this order, no skipping):
 
-   If no representative row exists in a recent window (the fixed condition is now rare or zero), confirm the schema and the literal filter values instead, then downgrade the stamp so the gap is explicit — never imply a populated result you did not see: `-- Schema-confirmed only <YYYY-MM-DD> against <table> (no representative row in last N days; <columns> + filter values verified).`
+1. **Schema check.** Open `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every referenced column / field exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing. If the doc disagrees with the data later in this sequence, the **data wins** — fix the doc inline before pasting the query (durable-fact write-back per `CLAUDE.md` Constitution).
+2. **Literal-value check.** Confirm every filter literal (supplier codes, status values, enum-style strings, content sources, error labels) by running a tiny `SELECT DISTINCT col LIMIT 50` / `db.coll.distinct(...)` (or Mongo equivalent) via the `db_access` CLI scripts. Casing matters — `'DIDA'` vs `'dida'` is two different filters.
+3. **Execution check.** Run the actual query against a recent window using the `db_access` CLI. Paste a stamp built from what you observed: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.` The N and the shape are real numbers from the run, not "should be non-empty".
+4. **Honest fallback.** If the fixed condition is rare or zero today (the query returns no representative row in a recent window), confirm steps 1 and 2 only, then write the gap explicitly into the stamp — never imply a populated result you did not see: `-- Schema-confirmed only <YYYY-MM-DD> against <table> (no representative row in last N days; <columns> + filter values verified).`
+5. **Abort path.** If the store is unreachable, the table is missing, or step 2 contradicts what the query assumes — **drop the query**. Do not paste it with a placeholder stamp. State the limitation in prose where the query would have gone.
 
-If verification fails (store unreachable, table missing, no recent data), drop the query and state the limitation in prose.
+**Forbidden:**
+
+- Writing `-- Verified <date> against <table>` without actually running the query.
+- Inventing column names, table names, status values, or filter literals from memory or pattern-matching off other suppliers / databases.
+- Shipping a query whose stamp does not reflect the run output (e.g. `returned 50 rows` when you did not run it).
+- Stamping a query as verified when only the schema doc was opened and the query was never executed.
+- Hedging with "looks right" / "should work" — either it is verified per the sequence above, or it is dropped.
+
+The same rule applies to **fixing** a query the user flagged: re-run the full sequence on the new query, do not just patch the column names and re-paste.
 
 ## When to use
 
@@ -194,6 +204,9 @@ Before writing a check, confirm the *expected* user / agent / log outcome matche
 - **Check availability does not change the price shown or charged to the user.** The price agreed at search stands. A pass condition like "the new repriced total appears on checkout" is wrong — the user never sees a re-price. If the supplier returns a different price, the agent path is to drop the contestant and let the optimizer try another, not to re-prompt the user.
 - **"Flight no longer available" does not block the booking.** On an unavailable response from check availability, the flow falls through to the optimizer and the original contestant is excluded from retry. A pass condition like "the user is blocked with an error" is wrong — the correct condition is "the original contestant is not retried; the optimizer attempts another contestant; the user either gets a different fare or, only after all contestants are exhausted, sees no-availability".
 - **A failure before the `bookings` row is written does not show up in `bookings`.** Pre-booking failures (during contestant attempts) are visible only on the **contestant-attempts** surface. A check that watches `bookings` for "did the booking fail" will miss them — see Step 3 production checks.
+- **Team conventions live in the data, not in the column name.** When a check needs a column that splits "system did this" vs "agent did this" (or any other team-internal bucket), the right column is the one the team actually reads on — not the one whose name sounds closest. Examples that look obvious and are wrong:
+  - `ota.booking_tasks` system-vs-agent resolution: `resolved_by = 0` is system-resolved, non-zero is agent-resolved. `handle_type='auto'` is **not** that signal (it is queue routing intent at task creation). Same for `created_by = 0` = "created by the system". See [`../db_access/db-docs/mysql/booking_tasks.md`](../db_access/db-docs/mysql/booking_tasks.md).
+  - Before relying on a column for a convention like this, confirm in the relevant db-doc that the convention is written there. If the doc does not state it, ask the user (or read the writer code via `codebase_access`) and write it back into the doc in the same change — see the durable-fact write-back rule in `CLAUDE.md` Constitution.
 
 When in doubt, open the relevant code path (`Mv/Ota/Air/Booker/Optimizer.php`, the check-availability dispatcher for the content source) or grep recent `debug_logs` to see the actual outcome shape. Phrase the pass condition in the words a QA reader would observe — the page they land on, the field they see on ResPro, the row count they expect from a log query.
 
