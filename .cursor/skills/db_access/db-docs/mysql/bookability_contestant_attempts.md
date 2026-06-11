@@ -33,7 +33,7 @@
 | `num_stops` / `num_segments` | `int` | Itinerary shape. |
 | `num_adt` / `num_chd` / `num_inl` | `int` | Passenger counts. |
 | `experiment_name` / `experiment_variation` | `varchar(100)` | A/B test bucket. |
-| `status` | `varchar(32)` | Final status of the contestant attempt. |
+| `status` | `tinyint` | Final status of the contestant attempt. `1` = success, `0` = failure. Despite the doc-comment-style example below, the column does **not** hold strings like `'success'`. |
 | `exception` | `varchar(255)` | Internal code exception message. |
 | `error` | `varchar(255)` | Normalized error reported by the GDS. |
 | `gds_error_message` | `varchar(255)` | Raw error text from the GDS. |
@@ -68,13 +68,27 @@ GROUP BY b.id;
 ```
 
 ```sql
--- Failure-rate by GDS over a window
+-- Failure-rate by GDS over a window. `status` is 0/1; `gds` values are lowercase
+-- (`'dida'`, `'sabre'`, …). Verified 2026-06-11.
 SELECT gds,
-       SUM(status = 'success') / COUNT(*) AS success_rate,
+       SUM(status = 1) / COUNT(*) AS success_rate,
        COUNT(*) AS attempts
 FROM bookability_contestant_attempts
 WHERE date_created > NOW() - INTERVAL 1 DAY
 GROUP BY gds;
+```
+
+```sql
+-- Failure-mode breakdown for one supplier over a window. `error` carries a normalized
+-- label like `flight_not_available_other`, `payment_error`, `loss_limit_fare_increase`,
+-- `other`. Verified 2026-06-11 against bookability_contestant_attempts (last 24h dida).
+SELECT error, COUNT(*) AS c
+FROM bookability_contestant_attempts
+WHERE date_created >= NOW() - INTERVAL 24 HOUR
+  AND gds = 'dida'
+  AND status = 0
+GROUP BY error
+ORDER BY c DESC;
 ```
 
 **Query guidance:**
