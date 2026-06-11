@@ -111,11 +111,12 @@ def _maybe_throttle(headers: dict[str, str]) -> None:
         time.sleep(wait)
 
 
-def search_jp_prs(since: str, token: str) -> Iterator[dict]:
-    """Yield search-issues records for merged PRs JP commented on since <since>."""
+def search_jp_prs(since: str, token: str, until: str | None = None) -> Iterator[dict]:
+    """Yield search-issues records for merged PRs JP commented on in window."""
+    merged_clause = f"merged:{since}..{until}" if until else f"merged:>={since}"
     q = (
         f"repo:{REPO} is:pr is:merged base:{BASE_BRANCH} "
-        f"merged:>={since} commenter:{TARGET_USER}"
+        f"{merged_clause} commenter:{TARGET_USER}"
     )
     per_page = 100
     page = 1
@@ -265,6 +266,11 @@ def main() -> None:
         help="ISO date (YYYY-MM-DD) — fetch PRs merged on or after this date.",
     )
     parser.add_argument(
+        "--until",
+        default=None,
+        help="ISO date (YYYY-MM-DD) — fetch PRs merged on or before this date. Used to slice around GitHub's 1000-result search cap.",
+    )
+    parser.add_argument(
         "--out",
         default="reports/code_review/jp_comments.jsonl",
         help="Output JSONL path (default: reports/code_review/jp_comments.jsonl).",
@@ -307,7 +313,7 @@ def main() -> None:
     dropped_other_user_summary = 0
 
     with out_path.open(mode) as out_fh:
-        for pr_item in search_jp_prs(args.since, token):
+        for pr_item in search_jp_prs(args.since, token, args.until):
             if args.pr_limit is not None and prs_walked >= args.pr_limit:
                 print(
                     f"  pr-limit reached ({args.pr_limit}); stopping",
