@@ -67,18 +67,15 @@ Before any Trello write — create, update, move, label, member change, comment,
 
 Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **No blank line after a heading** — content sits directly under it; **one blank line after each section's content** separates the sections. **Plain, ESL-friendly language** — short common words, one idea per sentence ("sometimes" not "intermittently", "in some cases" not "on a share of attempts", "real users on the front end are not affected" not "does not surface on the storefront flow"). Each section does one job; keep content in its own section. Full templates, Mongo shapes, formatting, plain-language table, and glossary rules in [`references/card_anatomy.md`](references/card_anatomy.md).
 
-**Mandatory, in order:**
+**Section order (mandatory + optional interleaved):**
 
-1. **`### ⊙ Short description`** — one sentence: what fails + where, plain language. The triage TL;DR. No stacked acronyms, no counts.
-2. **`### ⊙ Details`** — the flow explained end to end, why it breaks, the hypothesis. Debug-log permalinks embedded **inline at the step they prove** (one URL per line). All narrative lives here.
-3. **`### ⊙ Visibility`** — how we track it: one debuggable query (Mongo leading `$match` / MySQL CTE) + the measured count + window when known (omit the count line if not measured — never fabricate). *OR* a fenced breakdown table — never both. Scale lives here only.
-
-**Optional — include only when they apply (never as empty stubs):**
-
-4. **`### ⊙ Possible solution / expected behavior`** — a concrete fix hypothesis or what should happen instead. Plain language.
-5. **`### ⊙ Credentials / access`** — **new-integration cards only**; labeled placeholder the card owner fills by hand. Not on bug / error cards — put any access note in Details there. The agent never fabricates office codes / PCCs / logins.
-6. **`### ⊙ QA notes`** — only when there is a shipped fix to verify; omit by default. Staging repro + post-deploy signal, observable by a human or a log query.
-7. **`### ⊙ Similar / relevant cards`** — when the dedup pass or scope overlap turns up related cards. One `[title](shortUrl) — short note on the overlap` per line. Omit when nothing relevant.
+1. **`### ⊙ Short description`** *(mandatory)* — one sentence: what fails + where, plain language. The triage TL;DR. No stacked acronyms, no counts.
+2. **`### ⊙ Details`** *(mandatory)* — the flow explained end to end, why it breaks, the hypothesis. Debug-log permalinks embedded **inline at the step they prove** (one URL per line). All narrative lives here. **What changed, not how to fix it.** No code paths, no line ranges, no class / method / DTO names in the prose. No "things we still need to figure out" sub-lists — open questions either fold into Possible solution as one line, or stay out of the card.
+3. **`### ⊙ Possible solution / expected behavior`** *(optional, when known)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation. **No numbered developer to-do lists** ("1. verify X, 2. add handling for Y, 3. keep error branch"); leave the implementation to the dev. If the upstream change is already live on a staging / sandbox / test environment, name that environment in one line so the dev knows where to test, and attach any supplier confirmation (Slack screenshot, email) as a card attachment.
+4. **`### ⊙ Visibility`** *(mandatory)* — how we track it: one debuggable query (Mongo leading `$match` / MySQL CTE) + the measured count + window when known (omit the count line if not measured — never fabricate). *OR* a fenced breakdown table — never both. Scale lives here only.
+5. **`### ⊙ Credentials / access`** *(optional — new-integration cards only)* — labeled placeholder the card owner fills by hand. Not on bug / error cards — put any access note in Details there. The agent never fabricates office codes / PCCs / logins.
+6. **`### ⊙ QA notes`** *(optional)* — only when there is a shipped fix to verify; omit by default. Staging repro + post-deploy signal, observable by a human or a log query.
+7. **`### ⊙ Similar / relevant cards`** *(optional)* — cards that **directly inform** this one (same code path, same supplier behavior, same root cause, or known overlap of fix). One `[title](shortUrl) — short note on the overlap` per line. Drop neighbouring-area cards that only share the supplier. Omit when nothing relevant.
 
 **Glossary:** use [`GLOSSARY.md`](../../../GLOSSARY.md) terms — "ResPro page" (never "Voyages a la carte ResPro"), "the user" / "the agent", "search results page", "content source". No class / method / file-path names in prose.
 
@@ -87,7 +84,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **N
 ## Mandatory rules (no card ships without these)
 
 1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
-2. **Three mandatory `⊙` sections, in order** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
+2. **Three mandatory `⊙` sections** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. **Order:** Short → Details → (optional Possible solution / expected behavior, when present) → Visibility → remaining optional sections. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
 3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. On create, pass his member ID in `idMembers`. On update, add him via `update_card_details` if not already a member. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
@@ -126,7 +123,10 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 - Do not use bare `⊙ **…**` lines, `## `, or H1/H2 for section headings. Section headings are H3: `### ⊙ **…**` with the content directly under each heading (**no blank line after the heading**) and **one blank line after each section** to separate them.
 - Do not use heavy or formal words a non-native reader would trip on. Write plainly ("sometimes", "in some cases", "real users are not affected") — see the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md). Error codes and supplier names stay as-is.
 - Do not write "Voyages a la carte ResPro" or other off-glossary terms; use [`GLOSSARY.md`](../../../GLOSSARY.md) wording ("ResPro page", "the user" / "the agent", "search results page", "content source").
-- Do not write a long title with trailing qualifiers — keep it one concrete clause after the ALL-CAPS prefix.
+- Do not write a long title with trailing qualifiers — keep it one concrete clause after the ALL-CAPS prefix. Supplier operation names (`VerifyPrice`, `BookFlight`, `OrderCreate`, `PNR_AddMultiElements`, etc.) are allowed in the title when they anchor the card better than a plain-language paraphrase — the body still stays plain.
+- Do not prescribe implementation steps to developers on a card. Cards say **what should change**, not **how to ship it**. No numbered "1. verify X, 2. add handling for Y, 3. keep the error branch" lists in `Possible solution / expected behavior`. One or two short sentences stating the outcome is enough.
+- Do not paste code paths, file names, or line ranges (`Dida.php:305`, `AbstractResponse.php:25-40`, `src/Supplier/Foo/Bar.php`) in Details or any other prose section. Code citations belong in the PR description / commit message, not on the card. Reference the behavior (the debug log, the supplier operation, the user-visible symptom) instead.
+- Do not include "things we still need to figure out" sub-lists in Details ("Two things still need our attention: 1) confirm X end to end, 2) handle Y"). Open questions either collapse into a one-liner in `Possible solution / expected behavior`, or stay in the chat — not on the card.
 - Do not trim real `IN (...)` hash lists, SQL filters, or Mongo bounds inside Visibility / Details just to shorten the card — those lists are often the reproducible slice.
 - Do not put scale / counts anywhere but Visibility. Short description and Details state no numbers.
 - Do not dump debug-log permalinks in a trailing block — embed them inline in Details at the step each one proves.
