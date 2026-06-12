@@ -59,9 +59,10 @@ Before any Trello write — create, update, move, label, member change, comment,
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the three mandatory `⊙` sections — `Short description` + `Details` + `Visibility` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**, then on approval `add_card_to_list` on Backlog with `name` per the title rule, optional `labels`, **`idMembers` includes Filipp**.
-3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
-4. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
+2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the three mandatory `⊙` sections — `Short description` + `Details` + `Visibility` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**, then on approval `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member, starting with Filipp.
+3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
+4. **Schema check before any write.** If a write tool returns an empty `idLabels` / `idMembers` array, or silently drops a parameter you passed, the parameter name was wrong for that tool. Read the JSON schema under `mcps/project-0-agents_setup-trello/tools/<tool>.json` and retry with the correct shape — do **not** keep retrying the same call hoping the field name works this time.
+5. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
 
 ## Card-description sections (3 mandatory + 4 optional)
 
@@ -85,7 +86,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **N
 
 1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
 2. **Three mandatory `⊙` sections** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**`, as H3 headings with a blank line after each. **Order:** Short → Details → (optional Possible solution / expected behavior, when present) → Visibility → remaining optional sections. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
-3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. On create, pass his member ID in `idMembers`. On update, add him via `update_card_details` if not already a member. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
+3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. Call `assign_member_to_card` with Filipp's member ID right after `add_card_to_list` on create, and as a separate call when updating a card he is not on yet. `add_card_to_list` and `update_card_details` do not accept members — never try to pass `idMembers` / `memberIds` to them. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
    ```markdown
@@ -139,6 +140,8 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 - Do not add `⊙` sections beyond the six defined (`Describe the situation`, `What investigation was done`, `How to reproduce`, `Documentation`, `## Summary` blocks). Fold extra prose into Details.
 - Do not expand a narrow TODO or direct request into a multi-section verification essay. See [`references/todo_responses.md`](references/todo_responses.md).
 - Do not write aggregation or example queries without a CTE (MySQL / ClickHouse) or without a leading `$match` stage (Mongo).
+- Do not ship a Visibility query that only enumerates the area ("all logs from supplier X in the last N minutes") without surfacing the wrong behaviour. The query must produce rows that demonstrate the bug — mismatched cabins, the supplier error in question, the missing `-` sign, etc. Discovery dumps belong in the chat, not on the card.
+- Do not use pipe / markdown tables (`| col | col |` with a `|---|---|` separator) in card descriptions — Trello renders them as raw text. For tabular numbers, use a fenced text table (monospaced block, aligned with spaces). See the worked example in [`references/card_anatomy.md`](references/card_anatomy.md#-visibility-mandatory).
 
 ## References
 

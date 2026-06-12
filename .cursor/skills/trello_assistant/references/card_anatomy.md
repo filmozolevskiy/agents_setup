@@ -120,7 +120,20 @@ Assumption: the fare class expires between search and book on this office — to
 How we keep an eye on this: the query that surfaces it, plus the current count and window when known.
 
 - One debuggable query — Mongo (leading `$match`) or MySQL / ClickHouse (named CTE). The slice lives in one place so the outer statement swaps between count and examples without re-validating the filter. See [Query structure](#query-structure--always-debuggable-mandatory).
+- **The query must surface the bug, not just enumerate the area.** A reviewer running it should see rows that demonstrate the wrong behaviour (requested cabin ≠ returned cabin, supplier returned `NO FARE FOR CLASS`, refund missing the `-` sign, etc.). A pure "list all logs from supplier X in the last N minutes" query is **not** a Visibility query — it is a discovery dump, and discovery dumps belong in the chat, not on the card. If the slice cannot be expressed yet because the payload shape is unknown, do the discovery first (in the chat), then write the Visibility query.
 - State the measured result on one line: how often + window + distinct `transaction_id` when known. *OR* a fenced per-day / per-bucket breakdown text table (see [#2746](https://trello.com/c/Nfg1JVNy)) — never both. The table IS the count.
+- **Use fenced text tables (monospaced block, aligned with spaces) for tabular numbers.** Trello renders pipe / markdown tables (`| col | col |` with a `|---|---|` separator) as raw text — never use them in a card body. Worked example:
+
+  ````markdown
+  ```
+  Cabin             Calls   Searches   Won calls   Packages won
+  ----------------  ------  ---------  ----------  ------------
+  Business          1,198   1,102      548         22,435
+  EconomyPremium      880     711      437         19,390
+  First               211     176       95          7,231
+  ```
+  ````
+
 - When no count has been measured yet, omit the count line — the query stands on its own. Do not write "count pending" / "run the query to fill in". Never fabricate a number.
 - Scale lives here only. Do not restate counts in Short description or Details.
 
