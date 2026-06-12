@@ -59,13 +59,13 @@ Use the canonical terms in [`GLOSSARY.md`](../../../GLOSSARY.md) in every card. 
 - **search results page**, **checkout page**, **check availability call**, **confirmation page / email**, **debug log**.
 - **content source** — the upstream supplier (Amadeus, Dida, Sabre, TP, Downtowntravel…). Supplier names are fine in plain text.
 
-No class / method / DTO / file-path names in card prose — those belong only inside query blocks.
+No class / method / DTO / file-path names of *our* code in card prose — those belong only inside query blocks. **Supplier API operation names (`OfferPrice`, `PriceUpsellWithoutPNR`, `VerifyPrice`, `BookFlight`, `OrderCreate`, `Fare_PriceUpsellWithoutPNR`, …) are allowed in Details / Possible solution prose when they anchor the specific call site the card is about** — same exception that applies to titles.
 
 ## Title
 
 Format: **`SOURCE_OR_AREA: short concrete summary`**. Keep it short — one concrete clause, roughly ≤ 10 words after the prefix. Drop trailing qualifiers ("…and never confirms", "…on a share of searches", "…over the last 14 days").
 
-- `SOURCE` prefix in ALL CAPS: `AMADEUS`, `RESPRO`, `TRAVELFUSION`, `FLXNDC`, `PAYHUB`, `BOOKABILITY`, `WORDSPAN`, `DIDA`, `OPTIMIZATION`, `MULTI TICKETS`.
+- `SOURCE` prefix in ALL CAPS: `AMADEUS`, `RESPRO`, `TRAVELFUSION`, `FLXNDC`, `PAYHUB`, `BOOKABILITY`, `WORDSPAN`, `DIDA`, `OPTIMIZATION`, `MULTI TICKETS`, `FARE FAMILIES`, `SEATS`, `BAGGAGE`, `SYNC`, `CHECK AVAILABILITY`, `ACNDC`, `FR24`.
 - Colon + space after the prefix.
 - Investigations with no fix yet: `(Investigation Pending) SOURCE: …`.
 - Concrete symptom after the colon, not vague.
@@ -120,9 +120,23 @@ Assumption: the fare class expires between search and book on this office — to
 How we keep an eye on this: the query that surfaces it, plus the current count and window when known.
 
 - One debuggable query — Mongo (leading `$match`) or MySQL / ClickHouse (named CTE). The slice lives in one place so the outer statement swaps between count and examples without re-validating the filter. See [Query structure](#query-structure--always-debuggable-mandatory).
+- **The query must surface the bug, not just enumerate the area.** A reviewer running it should see rows that demonstrate the wrong behaviour (requested cabin ≠ returned cabin, supplier returned `NO FARE FOR CLASS`, refund missing the `-` sign, etc.). A pure "list all logs from supplier X in the last N minutes" query is **not** a Visibility query — it is a discovery dump, and discovery dumps belong in the chat, not on the card. If the slice cannot be expressed yet because the payload shape is unknown, do the discovery first (in the chat), then write the Visibility query.
 - State the measured result on one line: how often + window + distinct `transaction_id` when known. *OR* a fenced per-day / per-bucket breakdown text table (see [#2746](https://trello.com/c/Nfg1JVNy)) — never both. The table IS the count.
+- **Use fenced text tables (monospaced block, aligned with spaces) for tabular numbers.** Trello renders pipe / markdown tables (`| col | col |` with a `|---|---|` separator) as raw text — never use them in a card body. Worked example:
+
+  ````markdown
+  ```
+  Cabin             Calls   Searches   Won calls   Packages won
+  ----------------  ------  ---------  ----------  ------------
+  Business          1,198   1,102      548         22,435
+  EconomyPremium      880     711      437         19,390
+  First               211     176       95          7,231
+  ```
+  ````
+
 - When no count has been measured yet, omit the count line — the query stands on its own. Do not write "count pending" / "run the query to fill in". Never fabricate a number.
 - Scale lives here only. Do not restate counts in Short description or Details.
+- **External dashboard URL is allowed when it tracks the same slice.** When an existing Looker / Tableau dashboard is the live counterpart to the query, put `Reference Looker: <url>` (or `Reference Tableau: …`) on its own line **after** the query block. Treat it as a parallel monitoring surface, not a replacement for the query.
 
 ````markdown
 ### ⊙ **Visibility**
@@ -224,10 +238,44 @@ WITH slice AS (
   WHERE ...   -- the named slice; window, content source, error filter
 )
 SELECT COUNT(*) FROM slice;
--- SELECT booking_id, transaction_id, created_at FROM slice ORDER BY created_at DESC LIMIT 20;
 ```
 
-The counterpart goes in as a commented-out outer `SELECT` from the same CTE. Reviewers swap count ↔ examples without re-validating the filter.
+Ship one outer statement only — count or examples, whichever the card needs. Do **not** paste the counterpart as a commented-out `SELECT`; reviewers can rerun the CTE with a different outer statement themselves.
+
+When a reviewer would naturally want the counterpart (count ↔ examples, coverage ↔ gap rows), **name it on the lead-in line** before the fenced block instead of pasting commented SQL:
+
+```markdown
+clickhouse_query (coverage; swap the outer SELECT to join `jupiter_fare_priceupsellwithoutpnr` and filter `offers_returned = 0 AND error_code IS NOT NULL` to inspect gap rows):
+```
+
+One prose sentence pointing at the alternate outer is enough — the named CTEs above carry the slice.
+
+### Multi-CTE funnel pattern
+
+When the card sits on a funnel (e.g. `begin_checkout` → upsell call → final-step proposals), build one CTE per stage, then `LEFT JOIN` the optional stages with a `(rn = 1 OR rn IS NULL)` guard so a missing row at a downstream stage does not drop the checkout from the denominator. The latest-row-per-key dedup lives inside each CTE (`ROW_NUMBER() OVER (PARTITION BY <key> ORDER BY <ts> DESC) AS rn`).
+
+```sql
+WITH stage_a AS (
+  SELECT key1, key2, ...,
+         ROW_NUMBER() OVER (PARTITION BY key1, key2 ORDER BY ts DESC) AS rn
+  FROM table_a
+  WHERE ts > now() - interval 1 day
+),
+stage_b AS (
+  SELECT key1, key2, ...,
+         ROW_NUMBER() OVER (PARTITION BY key1, key2 ORDER BY ts DESC) AS rn
+  FROM table_b
+  WHERE ts > now() - interval 1 day
+)
+SELECT count(), countIf(<condition>) ...
+FROM stage_a
+LEFT JOIN stage_b ON stage_a.key1 = stage_b.key1 AND stage_a.key2 = stage_b.key2
+WHERE stage_a.rn = 1
+  AND (stage_b.rn = 1 OR stage_b.rn IS NULL)
+  AND <denominator filter, e.g. is_eligible_for_upgrade = true>;
+```
+
+Use an `INNER JOIN` to a "membership" CTE (e.g. "the package's GDS is X") when the slice depends on it; `LEFT JOIN` for stages that may be missing.
 
 **Mongo:** the leading `$match` stage is the slice. Branch between aggregation (`$group` / `$sum` / `$addToSet`) and one of the two canonical permalink shapes below.
 

@@ -49,6 +49,24 @@ Before writing the steps for any check, answer: *what condition does the changed
 
 Apply the test: read the check's *Why:* line, then re-read its steps. If the steps could pass on a booking that does not satisfy the condition the *Why:* describes, the check is broken — either change the steps to drive the condition (prod-row replay or package-transfer), fold the check into another booking that already has the condition (see *Bundle checks that share a booking* below), or drop the check.
 
+### Cover both directions when a PR is bi-directional
+
+When the PR affects bi-directional behaviour — increase **and** decrease, success **and** failure, on-time **and** late, granted **and** revoked — verify that **each direction has its own observable surface** before writing the plan, and write a check (or a sub-observation inside a bundle) for each one. The "happy" direction (decrease, success, granted) often has weaker observability than the "unhappy" one and is easy to drop on the floor. Concrete trap from past plans:
+
+- A fare-change PR's **increase** branch raises `loss_limit_fare_increase` / `fare_increase` / `fare_increase_not_allowed` / `flight_not_available_cannot_price` on `bookability_contestant_attempts` (the contestant is dropped). The **decrease** branch lets the contestant proceed with the lower fare, so `bookability_contestant_attempts` shows `status=1` with **no** decrease-flavoured label. The only surface that catches a decrease is the `debug_logs` VerifyPrice response with a different `routing.adultPrice` than the search price. A check that only watches `bookability_contestant_attempts` silently misses every decrease.
+
+Name the asymmetry in the *Why:* line ("decreases never show up on the contestant-attempts surface; they're only visible on `debug_logs`") and ship a separate query for the weaker surface.
+
+### Automate the comparison in the query — don't ask QA to diff by hand
+
+A query that returns a haystack and tells QA to "open each row and compare values" is not a finished query. If the answer the check is looking for is a derivation across rows — a value differs between calls, a count rose / fell, a flag flipped — do the derivation **inside the pipeline / SQL** (regex extraction, `$group` + `$addToSet`, `$switch` for direction inference, `HAVING` on aggregate spreads, etc.) and project the answer as a column on the output. The output is then a list of confirmed positives, not candidates to triage manually.
+
+Apply the test: read the check's pass condition, then re-read the query. If the pass condition is "the third call's price differs from the first two" and the query just lists rows, the query is wrong — push the comparison into the pipeline. The earlier the noise is filtered (tight time-window per session, minimum spread, direction labels, contexts-must-have-both), the closer the output gets to "every row is a real hit".
+
+### Every Post-deployment check carries its own concrete query
+
+A Post-deployment check that says "watch the queries below" is not a check — it is a wave at the Monitoring queries section. The reader is reading **the check**, and the query has to be right there. Each Post-deployment `- [ ]` item embeds its own `**Find the cases:**` / `**Find the attempts:**` block (verification-stamped per *Every query is verified before it ships*). The Monitoring queries section is for **continuous** signals (error-share since deploy, failure-mode shift since deploy) that the team watches separately, not a dumping ground for the Production-checks' queries.
+
 ### Bundle checks that share a booking into one block
 
 When several checks can be done with the same booking attempt present them as **one** booking with N ordered observations, never N separate bookings. QA runs one booking; the plan reads as a single block; nothing is duplicated.
@@ -117,17 +135,27 @@ ClickHouse, MySQL `ota`, and Mongo `ota` are shared across production and every 
 - Aggregate / time-window queries are allowed only in the **Post-deployment** section, where production volume dominates and staging traffic is negligible.
 - If a staging check genuinely needs an aggregate (e.g. "did supplier X get called at all on staging"), reframe it as a per-`search_id` row count instead.
 
-### Every query is verified before it ships
+### Every query is verified before it ships — no exceptions
 
-Applies to every query in the plan — locator queries inside staging checks, monitoring queries, prod-watch queries. Before pasting any query into the plan, Notion page, or Trello card:
+Applies to every query in the plan — locator queries inside staging checks, monitoring queries, prod-watch queries, queries pasted in chat preview, queries pasted in the published Notion page, queries pasted in any Trello card comment, queries proposed in the chat preview only to be approved by the user. **Writing a query from memory and shipping it is forbidden.** Every column name, table name, field name, filter value, and supplier identifier in any query must be verified against the real schema and real data before the query enters any artefact the user reads.
 
-1. Open `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every referenced column / field exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing.
-2. Confirm the literal filter values by running a tiny `SELECT DISTINCT col LIMIT 50` (or Mongo equivalent) via the `db_access` CLI scripts.
-3. Run the query against a recent window. The result must come back non-empty and shaped as expected. Paste a stamp next to the query: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.`
+**Mandatory pre-paste sequence** (in this order, no skipping):
 
-   If no representative row exists in a recent window (the fixed condition is now rare or zero), confirm the schema and the literal filter values instead, then downgrade the stamp so the gap is explicit — never imply a populated result you did not see: `-- Schema-confirmed only <YYYY-MM-DD> against <table> (no representative row in last N days; <columns> + filter values verified).`
+1. **Schema check.** Open `.cursor/skills/db_access/db-docs/<store>/<name>.md` and confirm every referenced column / field exists with the expected type. If the doc is missing, write it (per the `db_access` skill) before continuing. If the doc disagrees with the data later in this sequence, the **data wins** — fix the doc inline before pasting the query (durable-fact write-back per `CLAUDE.md` Constitution).
+2. **Literal-value check.** Confirm every filter literal (supplier codes, status values, enum-style strings, content sources, error labels) by running a tiny `SELECT DISTINCT col LIMIT 50` / `db.coll.distinct(...)` (or Mongo equivalent) via the `db_access` CLI scripts. Casing matters — `'DIDA'` vs `'dida'` is two different filters.
+3. **Execution check.** Run the actual query against a recent window using the `db_access` CLI. Paste a stamp built from what you observed: `-- Verified <YYYY-MM-DD> against <table>, returned <N rows / shape summary>.` The N and the shape are real numbers from the run, not "should be non-empty".
+4. **Honest fallback.** If the fixed condition is rare or zero today (the query returns no representative row in a recent window), confirm steps 1 and 2 only, then write the gap explicitly into the stamp — never imply a populated result you did not see: `-- Schema-confirmed only <YYYY-MM-DD> against <table> (no representative row in last N days; <columns> + filter values verified).`
+5. **Abort path.** If the store is unreachable, the table is missing, or step 2 contradicts what the query assumes — **drop the query**. Do not paste it with a placeholder stamp. State the limitation in prose where the query would have gone.
 
-If verification fails (store unreachable, table missing, no recent data), drop the query and state the limitation in prose.
+**Forbidden:**
+
+- Writing `-- Verified <date> against <table>` without actually running the query.
+- Inventing column names, table names, status values, or filter literals from memory or pattern-matching off other suppliers / databases.
+- Shipping a query whose stamp does not reflect the run output (e.g. `returned 50 rows` when you did not run it).
+- Stamping a query as verified when only the schema doc was opened and the query was never executed.
+- Hedging with "looks right" / "should work" — either it is verified per the sequence above, or it is dropped.
+
+The same rule applies to **fixing** a query the user flagged: re-run the full sequence on the new query, do not just patch the column names and re-paste.
 
 ## When to use
 
@@ -192,8 +220,12 @@ If a changed file maps to none of these, it does not generate a checklist item �
 Before writing a check, confirm the *expected* user / agent / log outcome matches the real flow. The plan is wrong when it asserts behaviour the system does not have, even if the steps run cleanly. Known traps — re-check the code (via `codebase_access`) and the debug logs whenever a check touches any of these surfaces:
 
 - **Check availability does not change the price shown or charged to the user.** The price agreed at search stands. A pass condition like "the new repriced total appears on checkout" is wrong — the user never sees a re-price. If the supplier returns a different price, the agent path is to drop the contestant and let the optimizer try another, not to re-prompt the user.
+- **The fare-increase / fare-decrease page is not shown right away on a price-changed response.** Even when check availability (or the booker's VerifyPrice) returns a different price, the contestant is dropped and the optimizer attempts the next contestant. The FI / FD page is reserved for the case where **every** contestant came back with a price change. Pass conditions like "the price-change page appears with the new total; accepting it routes to payment" are wrong on a single-contestant-change observation — they only apply to the all-contestants-exhausted edge case (give that case its own dedicated check). The right observable for a single fare-changed contestant is on the contestant-attempts surface (the Dida attempt gets `status=0` + a fare-change `error` label like `loss_limit_fare_increase`) and a different contestant gets attempted.
 - **"Flight no longer available" does not block the booking.** On an unavailable response from check availability, the flow falls through to the optimizer and the original contestant is excluded from retry. A pass condition like "the user is blocked with an error" is wrong — the correct condition is "the original contestant is not retried; the optimizer attempts another contestant; the user either gets a different fare or, only after all contestants are exhausted, sees no-availability".
 - **A failure before the `bookings` row is written does not show up in `bookings`.** Pre-booking failures (during contestant attempts) are visible only on the **contestant-attempts** surface. A check that watches `bookings` for "did the booking fail" will miss them — see Step 3 production checks.
+- **Team conventions live in the data, not in the column name.** When a check needs a column that splits "system did this" vs "agent did this" (or any other team-internal bucket), the right column is the one the team actually reads on — not the one whose name sounds closest. Examples that look obvious and are wrong:
+  - `ota.booking_tasks` system-vs-agent resolution: `resolved_by = 0` is system-resolved, non-zero is agent-resolved. `handle_type='auto'` is **not** that signal (it is queue routing intent at task creation). Same for `created_by = 0` = "created by the system". See [`../db_access/db-docs/mysql/booking_tasks.md`](../db_access/db-docs/mysql/booking_tasks.md).
+  - Before relying on a column for a convention like this, confirm in the relevant db-doc that the convention is written there. If the doc does not state it, ask the user (or read the writer code via `codebase_access`) and write it back into the doc in the same change — see the durable-fact write-back rule in `CLAUDE.md` Constitution.
 
 When in doubt, open the relevant code path (`Mv/Ota/Air/Booker/Optimizer.php`, the check-availability dispatcher for the content source) or grep recent `debug_logs` to see the actual outcome shape. Phrase the pass condition in the words a QA reader would observe — the page they land on, the field they see on ResPro, the row count they expect from a log query.
 

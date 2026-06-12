@@ -15,8 +15,8 @@
 | `is_open` | tinyint(1) | 1 = task is in active agent queue (indexed) |
 | `sleep_until` | datetime | Task is snoozed until this time, nullable |
 | `handled_by` | int | Agent user ID currently handling (indexed); 0 = none |
-| `created_by` | int | Agent/system that created the task (0 = system) |
-| `resolved_by` | int | Agent user ID that resolved, nullable |
+| `created_by` | int | Agent/system that created the task. **`0` = created by the system**, any non-zero = agent user id. |
+| `resolved_by` | int | User id that resolved the task, nullable. **`0` = resolved by the system** (e.g. an auto-void / auto-cancel ran), any non-zero = agent user id, `NULL` = still unresolved. This is the canonical column the team reads to split system-vs-agent task resolution. **Do not use `handle_type` for that split** — `handle_type` describes the queue routing intent, not who actually closed the row. |
 | `create_date` | datetime | Task creation timestamp (indexed) |
 | `open_date` | datetime | When task was opened/assigned |
 | `resolve_date` | datetime | When task was resolved (indexed), nullable |
@@ -27,7 +27,7 @@
 | `was_aborted` | tinyint | 1 = task/booking was aborted (used by ResPro cancel flow) |
 | `sent_to_queue` | tinyint(1) | 1 = sent to external processing queue |
 | `max_queued_date` | datetime | Latest queue send timestamp, nullable |
-| `handle_type` | enum | `manual` (agent) / `auto` (automated system) |
+| `handle_type` | enum | `manual` / `auto` — queue routing intent set at task creation. **Not** a reliable signal for "did the system actually close this row" — use `resolved_by = 0` for that. |
 | `next_check_auto_queued` | datetime | Next scheduled auto-check time, nullable |
 | `is_long_term` | tinyint(1) | 1 = flagged as a long-running task |
 | `is_escalated` | tinyint(1) | 1 = escalated to senior agent |
@@ -83,3 +83,17 @@ WHERE booking_id = 12345;
 - `was_aborted = 1` is set by the ResPro abort flow; the QA `cleanup: auto` validator should assert this field after cancellation.
 - `sc_state` tracks the booking through its post-ticketing lifecycle; QA happy-path value after successful booking is typically `TKT` (ticketed) or `issued`.
 - `status = 'unresolved'` is the initial state; agents or automation set it to `resolved` on completion.
+- **System-vs-agent resolution split (team convention).** Bucket resolved void / cancel / ticketing tasks with `resolved_by = 0` → system-resolved, `resolved_by != 0` → agent-resolved. The same convention applies to `created_by` for "who created the task". Example bucket query:
+  ```sql
+  SELECT
+    CASE
+      WHEN status = 'unresolved' THEN 'unresolved'
+      WHEN resolved_by = 0       THEN 'resolved_by_system'
+      ELSE                            'resolved_by_agent'
+    END AS resolution,
+    COUNT(*) AS c
+  FROM ota.booking_tasks
+  WHERE type = 12 AND create_date >= NOW() - INTERVAL 6 HOUR
+  GROUP BY resolution;
+  ```
+  Verified 2026-06-11: 30 d FR24 void window (`type=12`, `b.gds='Flightroutes24'`) returned 304 agent-resolved + 41 unresolved + 0 system-resolved — consistent with the feature not having shipped yet.
