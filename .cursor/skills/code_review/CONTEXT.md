@@ -16,6 +16,10 @@ _Avoid_: standard (use Standard for the concept, Rule for the entry), check, lin
 The concrete pattern a reviewer (human or agent) greps or eyeballs to spot a Rule violation in a diff. File globs, code shapes, naming, structural cues — never JP's words.
 _Avoid_: pattern, anti-pattern, signal
 
+**Why here**:
+The per-finding field that answers "why does this Rule fire on *this* file". Two parts in order: the Rule's general `Why:` pasted verbatim from `standards.md`, then at most one synthesis sentence that names a concrete local consequence the agent sees in the diff. Hard cap of one synthesis sentence. When the agent has nothing local to add, the field is prefixed `(rule statement only)` and stops after the verbatim Rule.Why. Complementary to `Why weak:` — `Why here` is the affirmative case; `Why weak` is the qualifying case. Both render on weak findings.
+_Avoid_: rationale, applicability, why this fires, local context
+
 **Evidence permalink**:
 A `https://github.com/mventures/genesis/pull/<N>#discussion_r<id>` URL anchoring one of JP's comments to a Rule. A Rule with fewer than 2 distinct PRs of Evidence is not a Standard and does not ship.
 _Avoid_: citation, reference, source

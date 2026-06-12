@@ -157,11 +157,13 @@ Findings: <X> firm, <W> weak across <Y> rules · <B> blocker · <N> nit
 [R07 blocker · firm] BookingService.java:142
   Rule: Wrap multi-step DB writes in an explicit transaction.
   Found: Three sequential repository writes with no transaction boundary.
+  Why here: Multi-step writes need a transaction so a partial failure does not leave the booking row half-created; here the second write touches `payments` and a failure between the two leaves an order with no payment record.
   Evidence: <permalink to JP's anchor comment cited in R07>
 
 [R14 nit · weak] OptimizerCandidateBuilder.java:88
   Rule: Use the named constructor, not the positional one.
   Found: `new Candidate(...)` with 7 positional args.
+  Why here: (rule statement only) Positional constructors with many args force every reader to count parameters to map them.
   Evidence: <permalink>
   Why weak: Inline comment above the call explains the positional order is required to match an upstream supplier payload — author likely knows.
 
@@ -183,6 +185,31 @@ annotation immediately under the Evidence line. Use `weak` sparingly —
 when in doubt, mark `firm`; the user can dismiss false positives faster
 than re-investigate buried real ones.
 
+**`Why here:`** appears on **every** finding (firm and weak) immediately
+under `Found:`. It is the per-finding counterpart to the rule's general
+`Why:` field — it answers "why does this rule fire on *this* file". Two
+parts in this exact order:
+
+1. **Rule.Why pasted verbatim** from `standards.md` — the documented
+   failure mode the rule prevents in general.
+2. **At most one synthesis sentence** that names a concrete local
+   consequence the agent can see in the diff (a specific caller, a
+   sibling pattern in the same package, a particular field this
+   change interacts with). Hard cap of one sentence — pick the
+   strongest local fact and let the others fall.
+
+When the agent has no concrete local context to add, prefix the field
+with `(rule statement only)` and stop after the verbatim Rule.Why. The
+prefix is the explicit "no local context" marker — devs can tell at a
+glance whether the agent had something specific to say or fell back to
+the rule text.
+
+`Why here:` and `Why weak:` are complementary, not redundant. `Why here`
+is the affirmative case ("this rule applies here because…"); `Why weak`
+is the qualifying case ("…but a contextual cue suggests this may be
+deliberate"). On a weak finding both render — the dev sees the full
+tension.
+
 **Positive observation (optional)** — append a single `Positive
 observation (not a finding):` section at the bottom when the diff
 contains a change that *repairs* an existing rule violation in the
@@ -202,7 +229,12 @@ Only when the user says "post it" / "post to PR" / "send to GitHub":
      short note on weak findings is fine — "<N> additional weak
      findings shown in chat, not posted").
    - `comments` = one inline per **firm** finding only (`path`, `line`,
-     `body` = `[R<NN> severity] Rule: … · Found: … · Evidence: <permalink>`).
+     `body` = `[R<NN> severity] Rule: … · Found: … · Why here: … · Evidence: <permalink>`).
+     The `Why here:` segment carries the same content as the chat report —
+     verbatim Rule.Why plus at most one synthesis sentence, or
+     `(rule statement only)` + verbatim Rule.Why when there is no local
+     context. Chat and posted comment must match: the user signs off
+     against the exact text the dev will see.
      **Weak findings stay in chat; do not post them as inline comments.**
    - `event` = `COMMENT`. **Never `APPROVE` or `REQUEST_CHANGES`.**
 2. Paste the full proposed payload in chat. Ask for `approve`.
