@@ -18,6 +18,8 @@ rule:
 
 **Smell to detect:** <concrete pattern a reviewer or agent can grep / eyeball — file globs, code shapes, naming, structural cue>
 
+**Skip if:** <optional bullet list — contextual cues that suppress or downgrade a smell match; cite the dev pushback permalink that justifies the guard>
+
 **Evidence:**
 - https://github.com/mventures/genesis/pull/<N>#discussion_r<id> — "<JP quote, trimmed>"
 - https://github.com/mventures/genesis/pull/<N>#discussion_r<id> — "<JP quote, trimmed>"
@@ -95,17 +97,18 @@ rule:
 
 **Why:** Duplicating an upstream assignment or check makes the data flow ambiguous — readers cannot tell which write wins and which guard is load-bearing.
 
-**Smell to detect:** A subclass constructor that re-assigns a property the parent already set; a method body that re-tests a condition the caller just tested; a per-row check inside a loop where the surrounding method already filtered the same condition. Concentrates in `src/Booking/**`, optimizer reprice flow, and command issuers.
+**Smell to detect:** A subclass constructor that re-assigns a property the parent already set; a method body that re-tests a condition the caller just tested; a per-row check inside a loop where the surrounding method already filtered the same condition; a second `if`/`match` block immediately after a guard that repeats the same checks to derive a message. Concentrates in `src/Booking/**`, optimizer reprice flow, and command issuers.
 
 **Evidence:**
 - https://github.com/mventures/genesis/pull/52703#discussion_r3088031317 — "The `parent` takes care of this assignment"
 - https://github.com/mventures/genesis/pull/53428#discussion_r3320388702 — "Code below returns 0 if it catches an `Exception`, so this test is redundant"
 - https://github.com/mventures/genesis/pull/51819#discussion_r2812621535 — "Or use parent's `getOneBy()`"
 - https://github.com/mventures/genesis/pull/52283#discussion_r2914282535 — "Could be moved to parent"
+- https://github.com/mventures/genesis/pull/53962#discussion_r3391081885 — "Instead of retesting the conditions above, one could test if there's a message returned from matching any of the conditions"
 
 **Severity:** nit
 
-**last_evidence_at:** 2026-05-29
+**last_evidence_at:** 2026-06-10
 
 ---
 
@@ -136,6 +139,10 @@ rule:
 **Why:** Without `final`, late-static-binding bugs slip in when a subclass appears later — `new self()` and `self::foo()` quietly skip the subclass override; meanwhile `protected` and `static` on a `final` class are misleading visibility cues that imply an inheritance contract that does not exist.
 
 **Smell to detect:** A new class declaration without the `final` keyword in `src/Supplier/**` or `include/Mv/Ota/**`; `new self(...)` or `self::create(...)` inside a non-`final` class or an abstract factory; `protected` members in a `final` class with no subclass; `public static function` inside a `final` class that is only called from the same class.
+
+**Skip if:**
+- The class is registered in a factory map keyed on the class string (`*Factory::*_CLASSES = [… => X::class]`, `Mv_Ota_Air_Ticketer_Manager::TICKETER_CLASSES`, `CommandIssuerFactory::SESSION_CLASSES` / `::PNR_CLASSES` / `::QUEUE_CLASSES`) — JP accepts non-`final` here because future suppliers / GDSs subclass the base. See https://github.com/mventures/genesis/pull/53962#discussion_r3403695154 ("evidence provided is from a different context").
+- The only signal is "no `final` keyword". The rule's evidence is conditional ("when members are final…", "when using `self`…", "when returning from a factory interface…") — emit `weak` unless the class also exhibits one of the conditional cues (uses `self::`, has all-`final` members, is a factory return type, or returns `static`).
 
 **Evidence:**
 - https://github.com/mventures/genesis/pull/53655#discussion_r3304839055 — "Why not make the class `final` at this point?"
@@ -177,6 +184,9 @@ rule:
 
 **Smell to detect:** `new <Client>()` or `new <Registry>()` inside a method body of a service / helper class; `<Class>::staticMethod()` calls reaching into a singleton registry from inside an instance method; a constructor that takes no collaborator parameter despite the class talking to Redis, an API, or a logger.
 
+**Skip if:**
+- The class is instantiated through a factory map keyed on a GDS / supplier / type code (`Mv_Ota_Air_Ticketer_Manager::TICKETER_CLASSES`, `CommandIssuerFactory::SESSION_CLASSES` / `::PNR_CLASSES`, any `match`/`switch` over `Mv_Ota_Booking::GDS_*` that does `new $class(...)`) — the factory contract fixes the constructor signature, so adding an optional collaborator parameter requires a cross-cutting refactor that belongs in its own PR. See https://github.com/mventures/genesis/pull/53962#discussion_r3403722002 ("This cannot work unless the ticketed manager is reworked as it behave like a factory").
+
 **Evidence:**
 - https://github.com/mventures/genesis/pull/53407#discussion_r3228111649 — "Why is everything `static`? The Redis registry is instantiated every single time a read or write request is issued… it should be injected as a dependency instead (allowing for… tests!)"
 - https://github.com/mventures/genesis/pull/53176#discussion_r3197104731 — "`public function __construct(private readonly ?ClientInterface $transportClient = new Curl())`"
@@ -195,17 +205,18 @@ rule:
 
 **Why:** Dead code keeps appearing in greps, forces every refactor to consider paths nothing uses, and hides which surface is actually live in production.
 
-**Smell to detect:** A method, constant, or class added or touched in the PR with no callers in the rest of the diff or the surrounding package; a `throws X` declaration on a method whose body cannot reach the `throw`; a controller file under `include/Mv/Ota/**` whose route is no longer wired; unused `use` statements or unused method parameters.
+**Smell to detect:** A method, constant, or class added or touched in the PR with no callers in the rest of the diff or the surrounding package; a `throws X` declaration on a method whose body cannot reach the `throw`; a controller file under `include/Mv/Ota/**` whose route is no longer wired; unused `use` statements or unused method parameters; a fluent setter that returns `self` / `static` whose return value is never chained at any call site.
 
 **Evidence:**
 - https://github.com/mventures/genesis/pull/52961#discussion_r3101677774 — "This controller is no longer used; should update `include/Mv/Ota/Api/App/Optimizer.php`"
 - https://github.com/mventures/genesis/pull/53407#discussion_r3228190732 — "Unused"
 - https://github.com/mventures/genesis/pull/52535#discussion_r2975009502 — "Never used"
 - https://github.com/mventures/genesis/pull/52262#discussion_r2907672189 — "This method can be removed maybe?"
+- https://github.com/mventures/genesis/pull/53962#discussion_r3390962429 — "Return value is never used"
 
 **Severity:** nit
 
-**last_evidence_at:** 2026-05-14
+**last_evidence_at:** 2026-06-10
 
 ---
 
@@ -356,6 +367,9 @@ rule:
 **Why:** A `readonly` property cannot be mutated after construction, so a getter adds no encapsulation — it is pure boilerplate that hides which fields the class actually exposes and forces every caller through an extra method.
 
 **Smell to detect:** A new request / DTO / value object under `src/Supplier/<X>/Api/Operations/**`, `src/Supplier/Amadeus/SoapApi/**`, `src/GdsCommandIssuer/**`, or `src/Booking/**` that declares a `private readonly` field plus a one-line `get<Field>()` method; a constructor body that only assigns `$this->field = $field` for every parameter (should be promoted); a class with no mutators that is not marked `readonly`.
+
+**Skip if:**
+- ≥2 sibling DTOs in the same package directory (`src/Supplier/<X>/Operation/**/Request.php`, `src/Supplier/<X>/Api/Operations/<Op>/Request.php`) already use the fluent-setter pattern and call sites chain `->setX()->setY()` — package-level consistency wins over per-class promotion. See https://github.com/mventures/genesis/pull/53962#discussion_r3403713863 ("every sibling operation… uses the fluent-setter pattern, and call sites chain `->setCustomerOrderId()->setPnrCode()`. Changing one breaks consistency.").
 
 **Evidence:**
 - https://github.com/mventures/genesis/pull/50586#discussion_r2550770213 — "Or make the class `readonly` and keep properties `public`, no need for getters"

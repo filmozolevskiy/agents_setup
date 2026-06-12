@@ -75,6 +75,8 @@ produces them; the review motion consumes them.
 
 **Smell to detect:** <concrete pattern a reviewer or agent can grep / eyeball — file globs, code shapes, naming, structural cue>
 
+**Skip if:** <optional bullet list — contextual cues that suppress or downgrade a smell match; cite the dev pushback permalink that justifies the guard>
+
 **Evidence:**
 - https://github.com/mventures/genesis/pull/<N>#discussion_r<id> — "<JP quote, trimmed>"
 - https://github.com/mventures/genesis/pull/<N>#discussion_r<id> — "<JP quote, trimmed>"
@@ -89,6 +91,12 @@ Field rules:
 - **R<NN>** is sequential and stable. Rules retired during refresh keep
   their number; the next new rule gets the next free number. Never
   renumber.
+- **Smell to detect** is the positive match — agent flags if any bullet
+  matches.
+- **Skip if** is optional. When present, agent suppresses the finding
+  if any bullet matches (or downgrades to `weak` when the bullet says
+  so explicitly). Each bullet cites the dev pushback permalink that
+  justifies the guard — same provenance discipline as Evidence.
 - **Evidence** has ≥2 entries from ≥2 distinct PRs. A rule with one PR
   of evidence is a one-off taste call, not a Standard — drop it.
 - **Severity** defaults to `nit`. Promote to `blocker` only when JP's
@@ -125,6 +133,21 @@ For each `R<NN>` in `standards.md`, evaluate its `Smell to detect`
 against the changed files / hunks. A finding is one (rule, file, line
 range) tuple. Multiple violations of the same rule in the same file
 produce multiple findings — do not deduplicate.
+
+Then, for each smell match, consult the rule's `Skip if:` bullets (if
+present) against the same hunk and the surrounding package:
+
+- If any bullet matches and reads as a hard suppression, drop the
+  finding entirely.
+- If any bullet matches and reads as a downgrade ("emit `weak` unless
+  the class also exhibits…"), keep the finding but mark it `weak` and
+  carry the `Why weak:` line from the `Skip if:` text.
+
+`Skip if:` exists because dev pushback on prior automated reviews
+showed the agent firing on smell matches that JP himself would not
+flag in context (factory-instantiated classes for R06 / R08,
+sibling-pattern DTOs for R17). Adding to `Skip if:` is the cheapest
+way to fix a false positive without retiring the rule.
 
 ### 4. Emit the chat report
 
