@@ -12,7 +12,7 @@
 
 ### Tag catalog
 
-Snapshot observed in production (2026-06-03; was 2026-04-23). `id` values are dense but not sequential — filter by `name`, never hardcode `id`. **Level** marks where the tag is normally attached: `candidate` → `optimizer_candidate_tags`, `attempt` → `optimizer_attempt_tags`. Some tags appear at both.
+Snapshot observed in production (2026-06-16; was 2026-06-03). `id` values are dense but not sequential — filter by `name`, never hardcode `id`. **Level** marks where the tag is normally attached: `candidate` → `optimizer_candidate_tags`, `attempt` → `optimizer_attempt_tags`. Some tags appear at both.
 
 | id | name | Level | Meaning / typical value |
 |----|------|-------|-------------------------|
@@ -39,6 +39,8 @@ Snapshot observed in production (2026-06-03; was 2026-04-23). `id` values are de
 | 192 | `LowRevenue`                         | candidate | Candidate flagged low-revenue. |
 | 202 | `Upgrade`                            | attempt | Optimizer formed the package as a fare-family upgrade (Trello #2896, genesis PR #53702). |
 | 212 | `VccRequired`                        | attempt | Attempt's chosen payment method needs a virtual credit card to fulfill. Value carries the method (e.g. `ApplePayPaymentMethod`). Added 2026-06-02 for the ApplePay/PayPal flow. |
+| 242 | `Acceptable`                         | candidate | Candidate has minor differences from the original (e.g. change / cancellation policy) but is still considered acceptable for eligibility. Value carries the comma-separated list of dimensions that diverged (e.g. `advance_change`, `cancellation,advance_change`). Added 2026-06-15. |
+| 252 | `RoutehappyError`                    | candidate | RouteHappy lookup failed for this contestant. Writer attaches the tag as a presence flag — `value` is `NULL` (970 of 970 rows observed 2026-06-16 12:40 → 14:13 had no value). Added 2026-06-16. |
 
 **Key relationships:**
 - Parent of `optimizer_candidate_tags` on `id = oct.tag_id`.
