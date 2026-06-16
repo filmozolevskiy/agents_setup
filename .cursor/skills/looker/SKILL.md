@@ -138,17 +138,24 @@ heads-up.
    [`references/optimizing_existing_projects.md`](./references/optimizing_existing_projects.md)
    describe the *shape* of the proposal, not whether to ask — both
    tiers must be approved before applying.
-8. **Always end with a manual-handoff block.** Many Looker operations
-   require a human admin or Develop-Mode action that no MCP tool can
-   perform: connecting a new GitHub repo to Looker, pulling + deploying
-   LookML changes, granting model permissions, etc. Every reply that
-   creates a new project, pushes LookML, or otherwise leaves work
-   pending in Looker MUST end with a "Your next step" block taken
-   verbatim from
-   [`references/manual_handoffs.md`](./references/manual_handoffs.md).
-   Never close out by saying "done" if a deploy is pending — list the
-   deploy steps explicitly and tell the user the agent will verify
-   after they confirm.
+8. **Always end with a manual-handoff block — and a Links block.** Many
+   Looker operations require a human admin or Develop-Mode action that
+   no MCP tool can perform: connecting a new GitHub repo to Looker,
+   pulling + deploying LookML changes, granting model permissions, etc.
+   Every reply that creates a new project, pushes LookML, or otherwise
+   leaves work pending in Looker MUST end with the "Your next step"
+   block taken verbatim from
+   [`references/manual_handoffs.md`](./references/manual_handoffs.md),
+   prefixed by the standardized **Links** block defined in the same
+   file. The Links block is mandatory on **every reply that asks the
+   user to take an action** (merge a PR, pull + deploy in Looker,
+   create a deploy key, add a model role, refresh a dashboard, etc.),
+   even when the action sits outside the handoff template. Constitution
+   rule `Linkable artefacts` already requires this for any cited
+   artefact; the handoff block enforces it in a fixed shape so users
+   never have to hunt. Never close out by saying "done" if a deploy is
+   pending — list the deploy steps explicitly and tell the user the
+   agent will verify after they confirm.
 
 ## Subflows
 
