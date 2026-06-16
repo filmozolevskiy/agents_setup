@@ -27,6 +27,40 @@ that shows the cancellation rate", not "a `type: number` measure with
 user (e.g. a Tier 1 perf improvement), say so — "speed-up under the
 hood; numbers on the dashboard will not change".
 
+## Required Links block (paste before every handoff block)
+
+Every reply that asks the user to take an action — merge a PR, pull
+and deploy in Looker, add a deploy key, grant a model role, refresh
+a dashboard — MUST start its "Your next step" section with the
+Links block below. Reason: the user shouldn't have to scroll back
+to find URLs to act on. One-click access, every time.
+
+The block is rendered as a bulleted list (not a code block), so each
+URL is clickable in the chat UI. Omit lines that genuinely don't
+apply (e.g. no source card for a self-initiated cleanup) — but never
+silently skip a line that does apply. If you don't know a URL, ask;
+don't ship the handoff without it.
+
+> **Links**
+>
+> - **PR / commit**: `<pull request URL>` (or `<commit URL>` if no PR)
+> - **GitHub repo**: `<https://github.com/<owner>/<repo>>`
+> - **Looker project**: `<https://flighthub.looker.com/projects/<project_name>>`
+> - **Explore**: `<https://flighthub.looker.com/explore/<model>/<explore>>` (only if the change affects a specific explore)
+> - **Affected dashboard(s)**: `<https://flighthub.looker.com/dashboards/<id>>` (one bullet per dashboard; omit the line if none)
+> - **Looker folder**: `<https://flighthub.looker.com/folders/<id>>` (when the work touches a specific folder, e.g. a new project's home folder)
+> - **Source**: `<Trello card URL>` / `<genesis PR URL>` / `<Slack thread link>` / `<Notion page URL>` (whichever triggered the work; omit the line only if the work was self-initiated)
+
+**Rules of thumb:**
+
+- Always paste the **full URL**, not a label. The chat UI renders
+  raw URLs as clickable links; a bare project name does not click.
+- The same Links block goes at the **top** of Blocks A, B, and C
+  below. Do not split links between sections.
+- When the work spans two repos (e.g. a LookML repo PR plus an
+  `agents_setup` catalog commit), add a second "PR / commit"
+  bullet — one line per linked artefact.
+
 ## Decision tree
 
 ```
@@ -58,9 +92,16 @@ Use when the only Looker change was via MCP authoring tools
 (`make_dashboard`, `add_dashboard_filter`, `add_dashboard_element`,
 `make_look`) and no `git push` happened on a project repo.
 
-Fill in: `<dashboard_url>`, `<one-line summary of what changed>`.
+Fill in: `<dashboard_url>`, `<one-line summary of what changed>`,
+plus every link in the Links block above.
 
 > ## What you need to do next
+>
+> **Links**
+>
+> - **Affected dashboard**: `<dashboard_url>`
+> - **Looker folder**: `<folder_url>` *(only if relevant)*
+> - **Source**: `<Trello / Slack / Notion link>` *(omit if self-initiated)*
 >
 > Nothing in Looker — the change is already live.
 >
@@ -81,9 +122,19 @@ Use when the agent pushed one or more commits to a project repo that
 is **already connected** in Looker.
 
 Fill in: `<project_name>`, `<commit_sha>` (short hash is fine),
-`<plain-english summary of what changed>`.
+`<plain-english summary of what changed>`, plus every link in the
+Links block.
 
 > ## What you need to do next
+>
+> **Links**
+>
+> - **PR**: `<pull request URL>` (or commit URL if no PR)
+> - **GitHub repo**: `<https://github.com/<owner>/<repo>>`
+> - **Looker project**: `<https://flighthub.looker.com/projects/<project_name>>`
+> - **Explore**: `<https://flighthub.looker.com/explore/<model>/<explore>>` *(only if the change affects a specific explore)*
+> - **Affected dashboard(s)**: `<https://flighthub.looker.com/dashboards/<id>>` *(one bullet per dashboard; omit the line if none)*
+> - **Source**: `<Trello card / genesis PR / Slack thread / Notion page>` *(omit if self-initiated)*
 >
 > I made changes in GitHub. Looker doesn't pick them up automatically —
 > it needs you to load and turn them on. Should take about 30 seconds.
@@ -122,9 +173,16 @@ Looker.
 
 Fill in: `<project_name>`, `<repo_url>` (e.g.
 `https://github.com/<owner>/<project_name>`), `<connection>` (e.g.
-`ota`), `<initial_commit_sha>`.
+`ota`), `<initial_commit_sha>`, plus every link in the Links block.
 
 > ## What you need to do next
+>
+> **Links**
+>
+> - **GitHub repo**: `<repo_url>`
+> - **Initial commit**: `<repo_url>/commit/<initial_commit_sha>`
+> - **Looker (Develop → Manage LookML Projects)**: `https://flighthub.looker.com/projects`
+> - **Source**: `<Trello card / Notion page / Slack thread>` *(omit if self-initiated)*
 >
 > The GitHub repo is ready, but Looker doesn't know about it yet. The
 > first time you connect a new project to Looker is a manual setup —
@@ -195,3 +253,15 @@ Fill in: `<project_name>`, `<repo_url>` (e.g.
 - Assuming dashboard tiles will "fix themselves" once LookML is
   pushed. They will not — Looker must pull and deploy first, and
   then the tiles' next run picks up the new model.
+- Shipping a handoff block without the Links block on top. The
+  user should never need to scroll up to find the PR, the repo, the
+  Looker project, or the affected dashboard — every URL the action
+  needs is at the top of the handoff, as a bulleted list of full
+  URLs (not labels). Omit only lines that genuinely don't apply;
+  never silently skip a line because the URL is inconvenient to
+  fetch — ask for it instead.
+- Naming an artefact without linking it. "Open the
+  `content_integration_optimizer` project in Looker" is wrong;
+  "Open `https://flighthub.looker.com/projects/content_integration_optimizer`"
+  is right. Same rule for repos, dashboards, folders, Trello cards,
+  genesis PRs, and Notion pages.
