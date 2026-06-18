@@ -1,6 +1,6 @@
 # Card anatomy — title and sections
 
-Everything a Content Integration card carries. **Three mandatory sections, up to four optional ones, then the AI footer.**
+Everything a Content Integration card carries. **Four mandatory sections, up to four optional ones, then the AI footer.**
 
 Section order (mandatory + optional interleaved):
 
@@ -8,11 +8,12 @@ Section order (mandatory + optional interleaved):
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
-5. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
-6. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
-7. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
+5. `### ⊙ **Acceptance criteria**` *(mandatory, always present)* — a checklist of tickable items that defines "done". trello_assistant always ships it with the placeholder line `- [ ] _TO BE DONE_`; `qa_strategy` or the QA team populates it later, always as `- [ ]` items.
+6. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
+7. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
+8. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
 
-Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out.
+Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Acceptance criteria` is the one exception — it always ships, and it ships empty (`- [ ] _TO BE DONE_`) until the populating writer fills it in.
 
 ## Formatting rules (apply to every section)
 
@@ -174,6 +175,31 @@ Include when there is a clear statement of what should happen instead. Plain lan
 We need to read the new fare from the success response and run our standard fare-change flow on both Check Availability and the booker re-quote.
 
 The change is already activated on the Dida sandbox.
+```
+
+### `### ⊙ **Acceptance criteria**` (mandatory, always present)
+
+A checklist of tickable items that defines "done" for this card. Sits right after Visibility.
+
+- **trello_assistant always ships this section as an empty placeholder** — a single line `- [ ] _TO BE DONE_`. Never fabricate criteria from the rest of the card. Never omit the section.
+- **Always a checklist.** Use `- [ ]` items, one per line, one outcome per item. Prose acceptance criteria are not allowed — the section reads as a checklist or it stays as the placeholder.
+- The `qa_strategy` skill or the QA team rewrites the placeholder into real items later; both writers must conform to the `- [ ]` shape.
+- Items state outcomes a human or a log query can verify ("Booking on Amadeus office YYZAA38AA succeeds end to end", "BookFlight no longer returns NO FARE FOR CLASS for this office over a 24h window"). No implementation steps, no developer to-do lists, no code identifiers.
+
+Empty placeholder (what trello_assistant ships on every new card):
+
+```markdown
+### ⊙ **Acceptance criteria**
+- [ ] _TO BE DONE_
+```
+
+Populated example (written later by `qa_strategy` or the QA team):
+
+```markdown
+### ⊙ **Acceptance criteria**
+- [ ] BookFlight on Amadeus office YYZAA38AA succeeds end to end on staging.
+- [ ] No new NO FARE FOR CLASS errors for office YYZAA38AA over the 24h after deploy.
+- [ ] Existing offices unaffected — failure rate unchanged on the Visibility query above.
 ```
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)
