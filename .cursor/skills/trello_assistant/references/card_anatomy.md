@@ -8,12 +8,12 @@ Section order (mandatory + optional interleaved):
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
-5. `### ⊙ **Acceptance criteria**` *(mandatory, always present)* — a checklist of tickable items that defines "done". trello_assistant always ships it with the placeholder line `- [ ] _TO BE DONE_`; `qa_strategy` or the QA team populates it later, always as `- [ ]` items.
+5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — a checklist of tickable items that defines "done". trello_assistant writes them itself as a plain outcome checklist (each `- [ ]` line a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to the `- [ ] _TO BE DONE_` placeholder.
 6. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
 7. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
 8. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
 
-Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Acceptance criteria` is the one exception — it always ships, and it ships empty (`- [ ] _TO BE DONE_`) until the populating writer fills it in.
+Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real plain-outcome items when the expected behavior is known, and fall back to `- [ ] _TO BE DONE_` only on investigation-pending cards.
 
 ## Formatting rules (apply to every section)
 
@@ -177,29 +177,38 @@ We need to read the new fare from the success response and run our standard fare
 The change is already activated on the Dida sandbox.
 ```
 
-### `### ⊙ **Acceptance criteria**` (mandatory, always present)
+### `### ⊙ **Definition of Done**` (mandatory, always present)
 
-A checklist of tickable items that defines "done" for this card. Sits right after Visibility.
+A checklist of tickable items that defines "done" for this card. Sits right after Visibility. **trello_assistant writes these itself** — derive them from the card's expected behavior (the `Possible solution / expected behavior` section, or the fix implied by Details).
 
-- **trello_assistant always ships this section as an empty placeholder** — a single line `- [ ] _TO BE DONE_`. Never fabricate criteria from the rest of the card. Never omit the section.
-- **Always a checklist.** Use `- [ ]` items, one per line, one outcome per item. Prose acceptance criteria are not allowed — the section reads as a checklist or it stays as the placeholder.
-- The `qa_strategy` skill or the QA team rewrites the placeholder into real items later; both writers must conform to the `- [ ]` shape.
-- Items state outcomes a human or a log query can verify ("Booking on Amadeus office YYZAA38AA succeeds end to end", "BookFlight no longer returns NO FARE FOR CLASS for this office over a 24h window"). No implementation steps, no developer to-do lists, no code identifiers.
+- **Write each item as a plain outcome statement — a done-state stated as a fact.** No `GIVEN / WHEN / THEN` scaffolding, no "Verify that…" prefix. State the end result directly: "The ResPro page shows a Unififi order link for Unififi bookings."
+- **Always a checklist.** Use `- [ ]` items, one per line, one outcome per item. A prose paragraph (not a checklist) is not allowed.
+- Items state outcomes a human or a log query can verify. No implementation steps, no developer to-do lists, no code identifiers. Plain, ESL-friendly language.
+- Keep it short — usually one to three items. Cover the happy path first, then any regression guard.
+- **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `- [ ] _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
 
-Empty placeholder (what trello_assistant ships on every new card):
+One outcome (from [#3022](https://trello.com/c/CllZSJMV)):
 
 ```markdown
-### ⊙ **Acceptance criteria**
-- [ ] _TO BE DONE_
+### ⊙ **Definition of Done**
+- [ ] The ResPro booking page shows a Unififi order link for Unififi bookings.
+- [ ] The link opens the matching order on the Unififi supplier website.
+- [ ] Non-Unififi bookings show no such link.
 ```
 
-Populated example (written later by `qa_strategy` or the QA team):
+Happy path first, then a regression guard:
 
 ```markdown
-### ⊙ **Acceptance criteria**
-- [ ] BookFlight on Amadeus office YYZAA38AA succeeds end to end on staging.
-- [ ] No new NO FARE FOR CLASS errors for office YYZAA38AA over the 24h after deploy.
-- [ ] Existing offices unaffected — failure rate unchanged on the Visibility query above.
+### ⊙ **Definition of Done**
+- [ ] BookFlight on Amadeus office YYZAA38AA succeeds end to end with no NO FARE FOR CLASS error.
+- [ ] The other Amadeus offices keep their current failure rate on the Visibility query for 24h after deploy.
+```
+
+Placeholder — investigation-pending cards only, when the outcome is not known yet:
+
+```markdown
+### ⊙ **Definition of Done**
+- [ ] _TO BE DONE_
 ```
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)
