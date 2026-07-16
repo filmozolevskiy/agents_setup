@@ -1,6 +1,6 @@
 # Card anatomy — title and sections
 
-Everything a Content Integration card carries. **Three mandatory sections, up to four optional ones, then the AI footer.**
+Everything a Content Integration card carries. **Four mandatory sections, up to four optional ones, then the AI footer.**
 
 Section order (mandatory + optional interleaved):
 
@@ -8,11 +8,12 @@ Section order (mandatory + optional interleaved):
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
-5. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
-6. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
-7. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
+5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — a checklist of tickable items that defines "done". trello_assistant writes them itself as a plain outcome checklist (each `- [ ]` line a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to the `- [ ] _TO BE DONE_` placeholder.
+6. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
+7. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
+8. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
 
-Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out.
+Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real plain-outcome items when the expected behavior is known, and fall back to `- [ ] _TO BE DONE_` only on investigation-pending cards.
 
 ## Formatting rules (apply to every section)
 
@@ -174,6 +175,40 @@ Include when there is a clear statement of what should happen instead. Plain lan
 We need to read the new fare from the success response and run our standard fare-change flow on both Check Availability and the booker re-quote.
 
 The change is already activated on the Dida sandbox.
+```
+
+### `### ⊙ **Definition of Done**` (mandatory, always present)
+
+A checklist of tickable items that defines "done" for this card. Sits right after Visibility. **trello_assistant writes these itself** — derive them from the card's expected behavior (the `Possible solution / expected behavior` section, or the fix implied by Details).
+
+- **Write each item as a plain outcome statement — a done-state stated as a fact.** No `GIVEN / WHEN / THEN` scaffolding, no "Verify that…" prefix. State the end result directly: "The ResPro page shows a Unififi order link for Unififi bookings."
+- **Always a checklist.** Use `- [ ]` items, one per line, one outcome per item. A prose paragraph (not a checklist) is not allowed.
+- Items state outcomes a human or a log query can verify. No implementation steps, no developer to-do lists, no code identifiers. Plain, ESL-friendly language.
+- Keep it short — usually one to three items. Cover the happy path first, then any regression guard.
+- **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `- [ ] _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
+
+One outcome (from [#3022](https://trello.com/c/CllZSJMV)):
+
+```markdown
+### ⊙ **Definition of Done**
+- [ ] The ResPro booking page shows a Unififi order link for Unififi bookings.
+- [ ] The link opens the matching order on the Unififi supplier website.
+- [ ] Non-Unififi bookings show no such link.
+```
+
+Happy path first, then a regression guard:
+
+```markdown
+### ⊙ **Definition of Done**
+- [ ] BookFlight on Amadeus office YYZAA38AA succeeds end to end with no NO FARE FOR CLASS error.
+- [ ] The other Amadeus offices keep their current failure rate on the Visibility query for 24h after deploy.
+```
+
+Placeholder — investigation-pending cards only, when the outcome is not known yet:
+
+```markdown
+### ⊙ **Definition of Done**
+- [ ] _TO BE DONE_
 ```
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)
