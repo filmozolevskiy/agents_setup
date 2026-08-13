@@ -48,6 +48,7 @@ This document also holds **investigation context** for this collection: where el
 | **Flightroutes24** — verify step        | `context: "flightroutes24-api[ACCOUNT] pricing.do"`                                               | Supplier JSON response in `Response` field. Error shape: `{"code":"XXXXXXXX","message":"[Verify Failed]:..."}`. Known codes: `20901231` (GDS/airline issue, CRITICAL), `20703204` (GDS/airline issue, retry from search), `10701298` (offerId already used — our retry reusing stale offer). Do **not** rely on `Flightroutes24-booker-unknown-error` context — that context has no response data. |
 | **Flightroutes24** — booking step       | `context: "flightroutes24-api[ACCOUNT] booking.do"`                                               | Supplier JSON in `Response`. Error shape: `{"code":"XXXXXXXX","message":"[AIRLINE ERROR]:Booking failed"}`. Known codes: `20901219`, `20901220`, `20901221` — FR24 maps multiple airline rejections to these codes; request underlying detail from FR24. Verify step (`pricing.do`) is often `code: 000000 / "ok"` on the same transaction.                                                        |
 | **Amadeus** — all booking/pricing steps | `context: "amadeus-sh4-api[OFFICE] OperationName"` or `"amadeus-redux-api[OFFICE] OperationName"` | Supplier SOAP XML is in lowercase `**response**` field (not `Response`). Key operations: `PNR_AddMultiElements_*` (booking), `Fare_PriceUpsellWithoutPNR` (fare pricing). Always query both `Response` and `response` when filtering Amadeus logs.                                                                                                                                                 |
+| **Unififi** — verify step               | `context: "unififi-api[ACCOUNT] verify-price"` (accounts `UNIFIFICAD` / `UNIFIFIUSD`)               | Request is wrapped: parse `Request` JSON → `body.routing.payload`. Response: `result.errorCode` `0` = success, `3` = failure (often `[trans_flow]Seat/Fare No Available`). **Search** payload is 4 segments (`V4#uuid#N#longId`); **verify response** payload is 2 segments (`V4#uuid`). Verify requests must keep the search payload — reusing the verify-response payload on a later verify (baggage optimization or a second booker verify) causes status `3`. Confirmed 2026-08-12. |
 
 
 ### Payments / charges (Payhub)
@@ -74,6 +75,7 @@ This document also holds **investigation context** for this collection: where el
 
 | Date       | Change                                       |
 | ---------- | -------------------------------------------- |
+| 2026-08-12 | Added Unififi verify-price payload / status-3 hint. |
 | 2026-04-20 | Added FR24 and Amadeus content-source hints. |
 
 

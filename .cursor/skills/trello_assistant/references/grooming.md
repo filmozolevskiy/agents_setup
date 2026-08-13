@@ -10,7 +10,7 @@ Run when the user asks to **prep grooming** / produce a **grooming report** / li
   | Order | List | ID |
   |---|---|---|
   | 1 | In Progress | `61d5cfd748343984d1dd4fc3` |
-  | 2 | Ready for Dev | `61d5cfd1ffca1f891a0fd237` |
+  | 2 | TODO | `61d5cfd1ffca1f891a0fd237` |
   | 3 | Blocked | `679d612a6f880eb62c672aa1` |
   | 4 | Staging | `68de85f3a35d950e37cefc8b` |
   | 5 | Fixes needed | `65563ff118d482065927fa4b` |
@@ -29,7 +29,7 @@ Run when the user asks to **prep grooming** / produce a **grooming report** / li
    ```bash
    python3 .cursor/skills/trello_assistant/scripts/grooming_report.py \
      --list "In Progress:/abs/path/in_progress.json" \
-     --list "Ready for Dev:/abs/path/ready_for_dev.json" \
+     --list "TODO:/abs/path/todo.json" \
      --list "Blocked:/abs/path/blocked.json" \
      --list "Staging:/abs/path/staging.json" \
      --list "Fixes needed:/abs/path/fixes_needed.json" \
@@ -48,5 +48,5 @@ The script hard-codes Trello member IDs → display names in `DEVELOPERS`. When 
 - Do not filter by `dateLastActivity` window. The report is "everything in flight", not "touched this week".
 - Do not include non-dev roles, even if they have cards in the in-flight lists.
 - Do not include `QA`, `QA Tracking 👀`, `Done`, `Parking`, or any other list. Only the 6 in-flight lists above.
-- Do not re-order the per-dev sub-buckets. Always `In Progress → Ready for Dev → Blocked → Staging → Fixes needed → Ready for Deployment`.
+- Do not re-order the per-dev sub-buckets. Always `In Progress → TODO → Blocked → Staging → Fixes needed → Ready for Deployment`.
 - Do not drop the `**STALE 14d+**` flag or change the 14d threshold without the user asking.

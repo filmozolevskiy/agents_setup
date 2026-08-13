@@ -12,7 +12,7 @@ Never create a card until the board has been checked for existing work covering 
    python3 .cursor/skills/trello_assistant/scripts/filter_cards.py \
      --terms "keyword1" "keyword2" \
      --exclude "listID1" "listID2" \
-     -- path/to/cards_backlog.json path/to/cards_ready_for_dev.json
+     -- path/to/cards_backlog.json path/to/cards_todo.json
    ```
 
    Or pipe via stdin: `... filter_cards.py --terms "keyword" < cards.json`.

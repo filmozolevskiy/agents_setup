@@ -7,14 +7,15 @@ description: >-
   card the user pointed at with a `/c/<shortLink>` URL. Also use when the user
   asks to "prep grooming", "produce a grooming report", "what does <dev> have
   in flight", "what's in flight", "stale cards", or any developer-centric
-  in-flight roll-up across Ready for Dev / In Progress / Blocked / Staging /
+  in-flight roll-up across TODO / In Progress / Blocked / Staging /
   Fixes needed / Ready for Deployment. Use for Automation-board cards too
   (short human-written intake) — different board, lighter template. Covers
   dedup before creating, an approval gate that shows every card write in chat
   for sign-off before sending, card title and the H3 `⊙` description template
   (mandatory Short description / Details / Visibility; optional Possible
   solution / Credentials / QA notes / Similar-relevant cards; debuggable CTE /
-  Shape A/B Mongo pipelines), mandatory Filipp-as-member and AI footer rules,
+  Shape A/B Mongo pipelines), mandatory members (Filipp + QA team Maryna and
+  Alexander) and AI footer rules,
   weekly grooming roll-up, and the one-card → one-branch → one-PR lifecycle.
 ---
 
@@ -40,7 +41,7 @@ Use the **user-trello** MCP server. Before each tool call, read that tool's JSON
 | Board **Content Integration** | `61d5cf784c6396541499e7ce` |
 | List **Backlog** | `6509c593087340dfdd332b0a` |
 
-**New cards:** always `add_card_to_list` on Backlog. Never place new agent-created cards in Ready for Dev, In Progress, or any other list unless the user explicitly overrides.
+**New cards:** always `add_card_to_list` on Backlog. Never place new agent-created cards in TODO, In Progress, or any other list unless the user explicitly overrides.
 
 **Updates:** `update_card_details`, `move_card`, checklists, labels, comments. Keep the card on its current list unless the user asks to move it.
 
@@ -59,7 +60,7 @@ Before any Trello write — create, update, move, label, member change, comment,
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the three mandatory `⊙` sections — `Short description` + `Details` + `Visibility` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**, then on approval `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member, starting with Filipp.
+2. **New card:** run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the three mandatory `⊙` sections — `Short description` + `Details` + `Visibility` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**, then on approval `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member: Filipp (delivery manager) first, then the two QA team members, Maryna and Alexander (Alex).
 3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
 4. **Schema check before any write.** If a write tool returns an empty `idLabels` / `idMembers` array, or silently drops a parameter you passed, the parameter name was wrong for that tool. Read the JSON schema under `mcps/project-0-agents_setup-trello/tools/<tool>.json` and retry with the correct shape — do **not** keep retrying the same call hoping the field name works this time.
 5. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
@@ -87,7 +88,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). **N
 
 1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. `(Investigation Pending)` prefix when there is no fix yet. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title).
 2. **Four mandatory `⊙` sections** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**` + `### ⊙ **Definition of Done**`, as H3 headings with a blank line after each. **Order:** Short → Details → (optional Possible solution / expected behavior, when present) → Visibility → Definition of Done → remaining optional sections. `Definition of Done` always ships — write real items as a plain outcome checklist (each `- [ ]` line a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to the placeholder line `- [ ] _TO BE DONE_`. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. No other `⊙` blocks; fold extra investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise.
-3. **Filipp on every card** — every card the agent creates or updates includes Filipp (delivery manager) as a member. Call `assign_member_to_card` with Filipp's member ID right after `add_card_to_list` on create, and as a separate call when updating a card he is not on yet. `add_card_to_list` and `update_card_details` do not accept members — never try to pass `idMembers` / `memberIds` to them. If his ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
+3. **Filipp + QA team on every card** — every card the agent creates or updates includes Filipp (delivery manager) **and both QA team members, Maryna and Alexander (Alex)**, as members. Call `assign_member_to_card` once per member right after `add_card_to_list` on create (Filipp first, then Maryna, then Alexander), and as separate calls when updating a card any of them is not on yet. `add_card_to_list` and `update_card_details` do not accept members — never try to pass `idMembers` / `memberIds` to them. If any ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
    ```markdown
@@ -117,7 +118,7 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 - Do not batch several card writes behind one approval unless the user approved the batch; a new instruction needs a fresh proposal.
 - Do not create new cards outside Backlog unless the user explicitly asks.
 - Do not skip the dedup pass before creating a card.
-- Do not ship a card (new or updated) without Filipp (delivery manager) as a member.
+- Do not ship a card (new or updated) without Filipp (delivery manager) and both QA team members, Maryna and Alexander (Alex), as members.
 - Do not invent booking IDs, hashes, or log URLs.
 - Do not add a `⊙ **Credentials / access**` section to a bug / error card — it is for new-integration cards only. When present, never fabricate a value; write placeholder prompt lines and let the card owner fill office codes, PCCs, and logins by hand.
 - Do not include optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) as empty stubs. Omit a section that has nothing real to say. The four mandatory sections always ship — write `Definition of Done` yourself as a plain outcome checklist (done-states stated as facts), and fall back to the `- [ ] _TO BE DONE_` placeholder only on `(Investigation Pending)` cards where the outcome is unknown.

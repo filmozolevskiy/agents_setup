@@ -10,7 +10,7 @@ The canonical format produced here is:
     Developers per [`.cursor/skills/trello_assistant/roles.md`](...):
     Avi, Ivan, Andrei Skachkou, Razvan, JP, JM, Maria-Christine.
 
-    Every card currently sitting in **Ready for Dev · In Progress · Blocked ·
+    Every card currently sitting in **TODO · In Progress · Blocked ·
     Staging · Fixes needed · Ready for Deployment** that has a dev attached,
     regardless of recent activity. `STALE 14d+` = no activity in the last 2
     weeks.
@@ -31,7 +31,7 @@ Inputs are the JSON dumps produced by the `user-trello` MCP's
 Usage:
     python3 grooming_report.py \\
         --list "In Progress:/abs/path/in_progress.json" \\
-        --list "Ready for Dev:/abs/path/ready_for_dev.json" \\
+        --list "TODO:/abs/path/todo.json" \\
         --list "Blocked:/abs/path/blocked.json" \\
         --list "Staging:/abs/path/staging.json" \\
         --list "Fixes needed:/abs/path/fixes_needed.json" \\
@@ -81,7 +81,7 @@ SHORT_NAMES = [
 
 IN_FLIGHT_LISTS = [
     "In Progress",
-    "Ready for Dev",
+    "TODO",
     "Blocked",
     "Staging",
     "Fixes needed",
@@ -259,7 +259,7 @@ def main() -> int:
         required=True,
         help=(
             "'<List name>:<abs path to JSON dump>' — repeat once per "
-            "in-flight list (Ready for Dev, In Progress, Blocked, Staging, "
+            "in-flight list (TODO, In Progress, Blocked, Staging, "
             "Fixes needed, Ready for Deployment)."
         ),
     )

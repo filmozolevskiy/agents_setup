@@ -28,7 +28,7 @@ Match on what the user observed. When several match, read the earliest stage fir
 | [`booking-flow.md`](booking-flow.md) | End-to-end flow: checkout → check availability → pre-air-booker (optimization, loss limit) → book → post-air-booker → cancel-on-failure. The spine most investigations touch. | 2026-07-30 (seeded) |
 | [`optimizer.md`](optimizer.md) | How the optimizer/repricer forms and ranks contestants and can reroute a booking mid-checkout. Behavior only — audits belong to the `optimizer` skill. | 2026-07-30 (seeded) |
 | [`payments.md`](payments.md) | Payhub flow (Verify → 3DS → IssueCard → Sale → CancelCard), virtual cards paying suppliers, statement items / transactions. | 2026-07-30 (vcc tracing) |
-| [`content-sources.md`](content-sources.md) | Per-supplier / GDS behavior: offices / accounts, marketing vs operating carrier, LCC quirks, per-source `debug_logs` context hints. | 2026-07-30 (seeded) |
+| [`content-sources.md`](content-sources.md) | Per-supplier / GDS behavior: offices / accounts, marketing vs operating carrier, LCC quirks, per-source `debug_logs` context hints. | 2026-08-12 (unififi verify payload) |
 | [`search.md`](search.md) | Search submission → results page; content-source fan-out; search telemetry (which sources responded). | 2026-07-30 (seeded) |
 | [`ticketing.md`](ticketing.md) | Ticketer: `AirTicketRQ` to the GDS, statement finalization, session close, and where issuance stalls. | 2026-07-30 (seeded) |
 | [`ancillaries.md`](ancillaries.md) | Baggage / ancillary optimization behavior and its data. | 2026-07-30 (seeded) |
