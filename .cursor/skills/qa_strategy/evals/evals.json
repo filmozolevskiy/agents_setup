@@ -5,21 +5,35 @@
       "id": 0,
       "name": "fr24-booking-sync",
       "prompt": "QA strategy for https://trello.com/c/jPCKypll/2920-fr24-booking-sync-fails",
-      "expected_output": "Two-section QA plan (Staging + Post-deployment) for the FR24 booking-sync failure, derived from the card and its linked PR diff, framed in user/agent/log terms with verified locator + monitoring queries and per-check Why: lines. No code identifiers in prose.",
+      "expected_output": "Chat preview is Trello card markdown: ### ⊙ **QA Strategy** with DoD# parents (DoD1, DoD2), nested Test n with ✅❌❓ and **EXPECT:**. At most two numbered lines before EXPECT (action then observe). No click-by-click tutorials. Uncoverable DoD items get No test: plus reason. Extra PR checks sit after DoD# items in the same section. ### ⊙ **Post Deployment tracking** only if there is a watch (short line + ✅❌❓ + query + **EXPECT:**). No restated DoD sentences. No Notion. No Log to open slot. No PASS. No Additional tests. No Smoke/Happy-path headers on the card. Logs named in the observe line when relevant. No code identifiers in prose.",
       "files": []
     },
     {
       "id": 1,
       "name": "onefly-check-availability",
       "prompt": "QA strategy for https://trello.com/c/mrasebFb/2908-onefly-implement-check-availability",
-      "expected_output": "Two-section QA plan for the OneFly check-availability implementation, derived from the PR diff. Staging smoke/happy-path/edge driven from a fresh search; post-deploy monitoring of the new availability-check call and its log shape. Observable phrasing only.",
+      "expected_output": "Card-shaped QA strategy from the PR diff. DoD parents are DoD1, DoD2, not restated DoD sentences. Staging checks nested as Test n with ✅❌❓. At most two numbered lines before EXPECT. Logs named in the observe line when the availability-check debug log is the proof. Post Deployment tracking is a short watch + query if needed. No Notion, no PASS, no Log to open slot. Observable phrasing only.",
       "files": []
     },
     {
       "id": 2,
       "name": "kiwi-scope-tag",
       "prompt": "QA strategy for https://trello.com/c/ra8NqjLu/2923-kiwi-add-a-scope-tag-to-all-check-availability-logs",
-      "expected_output": "Two-section QA plan for the Kiwi log scope-tag change. Likely a log-shape-only change — plan should be short, focus on the debug_logs/optimizer_logs field addition, verify the new tag appears via a pinned per-search_id query on staging and an aggregate watch in prod. Should explicitly note limited user-visible surface.",
+      "expected_output": "Short card-shaped plan. DoD# parents plus nested tests. At most two numbered lines before EXPECT. The new debug-log scope is named in the observe line, not a Log to open slot. **EXPECT:** the tag appears on the pinned search. Post-deploy watch is a short line + aggregate query if shipped. No Notion. Limited user-visible surface stated as No test: when a DoD item has none.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "unififi-verify-price-payload",
+      "prompt": "QA strategy for https://trello.com/c/gn2i2xI2/3181-unififi-verify-price-reuses-short-verify-response-payload",
+      "expected_output": "QA Strategy uses DoD# parents, not restated DoD sentences. The Baggage Optimization verify is a nested Test: action line drives the checkout; observe line opens unififi-api verify-price and names _scopes, not the first Check Availability verify. At most two numbered lines before EXPECT. Request routing.payload and a before permalink with #_id when a short-payload prod row exists. **EXPECT:** the four-part search payload on the later verify. ✅❌❓ on the test heading. No Log to open slot. No PASS. No logs named on Post Deployment tracking. No after permalink invented. No Notion. No code identifiers in prose.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "travelfusion-surcharge-card-shape",
+      "prompt": "QA strategy for https://trello.com/c/Yh7NNBY6/3139-travelfusion-inform-customer-of-card-surcharge-before-payment",
+      "expected_output": "Publishes ### ⊙ **QA Strategy** then optional ### ⊙ **Post Deployment tracking**. Every real DoD item is a DoD# parent (DoD1, DoD2), not a restated sentence. Nested tests or No test: under each. Extra non-DoD checks after the DoD# items, same section. ✅❌❓ on tests. **EXPECT:** not PASS. At most two numbered lines before EXPECT. ProcessDetails log named in the observe line when relevant. Chat says Approve and publish? On approval, PUT Trello desc after Definition of Done, strip Notion QA Strategy URL, preserve existing mark suffixes on republish. trello_assistant does not create these sections.",
       "files": []
     }
   ]
