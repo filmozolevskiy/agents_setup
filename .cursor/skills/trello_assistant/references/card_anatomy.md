@@ -8,14 +8,14 @@ Section order (mandatory + optional interleaved):
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
-5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — numbered outcome items that define "done". trello_assistant writes them itself as `DoD1`, `DoD2`, … lines (each a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to `DoD1 _TO BE DONE_`. No `- [ ]` checkbox.
+5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — numbered outcome items that define "done". trello_assistant writes them itself as `* DoD1: <text>` bullets (each a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to `* DoD1: _TO BE DONE_`. No `- [ ]` checkbox.
 6. `### ⊙ **QA Strategy**` *(preserve-only — never create; keep on edit if present)*
 7. `### ⊙ **Post Deployment tracking**` *(preserve-only — never create; keep on edit if present)*
 8. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
 9. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
 10. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
 
-Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real `DoD1`, `DoD2`, … outcome lines when the expected behavior is known, and fall back to `DoD1 _TO BE DONE_` only on investigation-pending cards.
+Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real `* DoD1: <text>` bullets when the expected behavior is known, and fall back to `* DoD1: _TO BE DONE_` only on investigation-pending cards.
 
 ## Formatting rules (apply to every section)
 
@@ -184,34 +184,34 @@ The change is already activated on the Dida sandbox.
 Numbered outcome items that define "done" for this card. Sits right after Visibility. **trello_assistant writes these itself** — derive them from the card's expected behavior (the `Possible solution / expected behavior` section, or the fix implied by Details).
 
 - **Write each item as a plain outcome statement — a done-state stated as a fact.** No `GIVEN / WHEN / THEN` scaffolding, no "Verify that…" prefix. State the end result directly: "The ResPro page shows a Unififi order link for Unififi bookings."
-- **Prefix is `DoD#`, not a checkbox.** One line per outcome: `DoD1`, `DoD2`, … then a space, then the sentence. Do not write `- [ ]` or `- [x]`. A prose paragraph is not allowed.
+- **Shape is `* DoD1: <text>`.** One asterisk bullet per outcome, then `DoD#:` then a space, then the sentence. Do not write `- [ ]` or `- [x]` here — those belong in **QA Strategy**. A prose paragraph is not allowed.
 - Items state outcomes a human or a log query can verify. No implementation steps, no developer to-do lists, no code identifiers. Plain, ESL-friendly language.
 - Keep it short — usually one to three items. Cover the happy path first, then any regression guard.
-- **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `DoD1 _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
-- **On edit:** if the section still uses `- [ ]` / `- [x]`, rewrite those lines to `DoD1`, `DoD2`, … in the same order, keeping the sentence.
+- **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `* DoD1: _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
+- **On edit:** if the section still uses `- [ ]` / `- [x]`, bare `DoD1` lines, or `- DoD1` dashes, rewrite those lines to `* DoD1: <text>` in the same order, keeping the sentence.
 
 One outcome (from [#3022](https://trello.com/c/CllZSJMV)):
 
 ```markdown
 ### ⊙ **Definition of Done**
-DoD1 The ResPro booking page shows a Unififi order link for Unififi bookings.
-DoD2 The link opens the matching order on the Unififi supplier website.
-DoD3 Non-Unififi bookings show no such link.
+* DoD1: The ResPro booking page shows a Unififi order link for Unififi bookings.
+* DoD2: The link opens the matching order on the Unififi supplier website.
+* DoD3: Non-Unififi bookings show no such link.
 ```
 
 Happy path first, then a regression guard:
 
 ```markdown
 ### ⊙ **Definition of Done**
-DoD1 BookFlight on Amadeus office YYZAA38AA succeeds end to end with no NO FARE FOR CLASS error.
-DoD2 The other Amadeus offices keep their current failure rate on the Visibility query for 24h after deploy.
+* DoD1: BookFlight on Amadeus office YYZAA38AA succeeds end to end with no NO FARE FOR CLASS error.
+* DoD2: The other Amadeus offices keep their current failure rate on the Visibility query for 24h after deploy.
 ```
 
 Placeholder — investigation-pending cards only, when the outcome is not known yet:
 
 ```markdown
 ### ⊙ **Definition of Done**
-DoD1 _TO BE DONE_
+* DoD1: _TO BE DONE_
 ```
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)

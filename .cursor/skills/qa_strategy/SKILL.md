@@ -303,7 +303,7 @@ When the changed code path runs for more than one content source — e.g. a log 
 
 ### Step 4 — Output the strategy
 
-Every published check is a Trello checklist line. DoD parents are `- [ ] DoD1`, `- [ ] DoD2`, … with no ✅❌❓ and no restated DoD sentence. `n` matches the `DoD<n>` prefix under **Definition of Done**. Skip `_TO BE DONE_`. If a card still uses `- [ ]` / `- [x]` under Definition of Done, number those 1-based in order (legacy). Nested tests are `Test n: <short name> ✅❌❓` plus *Why:* (when not trivial), at most two numbered lines (action, then observe when a log is named), and `**EXPECT:**`. Extra PR checks and post-deploy watches put ✅❌❓ on the `- [ ]` line itself. Do not emit a PASS labelled line. Worked short shapes: [`references/log_to_open.md`](references/log_to_open.md).
+Every published check is a Trello checklist line. DoD parents are `- [ ] DoD1`, `- [ ] DoD2`, … with no ✅❌❓ and no restated DoD sentence. `n` matches the `DoD<n>` prefix under **Definition of Done** (`* DoD1: <text>`). Skip `_TO BE DONE_`. If a card still uses `- [ ]` / `- [x]`, bare `DoD1`, or `- DoD1` under Definition of Done, number those 1-based in order (legacy). Nested tests are `Test n: <short name> ✅❌❓` plus *Why:* (when not trivial), at most two numbered lines (action, then observe when a log is named), and `**EXPECT:**`. Extra PR checks and post-deploy watches put ✅❌❓ on the `- [ ]` line itself. Do not emit a PASS labelled line. Worked short shapes: [`references/log_to_open.md`](references/log_to_open.md).
 
 When a check needs a specific real-world case (carrier / supplier / error / route), include a `**Find a case:**` / `**Find the attempts:**` block with a verification-stamped query under that test. The action line refers to that output. Do not add a numbered "Run this query" step.
 
@@ -356,7 +356,7 @@ Full plan template (chat preview = card body). Spec: [`docs/2026-08-20-card-dod-
 
 Mongo blocks stay **bare aggregation-pipeline arrays** so QA can paste them straight into MongoDB Compass — never `db.collection.aggregate(...)`, never `db.collection.find(...)`, no surrounding shell wrapper. State the target collection in the comment above the array. Window expressions like `new Date(Date.now() - N*3600*1000)` are fine because Compass evaluates them.
 
-**QA Strategy** always ships when DoD has real items, or when the PR yields a test that does not map to DoD. If DoD is only `DoD1 _TO BE DONE_` (or a legacy `- [ ] _TO BE DONE_`), write no DoD# lines; ship **QA Strategy** only when unmapped PR tests exist. Drop **Post Deployment tracking** when it has zero items. Do not put ✅❌❓ on a DoD# line or on a `No test:` line. First publish writes one space before `✅❌❓`, with no spaces between the three marks.
+**QA Strategy** always ships when DoD has real items, or when the PR yields a test that does not map to DoD. If DoD is only `* DoD1: _TO BE DONE_` (or a legacy `DoD1 _TO BE DONE_` / `- [ ] _TO BE DONE_`), write no DoD# lines; ship **QA Strategy** only when unmapped PR tests exist. Drop **Post Deployment tracking** when it has zero items. Do not put ✅❌❓ on a DoD# line or on a `No test:` line. First publish writes one space before `✅❌❓`, with no spaces between the three marks.
 
 ### Step 5 — Propose, wait for approval, then publish
 
