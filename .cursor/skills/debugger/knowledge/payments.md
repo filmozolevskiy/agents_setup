@@ -31,7 +31,7 @@ When supplier-side evidence shows a payment cause under a generic code (or the r
 
 When the supplier leg settled as cheque but should have used a VCC, follow these `ota.debug_logs` contexts (join on `transaction_id`):
 
-1. **`booker-payment-manager-vcc-availability`** — the eligibility decision. Evaluated more than once per transaction. It can flip: a booking can be VCC-ineligible at checkout and eligible at ticketing (e.g. `IsFareUnderRule` turns true when margin drops). Each supplier (ConnexPay, B2B Wallet, …) has its own `success` flag here.
+1. **`booker-payment-manager-vcc-availability`** — the eligibility decision. Evaluated more than once per transaction. It can flip: a booking can be VCC-ineligible at checkout and eligible at ticketing (e.g. `IsFareUnderRule` turns true when margin drops). `_scopes` `Booking` is checkout / booker; `_scopes` `TicketProcessor` is ticket-issue recovery. Each supplier (ConnexPay, B2B Wallet, …) has its own `success` flag here. The `context` object inside those JSON result fields is where ticket-issue recovery will show `fopRejectRecovery` after genesis PR 55361.
 2. **`booker-payment-manager-failed-to-issue-vcc`** — VCC was eligible but issuance threw. The PHP exception (class, message, stack) is in the `exception` field. This is where a crash before the Payhub `IssueCard` call shows up.
 3. **`IssueTicketsPipe::retry`** — on VCC failure the pipe logs `RetryException: "FOP switched to check successfully. Retrying issuance."` and re-issues on cheque. This is the fallback that leaves `fop=cheque` with no `booking_virtual_card_statement_items` link.
 4. **`issue-documents::fop-handling` / `pre-issuance-pnr-update::fop-handling`** — the GDS-side FOP the ticket was actually written with (cheque here).

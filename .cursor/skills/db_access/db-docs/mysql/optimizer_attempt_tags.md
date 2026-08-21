@@ -12,11 +12,17 @@ First confirmed 2026-06-03 (table observed live; not present in earlier optimize
 | `created_at` | `timestamp` | When the tag was attached. Indexed (MUL). |
 | `attempt_id` | `bigint` | FK to `optimizer_attempts.id`. Indexed (MUL). |
 | `tag_id` | `int` | FK to `optimizer_tags.id`. Indexed (MUL). |
-| `value` | `varchar(255)` | Tag value. For flag-style tags typically a constant; for value-carrying tags (e.g. `Filtered`, `VccRequired`) it carries the meaningful string. |
+| `value` | `varchar(255)` | Tag value. For flag-style tags typically a constant; for value-carrying tags (e.g. `Filtered`, `VccRequired`, `Restricted`) it carries the meaningful string. |
 
-**Tags observed at this level (last 30 days, 2026-06-03):** `Seats`, `Filtered`, `Risky`, `Upgrade`, `Test`, `VccRequired`. See the **Level** column in [`optimizer_tags.md`](optimizer_tags.md) for which catalog names are attempt-level.
+**Tags observed at this level (last 30 days, 2026-06-03; `Restricted` added 2026-08-12; `Bundle` added 2026-08-13):** `Seats`, `Filtered`, `Risky`, `Upgrade`, `Test`, `VccRequired`, `Restricted`, `Bundle`. See the **Level** column in [`optimizer_tags.md`](optimizer_tags.md) for which catalog names are attempt-level.
 
 **`VccRequired`** (catalog id 212, added 2026-06-02) lives **only** at this level — 0 rows at the candidate level. Its `value` is the payment method that requires a virtual credit card to fulfill, e.g. `ApplePayPaymentMethod`. Added for JP's ApplePay/PayPal flow.
+
+**`Restricted`** (catalog id 281, added 2026-08-12) lives **only** at this level — 0 rows at the candidate level from `2026-08-12` onward. Its `value` is the restriction reason (8 distinct strings observed through 2026-08-14; max 1 value per attempt). Looker exposes it as **Attempt Restricted Values** on the `content_integration_optimizer` explore.
+
+**`Bundle`** (catalog id 311, added 2026-08-13) lives **only** at this level — 0 rows at the candidate level in the 30 days through 2026-08-17. Writer attaches it as a presence flag — `value` is `NULL` on all 33 rows observed `2026-08-13 15:16` → `2026-08-17 15:40` (timestamps as stored). Looker exposes it as **Attempt Has Bundle Tag**.
+
+**`Upgrade` + Porter (PD) Navitaire-ndc offices** (confirmed 2026-08-20 on attempt `15854471`): when this tag is present, `canOptimizeToNavitaireNdc()` returns false for PD. That skips the same-currency `new_package` office (`NAVPDCAD` for a CAD user). The separate multi-currency path does not check Upgrade, so the other office (`NAVPDUSD`) can still appear. Last 24h ending 2026-08-20 16:43 America/Toronto: every Amadeus-original PD attempt with only one Navitaire-ndc office had `Upgrade`; every Amadeus-original PD attempt without `Upgrade` had both `NAVPDCAD` and `NAVPDUSD`.
 
 **Key relationships:**
 - `oat.attempt_id = optimizer_attempts.id`

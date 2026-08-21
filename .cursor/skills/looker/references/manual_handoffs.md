@@ -173,7 +173,8 @@ Looker.
 
 Fill in: `<project_name>`, `<repo_url>` (e.g.
 `https://github.com/<owner>/<project_name>`), `<connection>` (e.g.
-`ota`), `<initial_commit_sha>`, plus every link in the Links block.
+`ota`), `<initial_commit_sha>`, `<repo_default_branch>` (the repo's
+real default branch, e.g. `main`), plus every link in the Links block.
 
 > ## What you need to do next
 >
@@ -207,6 +208,15 @@ Fill in: `<project_name>`, `<repo_url>` (e.g.
 >      deploy key**, paste it in, tick **Allow write access**, save.
 >      Then go back to Looker's **Configure Git** screen and click
 >      through to finish.
+> 7. **Check the production branch name matches the repo.** Open the
+>    project's **Settings → Configuration** and look at **Git
+>    Production Branch Name**. Looker often defaults this to `master`,
+>    but new GitHub repos use `main`. If they differ, set it to the
+>    repo's real default branch (`main` here: `<repo_default_branch>`),
+>    click **Save**. Getting this wrong is the #1 silent failure:
+>    production serves an empty/nonexistent branch, so non-dev users
+>    and the API/MCP account get **"Model is not configured"** while
+>    your own Develop Mode looks fine (dev reads the real branch).
 >
 > ### Stage 2 — Load the starter files into Looker
 >
@@ -265,3 +275,14 @@ Fill in: `<project_name>`, `<repo_url>` (e.g.
   "Open `https://flighthub.looker.com/projects/content_integration_optimizer`"
   is right. Same rule for repos, dashboards, folders, Trello cards,
   genesis PRs, and Notion pages.
+- Diagnosing "Model is not configured" / 404 as a model-set
+  permission problem when it is really a **production branch
+  mismatch**. Symptom pattern: Develop Mode works for the agent's
+  owner, but non-dev users and the MCP/API account 404 on the
+  explore, and `get_explores` fails while the LookML is valid and
+  pushed. Root cause is almost always Looker's **Git Production
+  Branch Name** pointing at a branch that does not exist in the repo
+  (`master` vs `main`). Fix: Project **Settings → Configuration →
+  Git Production Branch Name** = the repo's real default branch,
+  Save, then **Deploy to Production**. Confirmed on
+  `content_integration_booking_rules_shadow`, 2026-08-11.

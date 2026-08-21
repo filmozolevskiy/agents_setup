@@ -12,6 +12,9 @@
     "trello": {
       "command": "./.cursor/skills/trello_assistant/scripts/mcp_trello.sh"
     },
+    "growthbook": {
+      "command": "./.cursor/skills/growthbook/scripts/mcp_growthbook.sh"
+    },
     "Lucid": {
       "url": "https://mcp.lucid.app/mcp"
     },

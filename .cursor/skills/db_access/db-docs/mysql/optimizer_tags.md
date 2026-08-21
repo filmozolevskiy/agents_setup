@@ -1,7 +1,7 @@
 ## optimizer_tags
 
 **Database:** `ota`
-**Engine:** `InnoDB`  |  **Rows:** `23`  |  **Size:** `~0.02 MB`
+**Engine:** `InnoDB`  |  **Rows:** `33`  |  **Size:** `~0.02 MB`
 **Purpose:** Reference / dimension table of tag names that the Optimizer attaches. Joined onto `optimizer_candidate_tags.tag_id` (candidate-level tags) **and** `optimizer_attempt_tags.tag_id` (attempt-level tags) to turn numeric ids into names. Both link tables share this one catalog. See [`optimizer_attempt_tags.md`](optimizer_attempt_tags.md).
 
 | Column | Type | Description |
@@ -12,7 +12,7 @@
 
 ### Tag catalog
 
-Snapshot observed in production (2026-06-16; was 2026-06-03). `id` values are dense but not sequential — filter by `name`, never hardcode `id`. **Level** marks where the tag is normally attached: `candidate` → `optimizer_candidate_tags`, `attempt` → `optimizer_attempt_tags`. Some tags appear at both.
+Snapshot observed in production (2026-08-17; was 2026-08-14). `id` values are dense but not sequential — filter by `name`, never hardcode `id`. **Level** marks where the tag is normally attached: `candidate` → `optimizer_candidate_tags`, `attempt` → `optimizer_attempt_tags`. Some tags appear at both.
 
 | id | name | Level | Meaning / typical value |
 |----|------|-------|-------------------------|
@@ -39,8 +39,11 @@ Snapshot observed in production (2026-06-16; was 2026-06-03). `id` values are de
 | 192 | `LowRevenue`                         | candidate | Candidate flagged low-revenue. |
 | 202 | `Upgrade`                            | attempt | Optimizer formed the package as a fare-family upgrade (Trello #2896, genesis PR #53702). |
 | 212 | `VccRequired`                        | attempt | Attempt's chosen payment method needs a virtual credit card to fulfill. Value carries the method (e.g. `ApplePayPaymentMethod`). Added 2026-06-02 for the ApplePay/PayPal flow. |
+| 222 | `Blocked`                            | candidate | Candidate is blocked from fulfill. Value carries the reason (16 distinct strings observed last 2 days through 2026-08-17, timestamps as stored): mostly `Blocked by Supplier Rules: <affiliate-tier>; published|private is blocked for fulfill`, plus `Kiwi non-virtual interlining with unsupported carrier(s)`, `Carrier combination is not allowed`, `Unsupported GDS for partner portal`. One value per candidate. Looker exposes it as **Blocked Values**. Added 2026-06-09. |
 | 242 | `Acceptable`                         | candidate | Candidate has minor differences from the original (e.g. change / cancellation policy) but is still considered acceptable for eligibility. Value carries the comma-separated list of dimensions that diverged (e.g. `advance_change`, `cancellation,advance_change`). Added 2026-06-15. |
 | 252 | `RoutehappyError`                    | candidate | RouteHappy lookup failed for this contestant. Writer attaches the tag as a presence flag — `value` is `NULL` (970 of 970 rows observed 2026-06-16 12:40 → 14:13 had no value). Added 2026-06-16. |
+| 281 | `Restricted`                         | attempt | Attempt was held back from optimizing. Value carries the reason (8 distinct values observed 2026-08-12 → 2026-08-14, timestamps as stored): `Fare increase detected`, `farelogix optimization blocked for AA with seats selected`, `amadeus` / `dida` / `intelisys` / `travelfusion baggage selections will disable optimization`, `Blocked by Internal QA: real_fare_increase`, `Blocked by Internal QA: Disabled optimizer`. One value per attempt. Added 2026-08-12. |
+| 311 | `Bundle`                             | attempt | Attempt is a bundle flow. Writer attaches the tag as a presence flag — `value` is `NULL` (33 of 33 rows observed 2026-08-13 15:16 → 2026-08-17 15:40 had no value). Looker exposes it as **Attempt Has Bundle Tag**. Added 2026-08-13. |
 
 **Key relationships:**
 - Parent of `optimizer_candidate_tags` on `id = oct.tag_id`.
@@ -54,7 +57,7 @@ SELECT id, name, created_at FROM ota.optimizer_tags ORDER BY id;
 ```
 
 **Query guidance:**
-- **Size class:** tiny — 15 rows. Safe to join without filters.
+- **Size class:** tiny — 33 rows. Safe to join without filters.
 - Always join by `name`, never by hardcoded `id`: new tags get new non-sequential ids.
 
 **Notes:**

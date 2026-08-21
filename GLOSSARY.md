@@ -16,6 +16,10 @@ The rules below are **always-on**, regardless of which skill is active.
 | **ResPro page** | The internal FH / JF agent booking view. URL pattern: `https://reservations.voyagesalacarte.ca/booking/index/{booking_id}` — never staging-prefixed, never `/internal/`. |
 | **confirmation page** / **confirmation email** | The post-booking page shown to the user and the email sent to the same address. |
 | **debug log** | Entries in the MongoDB `ota.debug_logs` collection scoped to a transaction. |
+| **Mini Rules** | Amadeus structured refund / exchange / void answers. Before a PNR the operation is `MiniRule_GetFromPricing`. After a PNR it is `MiniRule_GetFromPricingRec`. This is not fare rules. |
+| **Route Happy** | ATPCO Route Happy. Structured refund / exchange policies we already fetch for packages and booked itineraries. |
+| **booking rules** | The refund / exchange / void tiles shown on checkout, and the same structured rules after booking. Today these come from Mini Rules. |
+| **fare rules** | GDS / ATPCO rule text stored on the booking and shown on the ResPro page (and as checkout fare-rules text). Written from `Fare_CheckRules` on Amadeus, not from Mini Rules. |
 | **total price (currency + amount)** | The user-facing total on a fare. Always cite both currency and amount when referencing a price. |
 | **the user** / **the agent** | The end customer using FlightHub / JustFly / the internal FH or JF employee using ResPro. |
 

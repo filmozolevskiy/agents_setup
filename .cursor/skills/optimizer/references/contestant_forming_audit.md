@@ -424,6 +424,17 @@ team can act without re-running the scan.
 - **Codeshare flight-number mismatches.** Anchor may carry marketing
   `UA9929`, supplier response carries operating `SN501`. Compare on
   (`opCarrier`+`opFlightNumber`) as a fallback key before declaring a gap.
+- **NDCONE `No fares found` with a non-empty Condor payload.** Condor
+  `shopping/flight` returns **one-way** offers (`offersGroup.carrierOffers[].offer[]`,
+  one `paxJourneyRef` each). The Builder cartesian-products outbound × inbound.
+  Then `optimizePackage()` runs `matchingPackage()` and an itinerary mismatch
+  becomes an empty collection → `IncalculableRepricerException("No fares found")`,
+  not `Unmatchable`. Booking `306373201` (2026-08-18): Condor returned the
+  exact `B6552+DE2039` / `DE2038+B6451` pair with `fareBasisCode=SPO`, but
+  `NdcOne\Entities\Package\Builder::buildSegment()` copies
+  `marketingCarrierRBDCode` (`Y`) onto `marketing_carrier_code`, so the built
+  flight is `Y552` instead of `B6552`. Do not treat the MySQL tag as supplier
+  truth — open the `Ndcone[<ACCOUNT>] shopping/flight` permalink first.
 - **`packages` arriving as a string or dict with numeric keys.** Some
   matching-event payloads stringify their inner arrays. Use
   `json.loads(raw or "[]")` and `isinstance(p, dict)` guards in the

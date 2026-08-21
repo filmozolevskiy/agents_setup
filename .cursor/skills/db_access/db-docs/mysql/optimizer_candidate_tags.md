@@ -10,7 +10,7 @@
 | `created_at` | `timestamp` | When the tag was attached. |
 | `candidate_id` | `bigint` | FK to `optimizer_candidates.id`. |
 | `tag_id` | `int` | FK to `optimizer_tags.id`. |
-| `value` | `varchar(255)` | Tag value. For flag-style tags this is typically a constant (`"1"` or the tag name). For `Exception` it carries the exception text (e.g. `No matching fares found`, `Blocked by Supplier Rules …`). Multiple rows can exist per `(candidate_id, tag_id)` — tags are not unique. |
+| `value` | `varchar(255)` | Tag value. For flag-style tags this is typically a constant (`"1"` or the tag name). For `Exception` it carries the exception text (e.g. `No matching fares found`, `Blocked by Supplier Rules …`). For `Blocked` it carries the block reason (e.g. `Blocked by Supplier Rules: low-risk affiliate; published is blocked for fulfill`, `Kiwi non-virtual interlining with unsupported carrier(s)`). Multiple rows can exist per `(candidate_id, tag_id)` — tags are not unique. |
 
 **Indexes:** `created_at`, `candidate_id`, `tag_id` (all MUL).
 
@@ -63,5 +63,6 @@ GROUP BY oct.candidate_id;
 
 **Notes:**
 - Tags are **many-to-many per candidate** — the same candidate can have several `Exception` rows with different values. `GROUP_CONCAT(DISTINCT … SEPARATOR ', ')` is the standard way to collapse.
+- `Blocked` (catalog id 222, added 2026-06-09) lives **only** at this level — 0 rows at the attempt level. One value per candidate. Last 2 days through 2026-08-17 (timestamps as stored): 434,977 of 1,198,293 candidates (~36%), 16 distinct values. Looker exposes it as **Blocked Values** on the `content_integration_optimizer` explore.
 - Routine `Blocked by Supplier Rules%` exception values are normal policy exceptions; optimizer audits usually exclude them (see `.cursor/skills/optimizer/`).
 - See `optimizer_tags.md` for the full catalog of tag names and their meaning.
