@@ -54,6 +54,7 @@ Currently documented: 2 collections total.
 | `bookability_built_contestant` | `ota` | Junction between attempts and contestants |
 | `bookability_contestant_attempts` | `ota` | GDS errors and exceptions for built contestants |
 | `bookings` | `ota` | Finalized bookings with pricing, status, and test flags |
+| `booking_rules_shadow` | `ota` | Checkout Mini Rules vs Route Happy comparison (Looker 1780) |
 | `ancillaries_optimization_baggage` | `ota` | New bags-system optimizer rows — one per `BaggageOptimization` call on a confirmed booking. Distinguishes fares-supplier (`provider_gds`) from baggage-supplier (`gds`, e.g. `gordian`). Joins via `search_id = bookings.debug_transaction_id`. |
 | `optimizer_attempts` | `ota` | Each Optimizer execution for a search / package / checkout |
 | `optimizer_candidates` | `ota` | Contestants (fare options) the Optimizer generated per attempt |

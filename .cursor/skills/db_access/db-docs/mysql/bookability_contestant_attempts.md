@@ -33,7 +33,7 @@
 | `num_stops` / `num_segments` | `int` | Itinerary shape. |
 | `num_adt` / `num_chd` / `num_inl` | `int` | Passenger counts. |
 | `experiment_name` / `experiment_variation` | `varchar(100)` | A/B test bucket. |
-| `status` | `tinyint` | Final status of the contestant attempt. `1` = success, `0` = failure. Despite the doc-comment-style example below, the column does **not** hold strings like `'success'`. |
+| `status` | `varchar(32)` | Final status of the contestant attempt. Stored as `'0'` (failure) or `'1'` (success). `status = 0` still matches. The column does **not** hold strings like `'success'`. |
 | `exception` | `varchar(255)` | Internal code exception message. |
 | `error` | `varchar(255)` | Normalized error reported by the GDS. |
 | `gds_error_message` | `varchar(255)` | Raw error text from the GDS. |
@@ -97,6 +97,7 @@ ORDER BY c DESC;
 - **Typical date range:** full history; practical analysis windows are the last 1–30 days.
 
 **Notes:**
+- ACndc contestant attempts use `gds = 'aircanadandc'`. Offices seen: `ACNDCCAD`, `ACNDCUSD`. Frequent failure `error` values: `fare_increase`, `flight_not_available_other`, `loss_limit_fare_increase`, `fare_increase_not_allowed`.
 - Multiple rows per `customer_attempt_id`: one per contestant fare the system tried. Multi-ticket runs produce both a `master` and a `slave` row; join on `multiticket_part` when reconciling per-leg.
 - `booking_id` is `NULL` for attempts that never finalized; use it as an existence filter when you only care about attempts that became real bookings.
 - For supplier-evidence or raw payloads, correlate to MongoDB `ota.debug_logs` / `ota.optimizer_logs` via `search_hash` / `transaction_id` (see `bookability` and `optimizer` skills).
