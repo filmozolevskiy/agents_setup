@@ -5,35 +5,35 @@
       "id": 0,
       "name": "fr24-booking-sync",
       "prompt": "QA strategy for https://trello.com/c/jPCKypll/2920-fr24-booking-sync-fails",
-      "expected_output": "Chat preview is Trello card markdown: ### ⊙ **QA Strategy** with DoD# parents (DoD1, DoD2), nested Test n with ✅❌❓ and **EXPECT:**. At most two numbered lines before EXPECT (action then observe). No click-by-click tutorials. Uncoverable DoD items get No test: plus reason. Extra PR checks sit after DoD# items in the same section. ### ⊙ **Post Deployment tracking** only if there is a watch (short line + ✅❌❓ + query + **EXPECT:**). No restated DoD sentences. No Notion. No Log to open slot. No PASS. No Additional tests. No Smoke/Happy-path headers on the card. Logs named in the observe line when relevant. No code identifiers in prose.",
+      "expected_output": "Chat preview shows native Trello checklist items first (QA Strategy, then Post Deployment tracking if needed), then card markdown. ### ⊙ **QA Strategy** uses DoD# parents (DoD1, DoD2) and nested Test n with **EXPECT:** — no markdown - [ ] and no ✅❌❓ in those sections. Native items are DoD<n> Test <k>: <name> — EXPECT <short>. At most two numbered lines before EXPECT (action then observe). No click-by-click tutorials. Uncoverable DoD items get No test: plus reason and no native item. Extra PR checks sit after DoD# items in the same section and as native items. ### ⊙ **Post Deployment tracking** only if there is a watch (short line + query + **EXPECT:**, plus a native item). No restated DoD sentences. No Notion. No Log to open slot. No PASS. No Additional tests. No Smoke/Happy-path headers on the card. No tick-the-checklist instruction line. Logs named in the observe line when relevant. No code identifiers in prose.",
       "files": []
     },
     {
       "id": 1,
       "name": "onefly-check-availability",
       "prompt": "QA strategy for https://trello.com/c/mrasebFb/2908-onefly-implement-check-availability",
-      "expected_output": "Card-shaped QA strategy from the PR diff. DoD parents are DoD1, DoD2, not restated DoD sentences. Staging checks nested as Test n with ✅❌❓. At most two numbered lines before EXPECT. Logs named in the observe line when the availability-check debug log is the proof. Post Deployment tracking is a short watch + query if needed. No Notion, no PASS, no Log to open slot. Observable phrasing only.",
+      "expected_output": "Card-shaped QA strategy from the PR diff plus native checklist twins. DoD parents are DoD1, DoD2, not restated DoD sentences. Staging checks nested as Test n. Native items DoD<n> Test <k>: … — EXPECT …. At most two numbered lines before EXPECT. Logs named in the observe line when the availability-check debug log is the proof. Post Deployment tracking is a short watch + query if needed, with a matching native item. No markdown ticks or ✅❌❓ in QA Strategy / Post Deployment tracking. No Notion, no PASS, no Log to open slot. Observable phrasing only.",
       "files": []
     },
     {
       "id": 2,
       "name": "kiwi-scope-tag",
       "prompt": "QA strategy for https://trello.com/c/ra8NqjLu/2923-kiwi-add-a-scope-tag-to-all-check-availability-logs",
-      "expected_output": "Short card-shaped plan. DoD# parents plus nested tests. At most two numbered lines before EXPECT. The new debug-log scope is named in the observe line, not a Log to open slot. **EXPECT:** the tag appears on the pinned search. Post-deploy watch is a short line + aggregate query if shipped. No Notion. Limited user-visible surface stated as No test: when a DoD item has none.",
+      "expected_output": "Short card-shaped plan plus native checklist items. DoD# parents plus nested tests. At most two numbered lines before EXPECT. The new debug-log scope is named in the observe line, not a Log to open slot. **EXPECT:** the tag appears on the pinned search. Native item carries a short EXPECT. Post-deploy watch is a short line + aggregate query if shipped. No Notion. No markdown - [ ] or ✅❌❓ under QA Strategy. Limited user-visible surface stated as No test: when a DoD item has none (no native item for No test).",
       "files": []
     },
     {
       "id": 3,
       "name": "unififi-verify-price-payload",
       "prompt": "QA strategy for https://trello.com/c/gn2i2xI2/3181-unififi-verify-price-reuses-short-verify-response-payload",
-      "expected_output": "QA Strategy uses DoD# parents, not restated DoD sentences. The Baggage Optimization verify is a nested Test: action line drives the checkout; observe line opens unififi-api verify-price and names _scopes, not the first Check Availability verify. At most two numbered lines before EXPECT. Request routing.payload and a before permalink with #_id when a short-payload prod row exists. **EXPECT:** the four-part search payload on the later verify. ✅❌❓ on the test heading. No Log to open slot. No PASS. No logs named on Post Deployment tracking. No after permalink invented. No Notion. No code identifiers in prose.",
+      "expected_output": "QA Strategy uses DoD# parents, not restated DoD sentences. The Baggage Optimization verify is a nested Test: action line drives the checkout; observe line opens unififi-api verify-price and names _scopes, not the first Check Availability verify. At most two numbered lines before EXPECT. Request routing.payload and a before permalink with #_id when a short-payload prod row exists. **EXPECT:** the four-part search payload on the later verify. Native item DoD<n> Test 1: … — EXPECT … with no backticks. No markdown ticks, no ✅❌❓. No Log to open slot. No PASS. No logs named on Post Deployment tracking. No after permalink invented. No Notion. No code identifiers in prose.",
       "files": []
     },
     {
       "id": 4,
       "name": "travelfusion-surcharge-card-shape",
       "prompt": "QA strategy for https://trello.com/c/Yh7NNBY6/3139-travelfusion-inform-customer-of-card-surcharge-before-payment",
-      "expected_output": "Publishes ### ⊙ **QA Strategy** then optional ### ⊙ **Post Deployment tracking**. Every real DoD item is a DoD# parent (DoD1, DoD2), not a restated sentence. Nested tests or No test: under each. Extra non-DoD checks after the DoD# items, same section. ✅❌❓ on tests. **EXPECT:** not PASS. At most two numbered lines before EXPECT. ProcessDetails log named in the observe line when relevant. Chat says Approve and publish? On approval, PUT Trello desc after Definition of Done, strip Notion QA Strategy URL, preserve existing mark suffixes on republish. trello_assistant does not create these sections.",
+      "expected_output": "Chat preview lists native checklist items then ### ⊙ **QA Strategy** then optional ### ⊙ **Post Deployment tracking**. Every real DoD item is a DoD# parent (DoD1, DoD2), not a restated sentence. Nested tests or No test: under each. Extra non-DoD checks after the DoD# items, same section. Native ticks, not ✅❌❓. **EXPECT:** not PASS. At most two numbered lines before EXPECT. ProcessDetails log named in the observe line when relevant. Chat says Approve and publish? On approval, PUT Trello desc after Definition of Done, sync native checklists named QA Strategy and Post Deployment tracking, preserve complete on matching items, strip Notion QA Strategy URL. trello_assistant does not create these sections or those two checklists.",
       "files": []
     }
   ]

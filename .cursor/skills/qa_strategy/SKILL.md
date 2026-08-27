@@ -28,16 +28,18 @@ The shorter the plan, the more likely QA reads and runs every item. Default to t
 
 QA already knows how to search, pick a seat, and open a debug log. A test is not a how-to tutorial.
 
-Each nested test (and each extra `- [ ]` check) is this shape, in this order:
+Each nested test (and each extra check) is this shape, in this order:
 
 ```markdown
-  - Test 1: <short name> ✅❌❓
+  - Test 1: <short name>
     *Why:* <one or two sentences>
     **Find a case:** <verified query — only when a specific prod row is needed>
     1. <action: drive the condition; note `search_id` / `booking_id` / `attempt_id`>
     2. <observe: open `<context>` (`_scopes` `<scope>`). Confirm `<field>`. Before: <permalink when harvested>.>
     **EXPECT:** <observable>
 ```
+
+The native Trello checklist item for that test is a one-line plain-text twin: `DoD<n> Test 1: <short name> — EXPECT <short observable>`. Queries, *Why:*, and numbered steps stay in `desc` only.
 
 Hard cap: **at most two numbered lines** before `**EXPECT:**`.
 
@@ -92,25 +94,33 @@ Apply the test: read the check's pass condition, then re-read the query. If the 
 
 ### Every Post-deployment check carries its own concrete query
 
-A Post-deployment check that says "watch the queries below" is not a check. The reader is reading **the check**, and the query has to be right there. Each **Post Deployment tracking** `- [ ]` watch embeds its own `**Find the cases:**` / `**Find the attempts:**` block (verification-stamped per *Every query is verified before it ships*). Continuous signals such as error share or failure-mode shift since deploy are also post-deploy watches, with the query embedded under the watch.
+A Post-deployment check that says "watch the queries below" is not a check. The reader is reading **the check**, and the query has to be right there. Each **Post Deployment tracking** watch embeds its own `**Find the cases:**` / `**Find the attempts:**` block (verification-stamped per *Every query is verified before it ships*). Continuous signals such as error share or failure-mode shift since deploy are also post-deploy watches, with the query embedded under the watch.
 
 ### Bundle checks that share a booking into one block
 
 When several checks can be done with the same booking attempt present them as **one** booking with N ordered observations, never N separate bookings. QA runs one booking; the plan reads as a single block; nothing is duplicated.
 
-Write `- [ ] DoD<n>` for the relevant Definition of Done item and nest ordered `Test n` lines under it. `n` is the `DoD<n>` prefix already on that item. Do not paste the DoD sentence. If the bundle does not map to DoD, use one extra `- [ ]` line. Describe the booking once, then make each observation a numbered test with its own *Why:* line and **EXPECT:**.
+Write `- DoD<n>` for the relevant Definition of Done item and nest ordered `Test 1`, `Test 2`, … lines under it. Tests number per DoD parent, starting at 1. Do not paste the DoD sentence. If the bundle does not map to DoD, use one extra check line after the DoD# blocks. Describe the booking once, then make each observation a numbered test with its own *Why:* line and **EXPECT:**.
+
+Native checklist items for the same bundle are flat siblings:
+
+```
+DoD1 Test 1: Drive one <supplier / route / passenger condition> booking — EXPECT <short booking result>
+DoD1 Test 2: Check the ResPro page for the same booking — EXPECT <short page result>
+DoD1 Test 3: Check the debug log for the same booking — EXPECT <short log result>
+```
 
 ```markdown
-- [ ] DoD1
-  - Test 1: Drive one <supplier / route / passenger condition> booking ✅❌❓
+- DoD1
+  - Test 1: Drive one <supplier / route / passenger condition> booking
     *Why:* <why this booking shape covers the changed behaviour>
     1. Drive one booking on <staging environment>. Note `booking_id`.
     **EXPECT:** <observable booking result>.
-  - Test 2: Check the ResPro page for the same booking ✅❌❓
+  - Test 2: Check the ResPro page for the same booking
     *Why:* <why this page field may change>
     1. Open the ResPro page for the same `booking_id`.
     **EXPECT:** <observable page result>.
-  - Test 3: Check the debug log for the same booking ✅❌❓
+  - Test 3: Check the debug log for the same booking
     *Why:* <why this log shape may change>
     1. Open `<context>` for the same `booking_id` (`_scopes` `<scope>` when several entries share that context).
     **EXPECT:** <observable log result>.
@@ -206,7 +216,8 @@ The same rule applies to **fixing** a query the user flagged: re-run the full se
 
 ## Tooling
 
-- **Trello REST API** — `GET /1/cards/<id>?attachments=true&actions=commentCard` to read the card. Credentials `TRELLO_API_KEY` / `TRELLO_TOKEN` from `.env`. Base URL `https://api.trello.com/1/`.
+- **Trello REST API** — `GET /1/cards/<id>?attachments=true&actions=commentCard` to read the card; `PUT /1/cards/<id>` for `desc`; `DELETE /1/checklists/<id>` when a native checklist must go (MCP has no delete-checklist tool). Credentials `TRELLO_API_KEY` / `TRELLO_TOKEN` from `.env`. Base URL `https://api.trello.com/1/`.
+- **Trello MCP** (`user-trello` / `project-0-agents_setup-trello`) — native checklists: `set_active_board` (`61d5cf784c6396541499e7ce`), `create_checklist`, `add_checklist_item`, `get_checklist_by_name`, `get_checklist_items`, `update_checklist_item`, `delete_checklist_item`. Exact checklist names: `QA Strategy` and `Post Deployment tracking`. Create **QA Strategy** first so it sits above **Post Deployment tracking**.
 - **GitHub MCP** (`GitHub` server) — `get_pull_request`, `get_pull_request_files`, `get_pull_request_diff` (PRs ≤ 50 files). Reading diff content (not just file paths) is mandatory for small / medium PRs.
 - **Package-transfer tool** — https://summit.flighthub.com/tools/package-transfer. Takes a real production package and re-issues it onto a staging environment as a **checkout state**. Use it to force conditions that a fresh staging search will not produce on the **check availability call**: a stale package (so the supplier returns a different price or "unavailable" on the staging check availability call), a specific carrier / fare basis / route, a multi-passenger configuration that staging traffic rarely creates. The transferred package keeps its production shape; checkout on staging then drives the live supplier with that shape against the changed code path.
 
@@ -295,7 +306,9 @@ Map the diff-derived surface to test scenarios. When a check needs a **specific*
 - **Production checks** — human verifications observable on real bookings. A spot-check ("confirm the first real booking after deploy") must come with a query that surfaces recent **contestant attempts** on the affected surface — both successes and failures — so QA can see at a glance whether attempts are failing and pick a real attempt to validate. Read the **contestant-attempts** surface (MySQL `bookability_contestant_attempts` joined to `booking_contestants` — see the `bookability` skill for the canonical CTE), **not** `bookings` alone: a failure that happens *before* a `bookings` row is written (auth error, supplier 500 on price, malformed availability response) leaves nothing in `bookings` and is invisible to a `bookings`-only query. Never write "pick a booking" without the attempts query that finds it.
 - **Monitoring queries** — copy-pasteable MySQL / ClickHouse / Mongo snippets, 1-hour or 24-hour window, label window + timezone. State the healthy vs unhealthy shape in the query comment (e.g. `-- healthy after deploy: 0 rows; any row = the fix did not land — revert / escalate`), so the revert signal travels with the query instead of in a separate section.
 
-**Published map.** Derivation still uses smoke / happy-path / edge / regression / post-deploy. The card does not. Write one `- [ ] DoD<n>` line into `### ⊙ **QA Strategy**` for every real DoD item (`DoD1`, `DoD2`, … matching the `DoD<n>` prefix under **Definition of Done**). Do not paste the DoD sentence. Nest `Test n` under a coverable item. Nest `No test: <reason>.` under an uncoverable item. PR checks that do not map to DoD become new `- [ ]` lines after the DoD# items. Post-deploy watches and monitoring queries become `### ⊙ **Post Deployment tracking**` (omit that heading when empty). Drop **Smoke tests**, **Happy-path**, **Edge cases**, **Regression risks**, **Production checks**, and **Monitoring queries** as published headers.
+**Published map.** Derivation still uses smoke / happy-path / edge / regression / post-deploy. The card does not. Write one `- DoD<n>` line into `### ⊙ **QA Strategy**` for every real DoD item (`DoD1`, `DoD2`, … matching the `DoD<n>` prefix under **Definition of Done**). Do not paste the DoD sentence. Nest `Test 1`, `Test 2`, … under a coverable item (number per DoD parent). Nest `No test: <reason>.` under an uncoverable item. PR checks that do not map to DoD become new lines after the DoD# items. Post-deploy watches and monitoring queries become `### ⊙ **Post Deployment tracking**` (omit that heading when empty). Drop **Smoke tests**, **Happy-path**, **Edge cases**, **Regression risks**, **Production checks**, and **Monitoring queries** as published headers.
+
+Ticks live on native Trello checklists with those same two names — one item per test / extra check / watch, each carrying a short `— EXPECT …`. `desc` has no markdown `- [ ]` and no `✅❌❓` in these sections.
 
 #### Cross-content-source coverage for shared log contexts
 
@@ -303,31 +316,55 @@ When the changed code path runs for more than one content source — e.g. a log 
 
 ### Step 4 — Output the strategy
 
-Every published check is a Trello checklist line. DoD parents are `- [ ] DoD1`, `- [ ] DoD2`, … with no ✅❌❓ and no restated DoD sentence. `n` matches the `DoD<n>` prefix under **Definition of Done** (`* DoD1: <text>`). Skip `_TO BE DONE_`. If a card still uses `- [ ]` / `- [x]`, bare `DoD1`, or `- DoD1` under Definition of Done, number those 1-based in order (legacy). Nested tests are `Test n: <short name> ✅❌❓` plus *Why:* (when not trivial), at most two numbered lines (action, then observe when a log is named), and `**EXPECT:**`. Extra PR checks and post-deploy watches put ✅❌❓ on the `- [ ]` line itself. Do not emit a PASS labelled line. Worked short shapes: [`references/log_to_open.md`](references/log_to_open.md).
+Every tickable check is a **native Trello checklist item**. Description holds the procedure.
+
+DoD parents in `desc` are `- DoD1`, `- DoD2`, … with no checkbox and no restated DoD sentence. `n` matches the `DoD<n>` prefix under **Definition of Done** (`* DoD1: <text>`). Skip `_TO BE DONE_`. If a card still uses `- [ ]` / `- [x]`, bare `DoD1`, or `- DoD1` under Definition of Done, number those 1-based in order (legacy). Nested tests are `Test 1`, `Test 2`, … (per DoD parent) plus *Why:* (when not trivial), at most two numbered lines (action, then observe when a log is named), and `**EXPECT:**`. Extra PR checks and post-deploy watches are plain `- <line>` in `desc` (no checkbox, no `✅❌❓`). Do not emit a PASS labelled line. Worked short shapes: [`references/log_to_open.md`](references/log_to_open.md). Spec: [`docs/2026-08-27-native-checklists-qa-design.md`](docs/2026-08-27-native-checklists-qa-design.md). Harvest / short-body rules: [`docs/2026-08-20-card-dod-qa-design.md`](docs/2026-08-20-card-dod-qa-design.md).
 
 When a check needs a specific real-world case (carrier / supplier / error / route), include a `**Find a case:**` / `**Find the attempts:**` block with a verification-stamped query under that test. The action line refers to that output. Do not add a numbered "Run this query" step.
 
-Full plan template (chat preview = card body). Spec: [`docs/2026-08-20-card-dod-qa-design.md`](docs/2026-08-20-card-dod-qa-design.md).
+**Native item rules.** Plain text. No backticks, no markdown, no emoji marks. One item per test, extra check, or watch — never a DoD-only row, never a `No test:` row. Several tests under one DoD are flat siblings that share the `DoD<n>` prefix. Format:
 
-```markdown
+```
+DoD<n> Test <k>: <short name> — EXPECT <short observable>
+<short extra-check name> — EXPECT <short observable>
+<short watch line> — EXPECT <short observable>
+```
+
+The short EXPECT is a reminder. The full `**EXPECT:**` stays in `desc`. Prefer under ~160 characters; shorten EXPECT before dropping the `DoD<n> Test <k>:` prefix. Create a native checklist only when it would have at least one item. Exact names: `QA Strategy`, then `Post Deployment tracking`.
+
+Chat preview = native items first, then card-description markdown. Do not add a "tick the checklist" line in `desc`. Keep one blank line after each of those two `⊙` headings.
+
+~~~~markdown
+**Native checklists**
+
+QA Strategy
+- DoD1 Test 1: <short name> — EXPECT <short observable>
+- DoD2 Test 1: <short name> — EXPECT <short observable>
+- <PR check that does not map to a DoD item> — EXPECT <short observable>
+
+Post Deployment tracking
+- <short watch line> — EXPECT <short observable>
+
+**Card description**
+
 ### ⊙ **QA Strategy**
 
-- [ ] DoD1
-  - Test 1: <short name> ✅❌❓
+- DoD1
+  - Test 1: <short name>
     *Why:* <one or two sentences tying this check to the PR's diff>
     1. Drive the booking / checkout. Note `search_id` / `booking_id`.
     2. Open `<context>` (`_scopes` `<scope>` when several entries share that context). Confirm Request `<field>`. Before (old shape): <permalink> — only when a before row was harvested.
     **EXPECT:** <observable condition, including the new Request shape when the field changed, or the secondary surface when it did not>
-- [ ] DoD2
+- DoD2
   - No test: <reason>.
-- [ ] <PR check that does not map to a DoD item> ✅❌❓
+- <PR check that does not map to a DoD item>
   *Why:* …
   1. …
   **EXPECT:** …
 
 ### ⊙ **Post Deployment tracking**
 
-- [ ] <short watch line> ✅❌❓
+- <short watch line>
   **Find the attempts:**
   ```sql
   -- Recent contestant attempts on the affected surface — successes + failures — last N hours.
@@ -336,7 +373,7 @@ Full plan template (chat preview = card body). Spec: [`docs/2026-08-20-card-dod-
   ```
   **EXPECT:** <observable condition>
 
-- [ ] <MongoDB watch line> ✅❌❓
+- <MongoDB watch line>
   **Find the cases:**
   ```javascript
   // ota.debug_logs — Compass aggregation. Last 6h. UTC.
@@ -352,66 +389,71 @@ Full plan template (chat preview = card body). Spec: [`docs/2026-08-20-card-dod-
   ]
   ```
   **EXPECT:** <observable condition>
-```
+~~~~
 
 Mongo blocks stay **bare aggregation-pipeline arrays** so QA can paste them straight into MongoDB Compass — never `db.collection.aggregate(...)`, never `db.collection.find(...)`, no surrounding shell wrapper. State the target collection in the comment above the array. Window expressions like `new Date(Date.now() - N*3600*1000)` are fine because Compass evaluates them.
 
-**QA Strategy** always ships when DoD has real items, or when the PR yields a test that does not map to DoD. If DoD is only `* DoD1: _TO BE DONE_` (or a legacy `DoD1 _TO BE DONE_` / `- [ ] _TO BE DONE_`), write no DoD# lines; ship **QA Strategy** only when unmapped PR tests exist. Drop **Post Deployment tracking** when it has zero items. Do not put ✅❌❓ on a DoD# line or on a `No test:` line. First publish writes one space before `✅❌❓`, with no spaces between the three marks.
+**QA Strategy** always ships in `desc` when DoD has real items, or when the PR yields a test that does not map to DoD. If DoD is only `* DoD1: _TO BE DONE_` (or a legacy `DoD1 _TO BE DONE_` / `- [ ] _TO BE DONE_`), write no DoD# lines; ship **QA Strategy** only when unmapped PR tests exist. Drop **Post Deployment tracking** (heading, body, and native checklist) when it has zero items. Do not put a native item on a DoD# line or on a `No test:` line. Do not write markdown `- [ ]` or `✅❌❓` in these two `desc` sections.
 
 ### Step 5 — Propose, wait for approval, then publish
 
 The plan is **always proposed in chat first** and only published after approval. Never auto-publish.
 
-1. **Propose.** Emit the Step 4 card markdown in chat. End with: *"Approve and publish?"* Do not pre-empt with edits. Put **What changes for QA**, **Notes for QA**, and code red flags in the chat reply **outside** the plan block. They do not go on the card.
-2. **Iterate.** If the user wants changes, update and re-emit the full card-markdown block.
-3. **Publish (on approval).** Write into the Trello card `desc`. Never call Notion create or update.
+1. **Propose.** Emit the Step 4 preview in chat: native checklist items first, then card-description markdown. End with: *"Approve and publish?"* Do not pre-empt with edits. Put **What changes for QA**, **Notes for QA**, and code red flags in the chat reply **outside** the plan block. They do not go on the card.
+2. **Iterate.** If the user wants changes, update and re-emit the full preview.
+3. **Publish (on approval).** Write `desc` **and** the native checklists. Never call Notion create or update.
 
-   1. `GET /1/cards/<id>?fields=desc`.
+   1. `GET /1/cards/<id>?fields=desc`. Also `get_checklist_by_name` for `QA Strategy` and `Post Deployment tracking`.
    2. Strip any `**QA Strategy:** <url>` line and the `---` immediately above it. Leave the Notion page in place; do not delete it.
-   3. Remove any existing `### ⊙ **QA Strategy**` section and any existing `### ⊙ **Post Deployment tracking**` section (heading through the line before the next `### ⊙` or the AI footer `---`). Keep their mark suffixes in memory (algorithm below).
-   4. Build the new sections from the approved preview. For each test heading / extra `- [ ]` / post-deploy `- [ ]`, strip the checkbox or list prefix and trailing `✅` / `❌` / `❓` to get the match key. Match on the remaining text only. Keep the approved line prefix in the output. If that key existed in the old section, copy its trailing mark suffix as-is (one mark, two marks, or `✅❌❓`). If it did not exist, write `✅❌❓`. DoD# lines (`- [ ] DoD1`) and `No test:` lines never get marks. DoD# lines always reset to `- [ ]` (do not keep `- [x]`). On a republish that switches an old verbatim DoD parent to `DoD<n>`, match tests by their `Test n:` heading; do not try to match the old DoD sentence to `DoD<n>`.
-   5. Insert **QA Strategy** immediately after the **Definition of Done** section (its heading plus checklist), before the next remaining `### ⊙` (**Credentials / access**, **QA notes**, **Similar / relevant cards**) and before the AI footer.
+   3. Remove any existing `### ⊙ **QA Strategy**` section and any existing `### ⊙ **Post Deployment tracking**` section (heading through the line before the next `### ⊙` or the AI footer `---`). Keep old headings in memory for the complete-state fallback below.
+   4. Build the new `desc` sections from the approved preview. No `- [ ]`, no `- [x]`, no `✅❌❓`, no "tick the checklist" instruction line. Keep one blank line after each of those two headings.
+   5. Insert **QA Strategy** immediately after the **Definition of Done** section (its heading plus items), before the next remaining `### ⊙` (**Credentials / access**, **QA notes**, **Similar / relevant cards**) and before the AI footer.
    6. Insert **Post Deployment tracking** immediately after **QA Strategy** when that section has items.
    7. If the new `desc` length is greater than 16384 characters, stop. Paste the length in chat. Do not truncate. Do not publish anywhere else.
-   8. `PUT /1/cards/<id>` with `desc`. If the write fails, paste the error and stop. Do not retry on Notion or a comment.
+   8. Sync native checklists from the approved item list (algorithm below). Create **QA Strategy** first, then **Post Deployment tracking**, only when each would have at least one item. Exact names. Do not create a second checklist with a similar name.
+   9. `PUT /1/cards/<id>` with `desc`. If the write fails, paste the error and stop. Do not retry on Notion or a comment.
 
-4. **Report.** Hand back the card URL. Say first publish or republish. On republish, say that existing ✅ / ❌ / ❓ suffixes on matching headings were kept.
+4. **Report.** Hand back the card URL. Say first publish or republish. On republish, say that existing native ticks on matching items were kept.
 
-**Mark suffix algorithm** (run in the same Python that builds the new `desc`):
+**Complete-state algorithm** (run in the same Python that builds the new `desc` and the native item list):
 
 ```python
 import re
 
 MARKS = re.compile(r"([✅❌❓]+)\s*$")
 LINE_PREFIX = re.compile(r"^\s*-\s*(?:\[[ xX]\]\s*)?")
+EXPECT_SPLIT = re.compile(r"\s+—\s+EXPECT\s+", re.I)
 
-def strip_marks(heading: str) -> str:
-    return MARKS.sub("", heading).rstrip()
+def native_key(text: str) -> str:
+    text = MARKS.sub("", text).rstrip()
+    text = LINE_PREFIX.sub("", text).replace("`", "")
+    return EXPECT_SPLIT.split(text, 1)[0].strip()
 
-def match_key(heading: str) -> str:
-    return strip_marks(LINE_PREFIX.sub("", heading))
-
-def suffix_of(heading: str) -> str | None:
-    m = MARKS.search(heading)
-    return m.group(1) if m else None
-
-def apply_marks(new_heading: str, old_headings: list[str]) -> str:
-    key = strip_marks(new_heading)
+def body_heading_complete(old_headings: list[str], key: str) -> bool:
+    def keys(heading: str):
+        k = native_key(heading)
+        yield k
+        m = re.search(r"Test \d+:\s*.+", k)
+        if m:
+            yield m.group(0)
     for old in old_headings:
-        if match_key(old) == match_key(new_heading):
-            old_sfx = suffix_of(old)
-            if old_sfx:
-                return key + " " + old_sfx
-            break
-    return key + " ✅❌❓"
+        old_keys = set(keys(old))
+        if key in old_keys or native_key(key) in old_keys:
+            sfx = MARKS.search(old.rstrip())
+            return bool(sfx and sfx.group(1) == "✅")
+    return False
 
-old = "- [x] Fare above the new loss limit is dropped ✅"
-new = "- [ ] Fare above the new loss limit is dropped ✅❌❓"
-result = apply_marks(new, [old])
-assert result == "- [ ] Fare above the new loss limit is dropped ✅"
+def item_state(new_item: str, existing: list[dict], old_headings: list[str]) -> str:
+    key = native_key(new_item)
+    for old in existing:
+        if native_key(old["name"]) == key:
+            return "complete" if old.get("state") == "complete" else "incomplete"
+    if body_heading_complete(old_headings, key):
+        return "complete"
+    return "incomplete"
 ```
 
-`old_headings` are the raw lines that start with `- [ ]`, `- [x]`, or `  - Test ` inside the removed sections. Strip that prefix before matching, and match on the remaining mark-free text. Keep the new line's prefix. Concatenate the suffix with **one space** before the first mark (`fee ✅❌❓`), and no spaces between `✅`, `❌`, and `❓`. `strip_marks` uses `rstrip()`, so `foo ✅` and `foo✅` share the key `foo`.
+`existing` is the native checklist items already on the card (`name` + `state`). `old_headings` are the raw `desc` lines that started with `- [ ]`, `- [x]`, `- `, or `  - Test ` inside the removed sections (legacy `✅❌❓` cards). Match on `native_key`. Prefer native `complete`. Else treat a legacy heading whose suffix is exactly `✅` (not `✅❌❓`) as complete. New keys start incomplete. Delete native items whose key is gone. If EXPECT wording changed but the key is the same, `update_checklist_item` name and keep state. If **Post Deployment tracking** or **QA Strategy** would have zero items, `DELETE /1/checklists/{id}` for that checklist (MCP has no delete-checklist tool).
 
 **Section extract regex** (same write):
 
@@ -428,6 +470,13 @@ Reference shell after Python has produced `NEW_DESC`:
 curl -s -X PUT "https://api.trello.com/1/cards/<id>" \
   -d "key=$TRELLO_API_KEY" -d "token=$TRELLO_TOKEN" \
   --data-urlencode "desc=${NEW_DESC}"
+```
+
+Empty-checklist delete:
+
+```bash
+curl -s -X DELETE "https://api.trello.com/1/checklists/<checklistId>" \
+  -d "key=$TRELLO_API_KEY" -d "token=$TRELLO_TOKEN"
 ```
 
 If any publish step fails, surface the error verbatim and stop. Don't retry on a different surface without user direction.
@@ -464,13 +513,16 @@ Concrete rules not already stated by Core principle, Workflow, or `GLOSSARY.md`:
 - Do not add an **Additional tests** section.
 - Do not emit a **Log to open** slot, a `This log does not show the logic change` labelled line, or an **Also watch** labelled line.
 - Do not write a PASS labelled line. The observable line is **EXPECT:**.
-- Do not put ✅❌❓ on a DoD# line (`- [ ] DoD1`) or on a `No test:` line.
-- Do not restate a Definition of Done sentence under **QA Strategy**. Write `- [ ] DoD1`, `- [ ] DoD2`, … only.
+- Do not put markdown `- [ ]` or `✅❌❓` under **QA Strategy** or **Post Deployment tracking**. Ticks live on the native checklists.
+- Do not add a "tick progress on the checklist" (or similar) instruction line in `desc`.
+- Do not restate a Definition of Done sentence under **QA Strategy**. Write `- DoD1`, `- DoD2`, … only.
 - Do not invent a test for an uncoverable DoD item.
 - Do not nest an extra PR check under a DoD item it does not cover.
+- Do not create a native checklist item for `No test:` or for a DoD parent with no tests.
+- Do not put queries, *Why:*, or numbered steps in a native checklist item.
 - Do not name logs on **Post Deployment tracking** watches.
-- Do not reset a heading's marks back to `✅❌❓` when that heading still exists with a different suffix.
-- Do not post the strategy as a Trello comment. It goes in the card `desc` after Definition of Done (Step 5).
+- Do not reset a completed native item to incomplete because the short EXPECT clause was rephrased.
+- Do not post the strategy as a Trello comment or a file attachment. It goes in `desc` after Definition of Done **and** on the native checklists named `QA Strategy` / `Post Deployment tracking` (Step 5).
 
 ## References
 
@@ -479,4 +531,5 @@ Concrete rules not already stated by Core principle, Workflow, or `GLOSSARY.md`:
 - `post_deploy_tracker` skill — longer-term post-deploy monitoring: [`../post_deploy_tracker/SKILL.md`](../post_deploy_tracker/SKILL.md).
 - Trello board IDs: `.cursor/skills/trello_assistant/automation_cards.md`.
 - Log-to-open worked examples: [`references/log_to_open.md`](references/log_to_open.md).
-- Card-DoD publish spec: [`docs/2026-08-20-card-dod-qa-design.md`](docs/2026-08-20-card-dod-qa-design.md).
+- Card-DoD harvest / short-body spec: [`docs/2026-08-20-card-dod-qa-design.md`](docs/2026-08-20-card-dod-qa-design.md).
+- Native-checklist publish spec: [`docs/2026-08-27-native-checklists-qa-design.md`](docs/2026-08-27-native-checklists-qa-design.md).

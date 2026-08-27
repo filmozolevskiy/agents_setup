@@ -2,7 +2,7 @@
 
 Date: 2026-08-20
 Skill: `qa_strategy`
-Status: approved in chat (shape B, post-deploy C, republish keeps marks)
+Status: harvest / short-body / DoD# nesting still apply. **Publish target superseded** by [`2026-08-27-native-checklists-qa-design.md`](2026-08-27-native-checklists-qa-design.md) (native Trello checklists + `desc` without markdown ticks or `✅❌❓`).
 
 Supersedes the **Log to open slot** and **PASS:** lines in [`2026-08-13-log-to-open-design.md`](2026-08-13-log-to-open-design.md). Harvest rules and the secondary-surface order in that doc still apply; they now write into the observe line. Test bodies are short: at most two numbered lines before **EXPECT:** (action, then observe).
 
@@ -28,6 +28,8 @@ Two `⊙` sections only:
 No **Additional tests** section. No Notion render. No `**QA Strategy:** <notion_url>` line in `desc`.
 
 ## Published shape
+
+**Do not publish this shape.** Native checklists plus `desc` without markdown ticks: [`2026-08-27-native-checklists-qa-design.md`](2026-08-27-native-checklists-qa-design.md). The block below is the pre-2026-08-27 card body, kept so harvest / DoD# / **EXPECT:** rules in this file stay readable.
 
 Chat preview equals what is written onto the card. Do not publish: `## QA Strategy — …`, **PR:** / **What changes for QA** / **Notes for QA** / **Baseline**, or **Smoke tests** / **Happy-path** / **Edge cases** / **Regression risks**. Put **What changes for QA**, **Notes for QA**, and code red flags in the chat reply outside the plan block. The agent may still group checks as smoke / happy-path / edge while deriving; those labels never appear on the card.
 
@@ -172,6 +174,7 @@ Do not preserve `- [x]` vs `- [ ]` on DoD# lines. Those reset to `- [ ]`. Only t
 
 - Changing `post_deploy_tracker`.
 - Deleting old Notion QA pages.
-- Auto-flipping ✅ / ❌ after a staging booking.
+- Auto-flipping native checklist items after a staging booking.
 - Glossary changes. `debug log`, `checkout page`, `ResPro page` stay as they are.
-- Trello checklists or comments as the publish target.
+
+Native checklists are the tick surface as of 2026-08-27 — see [`2026-08-27-native-checklists-qa-design.md`](2026-08-27-native-checklists-qa-design.md). Do not treat comments or file attachments as the publish target.

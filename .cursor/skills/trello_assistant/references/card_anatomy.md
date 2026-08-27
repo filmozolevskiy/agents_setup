@@ -9,8 +9,8 @@ Section order (mandatory + optional interleaved):
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
 5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — numbered outcome items that define "done". trello_assistant writes them itself as `* DoD1: <text>` bullets (each a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to `* DoD1: _TO BE DONE_`. No `- [ ]` checkbox.
-6. `### ⊙ **QA Strategy**` *(preserve-only — never create; keep on edit if present)*
-7. `### ⊙ **Post Deployment tracking**` *(preserve-only — never create; keep on edit if present)*
+6. `### ⊙ **QA Strategy**` *(preserve-only — never create; keep on edit if present; native checklist of the same name is also preserve-only)*
+7. `### ⊙ **Post Deployment tracking**` *(preserve-only — never create; keep on edit if present; native checklist of the same name is also preserve-only)*
 8. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
 9. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
 10. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
@@ -184,7 +184,7 @@ The change is already activated on the Dida sandbox.
 Numbered outcome items that define "done" for this card. Sits right after Visibility. **trello_assistant writes these itself** — derive them from the card's expected behavior (the `Possible solution / expected behavior` section, or the fix implied by Details).
 
 - **Write each item as a plain outcome statement — a done-state stated as a fact.** No `GIVEN / WHEN / THEN` scaffolding, no "Verify that…" prefix. State the end result directly: "The ResPro page shows a Unififi order link for Unififi bookings."
-- **Shape is `* DoD1: <text>`.** One asterisk bullet per outcome, then `DoD#:` then a space, then the sentence. Do not write `- [ ]` or `- [x]` here — those belong in **QA Strategy**. A prose paragraph is not allowed.
+- **Shape is `* DoD1: <text>`.** One asterisk bullet per outcome, then `DoD#:` then a space, then the sentence. Do not write `- [ ]` or `- [x]` here — ticks belong on the native **QA Strategy** / **Post Deployment tracking** checklists. A prose paragraph is not allowed.
 - Items state outcomes a human or a log query can verify. No implementation steps, no developer to-do lists, no code identifiers. Plain, ESL-friendly language.
 - Keep it short — usually one to three items. Cover the happy path first, then any regression guard.
 - **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `* DoD1: _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
@@ -234,7 +234,7 @@ Only when there is a shipped fix to verify. Omit by default. When present: stagi
 
 ### `### ⊙ **QA Strategy**` / `### ⊙ **Post Deployment tracking**` (preserve-only)
 
-`qa_strategy` writes these immediately after Definition of Done, before Credentials / access, QA notes, and Similar / relevant cards. `trello_assistant` never creates them. On edit, copy them through unchanged unless the user asked to change a test line. Keep one blank line after each heading. Do not merge them into **QA notes**. Do not treat them as unknown `⊙` blocks.
+`qa_strategy` writes these immediately after Definition of Done, before Credentials / access, QA notes, and Similar / relevant cards, and syncs native Trello checklists with the same names. `trello_assistant` never creates the sections or those two checklists. On edit, copy the sections through unchanged unless the user asked to change a test line, and leave the native checklists alone (do not add, tick, delete, or rewrite items). Keep one blank line after each heading. Do not merge them into **QA notes**. Do not treat them as unknown `⊙` blocks. Do not add a "tick the checklist" line.
 
 ### `### ⊙ **Similar / relevant cards**` (optional)
 
@@ -261,7 +261,7 @@ _Card description drafted/updated by an AI agent; please verify facts, IDs, and 
 ## Editing older cards
 
 Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to this layout unless the user asks to keep the old shape. Map Summary → Short description + Details, Numbers/Examples → Visibility.
-Keep `### ⊙ **QA Strategy**` and `### ⊙ **Post Deployment tracking**` if present.
+Keep `### ⊙ **QA Strategy**` and `### ⊙ **Post Deployment tracking**` if present. Keep native checklists named **QA Strategy** and **Post Deployment tracking** if present.
 
 Field-shape reference cards (read for tone, not structure):
 
