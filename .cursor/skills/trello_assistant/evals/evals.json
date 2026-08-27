@@ -21,6 +21,13 @@
       "prompt": "Draft a Trello card (markdown only — do not call any Trello MCP tools). OPTIMIZATION issue: for FLX NDC, the optimizer is missing a cheaper contestant fare on a meaningful share of searches. We have a per-day breakdown of affected searches over the last 5 days: 2026-05-27: 12, 05-28: 18, 05-29: 9, 05-30: 22, 05-31: 15. Evidence lives in ota.optimizer_logs. Produce the card title and full description body (markdown).",
       "expected_output": "SHORT title, e.g. `OPTIMIZATION: FLX NDC optimizer misses a cheaper contestant fare`. H3 `⊙` headings with blank lines. Four mandatory sections in order. Short description one sentence. Details explains the optimizer matching gap for FLX NDC with an optimizer-log reference; unproven cause marked `Assumption:`. Visibility opens with a fenced per-day breakdown text table reproducing all five day counts (12/18/9/22/15 — the table IS the count, no duplicate prose total), then a debuggable optimizer_logs query with leading `$match`. Counts only in Visibility. Definition of Done uses `* DoD1: <text>` bullets, not `- [ ]`. Bug card: NO `Credentials / access`, NO `QA notes`. Optional `Possible solution / expected behavior` allowed. AI footer last after `---`. No bare-`⊙` or `##` headings. Content sits directly under each heading (no blank line after the heading); one blank line separates sections. Plain ESL-friendly language (e.g. 'sometimes' not 'intermittently', 'in some cases' not 'on a share of').",
       "files": []
+    },
+    {
+      "id": 3,
+      "name": "split-per-supplier-siblings",
+      "prompt": "Draft Trello card(s) (markdown only — do not call any Trello MCP tools). InvalidAgeForPaxType: Dida and Amadeus both reject infant passengers, but each supplier adapter needs its own change (not shared code). Investigation is done. Expected behavior: infant PTC is sent correctly on each supplier. Produce the card title(s) and full description body(ies).",
+      "expected_output": "TWO sibling cards, not one parent. Titles `DIDA: …` and `AMADEUS: …` with the clause after the colon aligned (shared outcome, e.g. InvalidAgeForPaxType). No `(Investigation Pending)` prefix. No parent/epic card. Each body has the four mandatory H3 `⊙` sections, real `* DoD1:` bullets (no `_TO BE DONE_`), Visibility scoped to that supplier. `⊙ Similar / relevant cards` on each names the other sibling (`same change, different supplier`). Propose grouping via the Project custom field (new option named after the shared outcome, no supplier prefix, e.g. InvalidAgeForPaxType) — do not invent a grouping label. AI footer last after `---`. Plain ESL-friendly language.",
+      "files": []
     }
   ]
 }

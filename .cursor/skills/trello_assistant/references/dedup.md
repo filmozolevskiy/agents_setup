@@ -25,6 +25,7 @@ Never create a card until the board has been checked for existing work covering 
 
 - **Duplicate:** do not create. Tell the user which card(s) cover it (use `shortUrl` / `url`). Offer to add new examples, queries, or links via `add_comment` or `update_card_details` on that card.
 - **Similar but not duplicate:** create the new card on Backlog and list the overlaps in the optional `⊙ **Similar / relevant cards**` section as `[title](shortUrl) — same office, different error`.
+- **Sibling split:** same symptom, **different supplier that needs its own change**, is **not** a duplicate. Create every sibling. Cross-link them. Set the same Project value. See [`split_and_group.md`](split_and_group.md).
 - **Nothing related:** create. Do not add a "none found" line unless it helps the team.
 
 When the user explicitly wants a new card even though a close duplicate exists (e.g. split scope), list the duplicate in `⊙ **Similar / relevant cards**` and explain the split in one short sentence.

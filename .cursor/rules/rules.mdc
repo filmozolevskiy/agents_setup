@@ -66,4 +66,4 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 | [`qa_assistant`](../skills/qa_assistant/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging or production and validating it across MySQL / ClickHouse / MongoDB |
 | [`qa_strategy`](../skills/qa_strategy/SKILL.md) | User wants a QA strategy, test plan, or staging/post-deploy checklist derived from a Trello card and its linked PR — "QA strategy for this card", "staging checklist for <card>", "what should we test for this PR", "post-deploy checks for <card>" |
 | [`skill_creator`](../skills/skill_creator/SKILL.md) | Adding, scaffolding, or wiring a new project-local skill |
-| [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; weekly grooming / in-flight reports; working a card the user pointed at |
+| [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; splitting a fat request into sibling cards; working a card the user pointed at |

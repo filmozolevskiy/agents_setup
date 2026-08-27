@@ -8,14 +8,14 @@ Section order (mandatory + optional interleaved):
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
-5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — numbered outcome items that define "done". trello_assistant writes them itself as `* DoD1: <text>` bullets (each a done-state stated as a fact) derived from the card's expected behavior; only `(Investigation Pending)` cards with an unknown outcome fall back to `* DoD1: _TO BE DONE_`. No `- [ ]` checkbox.
+5. `### ⊙ **Definition of Done**` *(mandatory, always present)* — numbered outcome items that define "done". trello_assistant writes them itself as `* DoD1: <text>` bullets (each a done-state stated as a fact) derived from the card's expected behavior. Do not write `* DoD1: _TO BE DONE_` except when the user skipped investigation. No `- [ ]` checkbox.
 6. `### ⊙ **QA Strategy**` *(preserve-only — never create; keep on edit if present; native checklist of the same name is also preserve-only)*
 7. `### ⊙ **Post Deployment tracking**` *(preserve-only — never create; keep on edit if present; native checklist of the same name is also preserve-only)*
 8. `### ⊙ **Credentials / access**` *(optional — new-integration cards only)* — a labeled placeholder the card owner fills by hand.
 9. `### ⊙ **QA notes**` *(optional)* — only when there is a shipped fix to verify; omit by default.
-10. `### ⊙ **Similar / relevant cards**` *(optional)* — cards that **directly inform** this one.
+10. `### ⊙ **Similar / relevant cards**` *(optional on a lone card; **mandatory on every sibling**)* — cards that **directly inform** this one, plus every sibling from a split.
 
-Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real `* DoD1: <text>` bullets when the expected behavior is known, and fall back to `* DoD1: _TO BE DONE_` only on investigation-pending cards.
+Do not pad a card with empty optional sections. If an optional section has nothing real to say, leave it out. `Definition of Done` is the one exception — it always ships; write real `* DoD1: <text>` bullets. Do not write `* DoD1: _TO BE DONE_` except when the user skipped investigation. `Similar / relevant cards` is mandatory on every sibling in a split.
 
 ## Formatting rules (apply to every section)
 
@@ -70,7 +70,8 @@ Format: **`SOURCE_OR_AREA: short concrete summary`**. Keep it short — one conc
 
 - `SOURCE` prefix in ALL CAPS: `AMADEUS`, `RESPRO`, `TRAVELFUSION`, `FLXNDC`, `PAYHUB`, `BOOKABILITY`, `WORDSPAN`, `DIDA`, `OPTIMIZATION`, `MULTI TICKETS`, `FARE FAMILIES`, `SEATS`, `BAGGAGE`, `SYNC`, `CHECK AVAILABILITY`, `ACNDC`, `FR24`.
 - Colon + space after the prefix.
-- Investigations with no fix yet: `(Investigation Pending) SOURCE: …`.
+- Do not prefix `(Investigation Pending)` on new agent-created cards. Investigate first, then file. Honour the prefix only when the user skipped investigation. Leave it on existing board cards unless you are rewriting that card after a split.
+- On a sibling set, keep the ALL-CAPS prefix per supplier / area and **align the clause after the colon** so the group is obvious (`DIDA: InvalidAgeForPaxType on infant PTC` / `AMADEUS: InvalidAgeForPaxType on infant PTC`). See [`split_and_group.md`](split_and_group.md).
 - Concrete symptom after the colon, not vague.
 - Align wording with existing titles on the same source after the dedup pass.
 - **Supplier operation names are allowed in the title** (`VerifyPrice`, `BookFlight`, `OrderCreate`, `PNR_AddMultiElements`, `Fare_PriceUpsellWithoutPNR`, etc.) when they anchor the card better than a plain-language paraphrase — especially when the same operation is used in several flows (Check Availability + Booker + ancillary re-quote, for example) and naming the operation is more precise than naming one flow. The body still stays plain.
@@ -81,7 +82,7 @@ Good: `RESPRO: Downtowntravel booking fails at payment`. `OPTIMIZATION: FLX NDC 
 
 ### `### ⊙ **Short description**` (mandatory)
 
-One sentence. What fails + where, plain language. The line a groomer reads to triage without opening anything else.
+One sentence. What fails + where, plain language. The line a reader uses to triage without opening anything else.
 
 - Everyday verbs (`booking fails`, `we get error X`, `manual rate climbed`).
 - Name the flow / integration / content source in plain words.
@@ -186,8 +187,8 @@ Numbered outcome items that define "done" for this card. Sits right after Visibi
 - **Write each item as a plain outcome statement — a done-state stated as a fact.** No `GIVEN / WHEN / THEN` scaffolding, no "Verify that…" prefix. State the end result directly: "The ResPro page shows a Unififi order link for Unififi bookings."
 - **Shape is `* DoD1: <text>`.** One asterisk bullet per outcome, then `DoD#:` then a space, then the sentence. Do not write `- [ ]` or `- [x]` here — ticks belong on the native **QA Strategy** / **Post Deployment tracking** checklists. A prose paragraph is not allowed.
 - Items state outcomes a human or a log query can verify. No implementation steps, no developer to-do lists, no code identifiers. Plain, ESL-friendly language.
-- Keep it short — usually one to three items. Cover the happy path first, then any regression guard.
-- **Fallback:** only on `(Investigation Pending)` cards where the expected behavior is genuinely unknown, ship the placeholder line `* DoD1: _TO BE DONE_` for the QA team to fill later. Every other card gets real items.
+- Keep it short — usually one to three items. Cover the happy path first, then any regression guard. More than three items means split the card — see [`split_and_group.md`](split_and_group.md).
+- **Fallback:** do not write `* DoD1: _TO BE DONE_` on agent-created cards. Investigate first. Honour the placeholder only when the user skipped investigation. Existing board cards that still have the placeholder stay as-is until that card is rewritten.
 - **On edit:** if the section still uses `- [ ]` / `- [x]`, bare `DoD1` lines, or `- DoD1` dashes, rewrite those lines to `* DoD1: <text>` in the same order, keeping the sentence.
 
 One outcome (from [#3022](https://trello.com/c/CllZSJMV)):
@@ -207,12 +208,7 @@ Happy path first, then a regression guard:
 * DoD2: The other Amadeus offices keep their current failure rate on the Visibility query for 24h after deploy.
 ```
 
-Placeholder — investigation-pending cards only, when the outcome is not known yet:
-
-```markdown
-### ⊙ **Definition of Done**
-* DoD1: _TO BE DONE_
-```
+Do not ship a `_TO BE DONE_` placeholder. If the outcome is unknown, keep investigating in the session. The only exception is the user saying “skip investigation, file a pending card.”
 
 ### `### ⊙ **Credentials / access**` (optional — new-integration cards only)
 
@@ -236,16 +232,18 @@ Only when there is a shipped fix to verify. Omit by default. When present: stagi
 
 `qa_strategy` writes these immediately after Definition of Done, before Credentials / access, QA notes, and Similar / relevant cards, and syncs native Trello checklists with the same names. `trello_assistant` never creates the sections or those two checklists. On edit, copy the sections through unchanged unless the user asked to change a test line, and leave the native checklists alone (do not add, tick, delete, or rewrite items). Keep one blank line after each heading. Do not merge them into **QA notes**. Do not treat them as unknown `⊙` blocks. Do not add a "tick the checklist" line.
 
-### `### ⊙ **Similar / relevant cards**` (optional)
+### `### ⊙ **Similar / relevant cards**` (optional on a lone card; mandatory on siblings)
 
 Cards that **directly inform** this one — same code path, same supplier behavior, same root cause, or known overlap of fix. One per line: `[title](shortUrl) — short note on the overlap`. **Drop neighbouring-area cards that only share the supplier or only share the board area** — "another Dida bug" is not enough. If a dev would not open the linked card while working on this one, it does not belong here.
 
-Omit when nothing qualifies. This is where related-card links live — keep them out of Details.
+**Siblings from a split are mandatory here.** List every other card in the sibling set, even though they do not share a supplier. Note: `same change, different supplier` or `same program, different outcome`. Write the section after create, when each sibling has a `shortUrl`. See [`split_and_group.md`](split_and_group.md).
+
+Omit on a lone card when nothing qualifies. This is where related-card links live — keep them out of Details.
 
 ```markdown
 ### ⊙ **Similar / relevant cards**
-[AMADEUS: NO FARE FOR CLASS on BookFlight office YYZAA38AA](https://trello.com/c/abcd1234) — same error, different office.
-[RESPRO: Downtowntravel booking fails at payment](https://trello.com/c/efgh5678) — related payment-step failure.
+[DIDA: InvalidAgeForPaxType on infant PTC](https://trello.com/c/abcd1234) — same change, different supplier.
+[AMADEUS: NO FARE FOR CLASS on BookFlight office YYZAA38AA](https://trello.com/c/efgh5678) — same error, different office.
 ```
 
 ### Footer (mandatory)
