@@ -1,4 +1,5 @@
 {
+  "enabledMcpjsonServers": ["datadog"],
   "mcpServers": {
     "clickhouse": {
       "command": "./.cursor/skills/db_access/scripts/mcp_clickhouse.sh"
