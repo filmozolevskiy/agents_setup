@@ -57,6 +57,26 @@ Before any Trello write — create, update, move, label, member change, comment,
 - Read-only steps (dedup search, `get_board_members`, fetching a card, `get_board_custom_fields`) need no approval — run them first so the proposal is complete.
 - Approval is per change. A new instruction is a new change; re-propose and wait again. Do not batch several unrelated writes behind one approval. A proposed split is one change.
 
+## Readability review (last step before showing a draft)
+
+After the draft is complete and before you post it for approval, re-read it once as a new reader would. Fix every problem, then show the fixed version. Do not mention the review in chat unless you changed the substance.
+
+Apply to every draft: new card, sibling set, body rewrite, comment.
+
+Check each item:
+
+1. **Short description** — one sentence. A person who opens only this line knows what fails and where.
+2. **Plain words** — no heavy word, idiom, or stacked acronym. Spell out each acronym on first use. Short sentences, one idea each. Swap hard words per the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md#plain-language-mandatory).
+3. **Order of ideas** — Details follows the flow in the order it happens. Each permalink sits at the step it proves. No sentence needs a later sentence to make sense.
+4. **One job per section** — no counts outside Visibility. No fix steps in Details. No narrative in Visibility or Definition of Done.
+5. **Definition of Done** — each item is one clear fact a human or a log query can check. No "and" chaining two outcomes.
+6. **Visibility** — the query runs as written. The window and timezone are stated. The count matches the one you measured.
+7. **Glossary** — terms match [`GLOSSARY.md`](../../../GLOSSARY.md). No code names of our own code in prose.
+8. **Scan** — the title is one clause. Lists and fenced tables align. No blank-line or heading mistakes. The footer is last.
+9. **Siblings** — clauses after the colon line up across the set. Notes in Similar / relevant cards say what overlaps.
+
+If you cannot make a passage clear, cut it or ask the user. Do not ship a passage you would need to explain out loud.
+
 ## Investigation before create
 
 Do not file a Content Integration card until investigation in this session has produced: a known shippable outcome, a known split, real Definition of Done lines, and a Visibility query that shows the wrong behaviour. Investigation is not a Trello card. Full bar, split rules, and Project grouping: [`references/split_and_group.md`](references/split_and_group.md).
@@ -66,8 +86,8 @@ Do not create `(Investigation Pending)` cards or `* DoD1: _TO BE DONE_`. Excepti
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** meet the investigation bar. Decide the split per [`references/split_and_group.md`](references/split_and_group.md). Run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the four mandatory `⊙` sections — `Short description` + `Details` + `Visibility` + `Definition of Done` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**. On a split, one proposal lists every sibling plus the Project option. On approval: `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member: Filipp (delivery manager) first, then the two QA team members, Maryna and Alexander (Alex). Then set Project and backfill Similar/relevant per [`references/split_and_group.md`](references/split_and_group.md).
-3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Do not use checklist tools on the native checklists named **QA Strategy** or **Post Deployment tracking** — `qa_strategy` owns those. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
+2. **New card:** meet the investigation bar. Decide the split per [`references/split_and_group.md`](references/split_and_group.md). Run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the four mandatory `⊙` sections — `Short description` + `Details` + `Visibility` + `Definition of Done` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), run the [Readability review](#readability-review-last-step-before-showing-a-draft) and fix what it finds, then **show it for approval (see Approval gate)**. On a split, one proposal lists every sibling plus the Project option. On approval: `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member: Filipp (delivery manager) first, then the two QA team members, Maryna and Alexander (Alex). Then set Project and backfill Similar/relevant per [`references/split_and_group.md`](references/split_and_group.md).
+3. **Edits:** draft the change, run the Readability review, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Do not use checklist tools on the native checklists named **QA Strategy** or **Post Deployment tracking** — `qa_strategy` owns those. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
 4. **Schema check before any write.** If a write tool returns an empty `idLabels` / `idMembers` array, or silently drops a parameter you passed, the parameter name was wrong for that tool. Read the JSON schema under `mcps/project-0-agents_setup-trello/tools/<tool>.json` and retry with the correct shape — do **not** keep retrying the same call hoping the field name works this time.
 5. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
 
@@ -126,6 +146,8 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 **Sibling group key is the Project custom field**, not a label. Fetch with `get_board_custom_fields`. Reuse an existing option when it covers the whole sibling set. Add a new option (shared-outcome name, no supplier prefix) only when none fits, via [`scripts/add_project_option.py`](scripts/add_project_option.py) after approval. Lone cards leave Project empty. Do not create a parent card. Mechanics in [`references/split_and_group.md`](references/split_and_group.md).
 
 ## What not to do
+
+- Do not show a draft (card, split, body rewrite, or comment) before the Readability review. It is always the last step before the approval proposal.
 
 - Do not call any Trello write tool (`add_card_to_list`, `update_card_details`, `move_card`, `add_comment`, checklist / label / member tools, `archive_card`, `update_card_custom_field`) before showing the proposed change in the chat and getting the user's explicit approval. See [Approval gate](#approval-gate-every-card-write).
 - Do not batch several unrelated card writes behind one approval; a new instruction needs a fresh proposal. A sibling split is one proposal.
