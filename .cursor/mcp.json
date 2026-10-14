@@ -15,12 +15,6 @@
     "growthbook": {
       "command": "./.cursor/skills/growthbook/scripts/mcp_growthbook.sh"
     },
-    "Lucid": {
-      "url": "https://mcp.lucid.app/mcp"
-    },
-    "Atlassian-MCP-Server": {
-      "url": "https://mcp.atlassian.com/v1/mcp"
-    },
     "Notion": {
       "url": "https://mcp.notion.com/mcp"
     },

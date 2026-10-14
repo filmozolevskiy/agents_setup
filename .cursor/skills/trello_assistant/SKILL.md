@@ -14,8 +14,8 @@ description: >-
   sending, card title and the H3 `⊙` description template (mandatory Short
   description / Details / Visibility / Definition of Done; optional Possible
   solution / Credentials / QA notes / Similar-relevant cards; debuggable CTE /
-  Shape A/B Mongo pipelines), mandatory members (Filipp + QA team Maryna and
-  Alexander) and AI footer rules.
+  Shape A/B Mongo pipelines), mandatory member (Filipp; QA team only when the
+  card needs QA work) and AI footer rules.
 ---
 
 # Trello: Content Integration board
@@ -57,6 +57,26 @@ Before any Trello write — create, update, move, label, member change, comment,
 - Read-only steps (dedup search, `get_board_members`, fetching a card, `get_board_custom_fields`) need no approval — run them first so the proposal is complete.
 - Approval is per change. A new instruction is a new change; re-propose and wait again. Do not batch several unrelated writes behind one approval. A proposed split is one change.
 
+## Readability review (last step before showing a draft)
+
+After the draft is complete and before you post it for approval, re-read it once as a new reader would. Fix every problem, then show the fixed version. Do not mention the review in chat unless you changed the substance.
+
+Apply to every draft: new card, sibling set, body rewrite, comment.
+
+Check each item:
+
+1. **Short description** — one sentence. A person who opens only this line knows what fails and where.
+2. **Plain words** — no heavy word, idiom, or stacked acronym. Spell out each acronym on first use. Short sentences, one idea each. Swap hard words per the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md#plain-language-mandatory).
+3. **Order of ideas** — Details follows the flow in the order it happens. Each permalink sits at the step it proves. No sentence needs a later sentence to make sense.
+4. **One job per section** — no counts outside Visibility. No fix steps in Details. No narrative in Visibility or Definition of Done.
+5. **Definition of Done** — each item is one clear fact a human or a log query can check. No "and" chaining two outcomes.
+6. **Visibility** — the query runs as written. The window and timezone are stated. The count matches the one you measured.
+7. **Glossary** — terms match [`GLOSSARY.md`](../../../GLOSSARY.md). No code names of our own code in prose.
+8. **Scan** — the title is one clause. Lists and fenced tables align. No blank-line or heading mistakes. The footer is last.
+9. **Siblings** — clauses after the colon line up across the set. Notes in Similar / relevant cards say what overlaps.
+
+If you cannot make a passage clear, cut it or ask the user. Do not ship a passage you would need to explain out loud.
+
 ## Investigation before create
 
 Do not file a Content Integration card until investigation in this session has produced: a known shippable outcome, a known split, real Definition of Done lines, and a Visibility query that shows the wrong behaviour. Investigation is not a Trello card. Full bar, split rules, and Project grouping: [`references/split_and_group.md`](references/split_and_group.md).
@@ -66,8 +86,8 @@ Do not create `(Investigation Pending)` cards or `* DoD1: _TO BE DONE_`. Excepti
 ## MCP workflow (minimal)
 
 1. `set_active_board` with `61d5cf784c6396541499e7ce`.
-2. **New card:** meet the investigation bar. Decide the split per [`references/split_and_group.md`](references/split_and_group.md). Run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the four mandatory `⊙` sections — `Short description` + `Details` + `Visibility` + `Definition of Done` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), **show it for approval (see Approval gate)**. On a split, one proposal lists every sibling plus the Project option. On approval: `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` once per member: Filipp (delivery manager) first, then the two QA team members, Maryna and Alexander (Alex). Then set Project and backfill Similar/relevant per [`references/split_and_group.md`](references/split_and_group.md).
-3. **Edits:** draft the change, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Do not use checklist tools on the native checklists named **QA Strategy** or **Post Deployment tracking** — `qa_strategy` owns those. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
+2. **New card:** meet the investigation bar. Decide the split per [`references/split_and_group.md`](references/split_and_group.md). Run the dedup pass per [`references/dedup.md`](references/dedup.md). Only if not duplicate: draft the body (the four mandatory `⊙` sections — `Short description` + `Details` + `Visibility` + `Definition of Done` — plus any applicable optional sections + AI footer; template in [`references/card_anatomy.md`](references/card_anatomy.md)), run the [Readability review](#readability-review-last-step-before-showing-a-draft) and fix what it finds, then **show it for approval (see Approval gate)**. On a split, one proposal lists every sibling plus the Project option. On approval: `add_card_to_list` on Backlog with `name` per the title rule and optional `labels` (label IDs array). **`add_card_to_list` does not accept members** — immediately after creation, call `assign_member_to_card` for Filipp (delivery manager). Add the QA team (Maryna, Alexander) only when rule 3 below says so. Then set Project and backfill Similar/relevant per [`references/split_and_group.md`](references/split_and_group.md).
+3. **Edits:** draft the change, run the Readability review, **show it for approval**, then `update_card_details` / `move_card` / checklist tools. Do not use checklist tools on the native checklists named **QA Strategy** or **Post Deployment tracking** — `qa_strategy` owns those. `update_card_details` accepts `labels` but **not** members — use `assign_member_to_card` / `remove_member_from_card` for membership changes. Refresh the body to match current scope. Migrate legacy cards (`⊙ **Summary**` / `⊙ **Numbers/ quantity/ Examples:**`, or bare-`⊙` non-H3 headings) to the current layout unless the user asks to keep the old shape.
 4. **Schema check before any write.** If a write tool returns an empty `idLabels` / `idMembers` array, or silently drops a parameter you passed, the parameter name was wrong for that tool. Read the JSON schema under `mcps/project-0-agents_setup-trello/tools/<tool>.json` and retry with the correct shape — do **not** keep retrying the same call hoping the field name works this time.
 5. **Layout references:** [#2679](https://trello.com/c/tHozrWW3/2679-dtt-ndc-1348-invalidageforpaxtype-age-vs-ptc) (lean lead + evidence), [#2746](https://trello.com/c/Nfg1JVNy) (trend / breakdown table).
 
@@ -98,7 +118,7 @@ These two sit after Definition of Done on a card that already has them. When thi
 
 1. **Title** — `SOURCE_OR_AREA: short concrete summary`, source prefix ALL CAPS. Short — one concrete clause (≤ ~10 words after the prefix), no trailing qualifiers. Do not prefix `(Investigation Pending)` on agent-created cards unless the user skipped investigation. On a sibling set, align the clause after the colon across suppliers. Details in [`references/card_anatomy.md`](references/card_anatomy.md#title) and [`references/split_and_group.md`](references/split_and_group.md).
 2. **Four mandatory `⊙` sections** — `### ⊙ **Short description**` + `### ⊙ **Details**` + `### ⊙ **Visibility**` + `### ⊙ **Definition of Done**`, as H3 headings with content directly below. **Order:** Short → Details → (optional Possible solution / expected behavior, when present) → Visibility → Definition of Done → preserve-only QA Strategy → preserve-only Post Deployment tracking → remaining optional sections. `Definition of Done` always ships — write real items as `* DoD1: <text>` bullets (each a done-state stated as a fact) derived from the card's expected behavior. Do not write `* DoD1: _TO BE DONE_` except when the user skipped investigation. Do not write `- [ ]` on those lines. Optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) only when they apply — never empty stubs. `Similar / relevant cards` is mandatory on siblings. No other `⊙` blocks except the two preserve-only sections `### ⊙ **QA Strategy**` and `### ⊙ **Post Deployment tracking**` (written by `qa_strategy`, never by this skill). On edit, keep those two sections in place with one blank line after each heading — do not fold them into Details, rename them, delete them, or close the heading gap. Fold any other unknown investigation / repro prose into Details. Migrate legacy cards on edit unless told otherwise. When **Definition of Done** still uses `- [ ]` / `- [x]`, bare `DoD1` lines, or `- DoD1` dashes, rewrite those lines to `* DoD1: <text>` in the same order, keeping the sentence.
-3. **Filipp + QA team on every card** — every card the agent creates or updates includes Filipp (delivery manager) **and both QA team members, Maryna and Alexander (Alex)**, as members. Call `assign_member_to_card` once per member right after `add_card_to_list` on create (Filipp first, then Maryna, then Alexander), and as separate calls when updating a card any of them is not on yet. `add_card_to_list` and `update_card_details` do not accept members — never try to pass `idMembers` / `memberIds` to them. If any ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
+3. **Filipp on every card; QA team only when needed** — every card the agent creates or updates includes Filipp (delivery manager) as a member. Call `assign_member_to_card` for Filipp right after `add_card_to_list` on create, and as a separate call when updating a card he is not on yet. **Do not add the QA team (Maryna, Alexander (Alex)) by default.** Add them only when the card needs QA work: there is a shipped fix to verify, the card has a `QA notes` section, the card is about test coverage / regression, or the user asks. When the card needs QA, list Maryna and Alexander as a suggested member change in the approval proposal and add them only after approval. On update, never add or remove QA members unless the user asks. `add_card_to_list` and `update_card_details` do not accept members — never try to pass `idMembers` / `memberIds` to them. If any ID is unknown, fetch board members first (`get_board_members`) and cache for the session.
 4. **AI attribution footer** — appended as the last lines, no text after.
 
    ```markdown
@@ -127,6 +147,8 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 
 ## What not to do
 
+- Do not show a draft (card, split, body rewrite, or comment) before the Readability review. It is always the last step before the approval proposal.
+
 - Do not call any Trello write tool (`add_card_to_list`, `update_card_details`, `move_card`, `add_comment`, checklist / label / member tools, `archive_card`, `update_card_custom_field`) before showing the proposed change in the chat and getting the user's explicit approval. See [Approval gate](#approval-gate-every-card-write).
 - Do not batch several unrelated card writes behind one approval; a new instruction needs a fresh proposal. A sibling split is one proposal.
 - Do not create a parent / epic / tracker card on Content Integration. Do not add a `Child cards` checklist or a parent attachment to group work.
@@ -139,7 +161,8 @@ Pass the label IDs to `add_card_to_list` / `update_card_details`. Do not invent 
 - Do not invent label names to group siblings.
 - Do not create new cards outside Backlog unless the user explicitly asks.
 - Do not skip the dedup pass before creating a card.
-- Do not ship a card (new or updated) without Filipp (delivery manager) and both QA team members, Maryna and Alexander (Alex), as members.
+- Do not ship a card (new or updated) without Filipp (delivery manager) as a member.
+- Do not add the QA team (Maryna, Alexander (Alex)) to a card by default. Add them only when the card needs QA work (see rule 3) and the user approved it.
 - Do not invent booking IDs, hashes, or log URLs.
 - Do not add a `⊙ **Credentials / access**` section to a bug / error card — it is for new-integration cards only. When present, never fabricate a value; write placeholder prompt lines and let the card owner fill office codes, PCCs, and logins by hand.
 - Do not include optional sections (`Possible solution / expected behavior`, `Credentials / access`, `QA notes`, `Similar / relevant cards`) as empty stubs. Omit a section that has nothing real to say. The four mandatory sections always ship — write `Definition of Done` yourself as `* DoD1: <text>` bullets (done-states stated as facts). Do not write `* DoD1: _TO BE DONE_` except when the user skipped investigation. `Similar / relevant cards` is mandatory on siblings.

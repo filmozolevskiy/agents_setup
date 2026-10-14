@@ -88,7 +88,7 @@ A split is **one** approval. Show in chat, then wait:
 On approval, in this order:
 
 1. Add the Project option if needed (`add_project_option.py`).
-2. `add_card_to_list` on Backlog for each sibling. Omit `⊙ Similar / relevant cards` on this first write — URLs do not exist yet. Assign Filipp, then Maryna, then Alexander on each card.
+2. `add_card_to_list` on Backlog for each sibling. Omit `⊙ Similar / relevant cards` on this first write — URLs do not exist yet. Assign Filipp on each card. Add the QA team (Maryna, Alexander) only on siblings that need QA work — see rule 3 in [`../SKILL.md`](../SKILL.md#mandatory-rules-no-card-ships-without-these).
 3. `update_card_custom_field` Project on each sibling.
 4. `update_card_details` on **each** sibling with `⊙ Similar / relevant cards` listing the other siblings as `[title](shortUrl) — same change, different supplier` (or `same program, different outcome`).
 

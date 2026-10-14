@@ -59,6 +59,7 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 | [`debugger`](../skills/debugger/SKILL.md) | Generalist debug front door when no specialist obviously owns the symptom: "debug/analyze/investigate this booking / transaction / log / error", "why is this behaving weird", "something's off with payments / ticketing / this supplier". Orients from a partitioned system-knowledge base, gathers evidence across MySQL / ClickHouse / MongoDB, genesis code, and Datadog, then hands off to bookability / optimizer / deploy_blamer / qa_assistant. Maintains the knowledge base after each investigation |
 | [`deploy_blamer`](../skills/deploy_blamer/SKILL.md) | Regression triage: "<symptom> started failing at T", "what changed in genesis between T1 and T2", "which PR caused this", pre-rollback "what to revert first" |
 | [`grill_with_docs`](../skills/grill_with_docs/SKILL.md) | User wants to stress-test a plan against the project's documented language and decisions, says "grill me with docs", or wants terminology sharpened and `CONTEXT.md` / ADRs updated as decisions crystallise |
+| [`growthbook`](../skills/growthbook/SKILL.md) | User asks about a GrowthBook feature flag or experiment (XP) — "is flag X on", "what does the <XP> XP do", targeting rules, variations, rollout percentage; another skill traces a `src/Ota/FeatureFlags/Flags/*` class and needs the live flag definition |
 | [`looker`](../skills/looker/SKILL.md) | Inspecting Looker, scaffolding a new GitHub-backed LookML project, or creating / modifying dashboards and tiles via the Looker MCP; refactoring existing LookML for readability / standards |
 | [`notion_assistant`](../skills/notion_assistant/SKILL.md) | The user wants to read, search, create, or update Notion content — "notion this", "save to notion", "create a notion page", "update the notion doc", "find in notion" |
 | [`optimizer`](../skills/optimizer/SKILL.md) | Optimizer matching audits: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-down, content-source-wide leak scan |
@@ -67,3 +68,9 @@ Detailed rules, query templates, and runners live under `.cursor/skills/<name>/`
 | [`qa_strategy`](../skills/qa_strategy/SKILL.md) | User wants a QA strategy, test plan, or staging/post-deploy checklist derived from a Trello card and its linked PR — "QA strategy for this card", "staging checklist for <card>", "what should we test for this PR", "post-deploy checks for <card>" |
 | [`skill_creator`](../skills/skill_creator/SKILL.md) | Adding, scaffolding, or wiring a new project-local skill |
 | [`trello_assistant`](../skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; splitting a fat request into sibling cards; working a card the user pointed at |
+
+## Agent skills
+
+### Issue tracker
+
+Issues live on GitHub (`filmozolevskiy/agents_setup`). See [`docs/agents/issue-tracker.md`](../../docs/agents/issue-tracker.md).
