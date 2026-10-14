@@ -1,12 +1,10 @@
 # Team roles
 
-Reference for who does what on the Content Integration team. Use this to pick the right person when suggesting an owner, assignee, reviewer, or `@mention` on a Trello card. **Do not auto-assign members yourself**—surface a suggestion and let the user confirm. **Exception: Filipp and the QA team** (see below) are always added to every card the agent creates or updates.
+Reference for who does what on the Content Integration team. Use this to pick the right person when suggesting an owner, assignee, reviewer, or `@mention` on a Trello card. **Do not auto-assign members yourself**—surface a suggestion and let the user confirm. **Exception: Filipp** (see below) is always added to every card the agent creates or updates.
 
 ## Always on every card
 
 - **Filipp** — Delivery manager. Must be a member of **every** card the agent creates or touches. **No exceptions.** If Filipp is not already on an existing card when the agent updates it, add him.
-- **Maryna** — QA. Must be a member of **every** card the agent creates or touches. Add her if she is not already on a card being updated.
-- **Alexander (Alex)** — QA. Must be a member of **every** card the agent creates or touches. Add him if he is not already on a card being updated.
 
 ## Developers
 
@@ -20,8 +18,10 @@ Reference for who does what on the Content Integration team. Use this to pick th
 
 ## QA
 
-- **Maryna** — always on every card (see [Always on every card](#always-on-every-card)).
-- **Alexander (Alex)** — always on every card (see [Always on every card](#always-on-every-card)).
+Not added by default. Add Maryna and Alexander only when the card needs QA work (a shipped fix to verify, a `QA notes` section, test coverage / regression), or the user asks. Suggest them in the approval proposal and add them after approval. Do not add or remove them on an update unless the user asks.
+
+- **Maryna**
+- **Alexander (Alex)**
 
 ## Analysts
 
