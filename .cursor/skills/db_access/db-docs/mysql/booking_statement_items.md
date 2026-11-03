@@ -32,7 +32,7 @@
 | `billing_info_id` | `int` | FK to billing info used on this item. |
 | `gds_account_id` | `varchar(25)` | Office/PCC. Indexed. |
 | `payment_processor` | `varchar(30)` | Who handled this leg: `payhub`, `agency`, `connexpay-merchant`, etc. Identifies **whose side** of the transaction this row represents (customer charge vs supplier payout). |
-| `created_by` | `int` | User/system that created the row. Indexed. |
+| `created_by` | `int` | Who created the row. `0` / NULL = system; > 0 = agent id (`agents.id`). Indexed. |
 | `create_date` | `datetime` | Creation timestamp. Indexed — primary time filter. |
 | `modified_by` / `modify_date` | — | Last modification audit. |
 | `deleted_by` / `deleted_date` | — | Soft-delete audit. Indexed on `deleted_date`. |
@@ -98,3 +98,7 @@ GROUP BY booking_id;
   - `fop='cheque'` + no virtual card row → real cheque / check (`CK`).
   - `fop='cheque'` + virtual card row → virtual credit card issued under a cheque wrapper (`VCC`).
 - Column `comission` is misspelled in the schema — keep the typo when querying.
+- **Agent vs system.** `created_by`, `modified_by`, `deleted_by`, `paid_by` > 0 = agent id in `ota.agents`; 0 or NULL = system. Check on seat items created 2026-09-15 → 2026-10-15 (Eastern): 23,204 / 8,422 / 4,263 / 25,001 non-zero ids, every one found in `ota.agents`. It is not the booking agent — `bookings.agent_id` is NULL on most of those bookings.
+- **Refunds are negative.** `transaction_type = 'refund'` rows store a negative `customer_amount`. Negate the sum to get the refunded amount. Check on `fare` / `service_fees` / seat refunds created 2026-09-15 → 2026-10-15 (Eastern): 16,216 negative, 3,791 zero, 3 positive.
+- **Seat items.** `ancillary_chargeable_seat` = airline seat price; `seatmap_fee` = our seat selection fee. Customer side = `payment_processor <> 'agency'`. The agency-side `ancillary_chargeable_seat` sale is what we pay the airline; `booking_ancillaries.booking_statement_item_id` points only at that row. Join seat requests to money by `booking_id` + `type` — see [`booking_ancillaries.md`](booking_ancillaries.md).
+- **Seat refund cron rows.** Refunds of `seatmap_fee` and customer-side `ancillary_chargeable_seat` with `created_by = 0`, `paid_by = 0`, created the day after departure at 08:xx Eastern. `status = 'deleted'` when the processor refund failed. Departures 2026-10-01 → 2026-10-08: 606 `seatmap_fee` + 318 `ancillary_chargeable_seat` rows. Rules and query: [`../../../debugger/knowledge/ancillaries.md`](../../../debugger/knowledge/ancillaries.md) § Seat refund cron.

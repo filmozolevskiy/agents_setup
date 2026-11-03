@@ -11,7 +11,7 @@
 | `search_id` | `varchar(32)` | Search / debug-log `transaction_id`. Indexed. |
 | `package_id` | `varchar(32)` | Package id on that search. |
 | `time_added` | `datetime(3)` | When the shadow row was written. Indexed. UTC (matches `debug_logs.date_added`). |
-| `matches` | `tinyint` | `1` = Mini Rules and Route Happy agree on refund and exchange. `0` = at least one dimension disagrees. `NULL` = comparison could not decide (Mini Rules `serviceable` is `unknown`, or after the checkout skip there is no Mini Rules side). Indexed. **Do not treat `NULL` as “skip happened”** — `NULL` already exists without the skip. |
+| `matches` | `tinyint` | `1` = Mini Rules and Route Happy agree on refund and exchange. `0` = at least one dimension disagrees. `NULL` = comparison could not decide (Mini Rules `serviceable` is `unknown`, or after the checkout skip there is no Mini Rules side). Indexed. **Do not treat `NULL` as “skip happened”** — `NULL` already exists without the skip. After PR 55893, `JSON_EXTRACT(rules, '$.master.mini_rules_skipped')` on this row is the later `booking-rules-from-package` fetch; a `false` here does not mean the search never skipped. Confirm on `debug_logs.mini_rules_skipped`. |
 | `refund_mismatch` | `tinyint` | `1` when refund disagrees. `NULL` when that dimension was not compared. Indexed. |
 | `exchange_mismatch` | `tinyint` | `1` when exchange disagrees. `NULL` when that dimension was not compared. Indexed. |
 | `rules` | `json` | Mini Rules (or unknown) booking-rules object: `master` / `slave`, each with `void`, `refund.beforeDeparture|afterDeparture`, `exchange.beforeDeparture|afterDeparture`. `slave` is JSON `null` on single-ticket. |
@@ -48,3 +48,4 @@ LIMIT 10;
 - Last 24h verified 2026-08-27: 44,152 rows — `matches=1` 23,919; `matches=0` 17,206; `matches IS NULL` 3,027.
 - Single-ticket vs multi-ticket: `JSON_TYPE(JSON_EXTRACT(rules, '$.slave')) = 'NULL'` vs `<> 'NULL'`.
 - Looker: [https://flighthub.looker.com/dashboards/1780](https://flighthub.looker.com/dashboards/1780)
+- Skip flag after 2026-09-10 19:50:12 UTC lives on `debug_logs` top-level `mini_rules_skipped`, not reliably on this SQL column. Confirmed tick 1 of the [SnbsZLD5](https://trello.com/c/SnbsZLD5) watch: 163 shadow rows all had `master.mini_rules_skipped = false` while Mongo had 825 skip-true documents.

@@ -97,3 +97,4 @@ WHERE booking_id = 12345;
   GROUP BY resolution;
   ```
   Verified 2026-06-11: 30 d FR24 void window (`type=12`, `b.gds='Flightroutes24'`) returned 304 agent-resolved + 41 unresolved + 0 system-resolved — consistent with the feature not having shipped yet.
+- **Baggage tasks.** `type = 2030` = system bag purchase; `type = 2031` / `2032` = bag cancel / change; child `type = 20` (Fulfillment) = agent manual fulfillment. Agent abort reason = free text in the child `note`; system abort reason = the 2030 `note`. See `debugger/knowledge/ancillaries.md` § Baggage fulfillment failure reasons. Confirmed 2026-10-09.
