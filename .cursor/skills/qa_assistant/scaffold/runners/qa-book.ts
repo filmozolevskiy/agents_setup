@@ -54,6 +54,8 @@ import { generateAdultPassenger } from '../test-data/factories/flighthub/passeng
 import { generatePassport } from '../test-data/factories/flighthub/passport.factory';
 import { FlighthubSearchResultsPage } from '../pages/flighthub/searchResults.page';
 import { JustflySearchResultsPage } from '../pages/justfly/searchResults.page';
+import { JustflyHomePage } from '../pages/justfly/home.page';
+import { SupportedCurrency } from '../enums/justfly/justfly';
 import { FlighthubCheckoutPage } from '../pages/flighthub/checkout.page';
 import { JustflyCheckoutPage } from '../pages/justfly/checkout.page';
 import { FlighthubBookingConfirmationPage } from '../pages/flighthub/bookingConfirmation.page';
@@ -92,6 +94,17 @@ function extractRunnerFlags(argv: string[]): {
     }
 
     return { flags, remaining };
+}
+
+/** Replace or append a URL-encoded form field in a `application/x-www-form-urlencoded` body. */
+function setFormField(body: string, name: string, value: string): string {
+    const encodedName = encodeURIComponent(name);
+    const encodedValue = encodeURIComponent(value);
+    const re = new RegExp(`(^|&)${encodedName}=[^&]*`);
+    if (re.test(body)) {
+        return body.replace(re, `$1${encodedName}=${encodedValue}`);
+    }
+    return `${body}&${encodedName}=${encodedValue}`;
 }
 
 async function main(): Promise<void> {
@@ -139,7 +152,7 @@ async function main(): Promise<void> {
     log(`brand=${brand} env=${env} mode=${inputs.mode}`);
     log(`search_url: ${flags.searchUrl}`);
     log(
-        `pin: content_source=${cs ?? '(none)'} office_id=${officeId ?? '(none)'} package_index=${inputs.packageIndex ?? '(none)'}`
+        `pin: content_source=${cs ?? '(none)'} office_id=${officeId ?? '(none)'} carrier=${inputs.carrier ?? '(none)'} package_index=${inputs.packageIndex ?? '(none)'}`
     );
     log(`failure_injection: ${inputs.failureInjection ?? '(none)'}`);
     log(`scenarioDir: ${scenarioDir}`);
@@ -157,21 +170,106 @@ async function main(): Promise<void> {
     let checkoutUrl = '';
     let idHash: string | null = null;
 
-
-
     try {
-        await session.page.goto(flags.searchUrl!);
+        const searchUrl = new URL(flags.searchUrl!);
+        if (inputs.pos && !searchUrl.searchParams.has('pos')) {
+            searchUrl.searchParams.set('pos', inputs.pos);
+        }
+        if (inputs.currency && !searchUrl.searchParams.has('currency')) {
+            searchUrl.searchParams.set('currency', inputs.currency);
+        }
+        if (inputs.pos || inputs.currency) {
+            const domain = brand === 'justfly' ? '.justfly.com' : '.flighthub.com';
+            const cookies: Parameters<typeof session.context.addCookies>[0] = [];
+            if (inputs.currency) {
+                cookies.push(
+                    {
+                        name: 'currency',
+                        value: inputs.currency,
+                        domain,
+                        path: '/',
+                    },
+                    {
+                        name: 'display_currency',
+                        value: inputs.currency.toLowerCase(),
+                        domain,
+                        path: '/',
+                    }
+                );
+            }
+            if (inputs.pos) {
+                cookies.push({
+                    name: 'country',
+                    value: inputs.pos,
+                    domain,
+                    path: '/',
+                });
+            }
+            await session.context.addCookies(cookies);
+            log(
+                `POS cookies: ${cookies.map((c) => `${c.name}=${c.value}`).join(' ')}`
+            );
+        }
+        log(`opening ${searchUrl.toString()}`);
+        await session.page.goto(searchUrl.toString());
 
         const resultsPage =
             brand === 'flighthub'
                 ? new FlighthubSearchResultsPage(session.page)
                 : new JustflySearchResultsPage(session.page);
 
+        // Cookie + price-alert overlays can make the first search return
+        // 0 packages. Geo-IP also pins CAD for this runner; BA Amadeus NDC
+        // on the user's URL is a US/USD search. Dismiss, force USD, re-wait.
+        await resultsPage.dismissInterruptions();
+        await session.page.keyboard.press('Escape').catch(() => undefined);
+        if (brand === 'justfly' && inputs.currency) {
+            const home = new JustflyHomePage(session.page);
+            const shown =
+                (await home.currencyDisplay.textContent().catch(() => '')) ??
+                '';
+            const wanted = inputs.currency.toUpperCase();
+            if (!shown.toUpperCase().includes(wanted)) {
+                log(
+                    `header currency=${shown.trim() || '(empty)'} — switching to ${wanted}`
+                );
+                const currencyEnum = Object.values(SupportedCurrency).find(
+                    (v) => v === wanted
+                );
+                if (currencyEnum) {
+                    await home
+                        .selectCurrency(currencyEnum)
+                        .catch((e) =>
+                            log(`WARN: currency switch failed: ${String(e)}`)
+                        );
+                }
+            }
+        }
+        await resultsPage.dismissInterruptions();
+        await session.page.keyboard.press('Escape').catch(() => undefined);
         await resultsPage.waitForResults();
+        await resultsPage.dismissInterruptions();
         await session.page.screenshot({
             path: scenarioPath(scenarioDir, '001-search-results.png'),
             fullPage: false,
         });
+
+        let sourceMatchIdxs: number[] | null = null;
+        let baAirlineFilterApplied = false;
+
+        // The storefront QA Overrides tool pins a source via
+        // `single_content_source=` on the search URL. Results are already
+        // filtered; re-applying Debug Filters would re-run search and can
+        // drop that pin. Still keep `--content-source` so checkout disables
+        // the optimizer.
+        const urlAlreadyPinned = /[?&]single_content_source=/i.test(
+            session.page.url()
+        );
+        if (cs && urlAlreadyPinned) {
+            log(
+                `search URL already has single_content_source; skipping Debug Filter pin`
+            );
+        }
 
         // Filter result packages to the requested content source via the
         // staging-only Debug Filters panel. On the new staging64 storefront the
@@ -187,7 +285,7 @@ async function main(): Promise<void> {
         // onChange handler receives a recognized supplier slug. Selecting an
         // option re-runs the search; we wait for the results list to
         // re-populate before returning.
-        if (cs) {
+        if (cs && !urlAlreadyPinned) {
             // eslint-disable-next-line playwright/no-raw-locators
             const filterSelect = session.page.locator('select#gds');
             // The Debug Filters panel is React-rendered AFTER the results
@@ -289,20 +387,210 @@ async function main(): Promise<void> {
                         scenario_dir: scenarioDir,
                     });
                 }
+                const airlineName =
+                    inputs.carrier?.toUpperCase() === 'BA'
+                        ? 'British Airways'
+                        : null;
+                if (airlineName) {
+                    await resultsPage.dismissInterruptions();
+                    await resultsPage
+                        .toggleAirlineFilter(airlineName)
+                        .catch(() => undefined);
+                    await session.page
+                        .getByText(/^Done$/)
+                        .first()
+                        .waitFor({ state: 'visible', timeout: 20_000 })
+                        .catch(() => undefined);
+                    let afterAirline = 0;
+                    const airlineDeadline = Date.now() + 10_000;
+                    while (Date.now() < airlineDeadline) {
+                        afterAirline = await resultsPage.resultCards
+                            .count()
+                            .catch(() => 0);
+                        if (afterAirline > 0) break;
+                        await session.page.waitForTimeout(400);
+                    }
+                    log(
+                        `airline filter ${airlineName}: result cards=${afterAirline}`
+                    );
+                    if (afterAirline > 0) baAirlineFilterApplied = true;
+                    await session.page.screenshot({
+                        path: scenarioPath(scenarioDir, '001c-airline-filter.png'),
+                        fullPage: false,
+                    }).catch(() => undefined);
+                    if (afterAirline === 0) {
+                        emitError('no_packages_after_filter', {
+                            detail: `--carrier ${inputs.carrier} / ${airlineName} left 0 cards after the Amadeus NDC debug filter.`,
+                            checkout_url: null,
+                            scenario_dir: scenarioDir,
+                        });
+                    }
+                }
             } else {
-                log(`WARN: --content-source ${cs} pin not applied — select#gds did not mount within 6.5s (Debug Filters panel may be missing on this build); selecting first package (optimizer kill-switch still applies in checkout)`);
+                // Production (and some staging builds) have no Debug Filters
+                // panel. Walk per-card Show Info and keep indices whose
+                // `gds =>` line matches --content-source.
+                const n = await resultsPage.resultCards.count();
+                const wanted = cs.replace(/[-_\s]/g, '').toLowerCase();
+                const officeCompact = officeId
+                    ? officeId.replace(/[-_\s]/g, '').toLowerCase()
+                    : null;
+                sourceMatchIdxs = [];
+                for (let i = 0; i < n; i++) {
+                    const card = resultsPage.resultCard(i);
+                    await card
+                        .getByRole('button', { name: /Show Info/i })
+                        .click()
+                        .catch(() => undefined);
+                    const compact = (await card.innerText())
+                        .replace(/[-_\s]/g, '')
+                        .toLowerCase();
+                    const gdsLine = /gds=>([a-z0-9]+)/.exec(compact);
+                    const sourceHit = gdsLine
+                        ? gdsLine[1] === wanted
+                        : compact.includes(wanted);
+                    const ndcOfficeHit =
+                        wanted === 'amadeusndc' &&
+                        /(?:ord1s21dendc|ykxc42100ndc|atl1s211sndc)/.test(
+                            compact
+                        );
+                    const officeHit =
+                        !officeCompact || compact.includes(officeCompact);
+                    if ((sourceHit || ndcOfficeHit) && officeHit) {
+                        sourceMatchIdxs.push(i);
+                    }
+                }
+                log(
+                    `Show Info pin ${cs}: matched card indices [${sourceMatchIdxs.join(', ')}] of ${n}`
+                );
+                await session.page.screenshot({
+                    path: scenarioPath(scenarioDir, '001b-post-filter.png'),
+                    fullPage: false,
+                }).catch(() => undefined);
+                if (sourceMatchIdxs.length === 0) {
+                    emitError('source_not_available_in_ui', {
+                        detail: `--content-source ${cs} matched 0 of ${n} visible cards via Show Info. Shift date/route.`,
+                        checkout_url: null,
+                        scenario_dir: scenarioDir,
+                    });
+                }
             }
         }
 
-        if (inputs.packageIndex !== undefined) {
-            await resultsPage.resultCardSelectButton(inputs.packageIndex).click();
+        const wantedCarrier = inputs.carrier?.toUpperCase();
+        const nCards = await resultsPage.resultCards.count();
+        const scanIdxs =
+            sourceMatchIdxs ??
+            Array.from({ length: nCards }, (_, i) => i);
+        if (wantedCarrier) {
+            const flightRe = new RegExp(`\\b${wantedCarrier}\\s*\\d+`, 'i');
+            const cardLooksLikeCarrier = async (i: number): Promise<boolean> => {
+                const text = await resultsPage.resultCard(i).innerText();
+                const name =
+                    (await resultsPage.resultCardCarrierName(i).textContent()) ??
+                    '';
+                const operatedBy = /operated by.{0,25}british airways/i.test(
+                    `${text} ${name}`
+                );
+                return (
+                    flightRe.test(text) ||
+                    (/\bbritish airways\b/i.test(`${text} ${name}`) &&
+                        !operatedBy)
+                );
+            };
+            let matchIdx = -1;
+            for (const i of scanIdxs) {
+                if (await cardLooksLikeCarrier(i)) {
+                    matchIdx = i;
+                    break;
+                }
+            }
+            if (matchIdx < 0 && wantedCarrier === 'BA') {
+                await resultsPage.dismissInterruptions();
+                await resultsPage.clearAllFilters().catch(() => undefined);
+                for (let n = 0; n < 10 && matchIdx < 0; n++) {
+                    const tile = session.page.getByText('British Airways', {
+                        exact: true,
+                    });
+                    if (await tile.first().isVisible().catch(() => false)) {
+                        await tile.first().click().catch(() => undefined);
+                        await session.page.waitForTimeout(1500);
+                        break;
+                    }
+                    await session.page
+                        .getByText('Looking for a specific airline')
+                        .locator('xpath=following::button[1]')
+                        .click()
+                        .catch(() => undefined);
+                    await session.page
+                        .locator('button')
+                        .filter({ hasText: /^›$|^>$/ })
+                        .last()
+                        .click({ timeout: 1000 })
+                        .catch(() => undefined);
+                    await session.page.waitForTimeout(400);
+                }
+                const nAfter = await resultsPage.resultCards.count();
+                const idxs = Array.from({ length: nAfter }, (_, i) => i);
+                for (const i of idxs) {
+                    if (await cardLooksLikeCarrier(i)) {
+                        matchIdx = i;
+                        break;
+                    }
+                }
+            }
+            log(
+                `carrier pin ${wantedCarrier}: matched card index ${matchIdx} of scan [${scanIdxs.join(', ')}]`
+            );
+            if (matchIdx < 0) {
+                emitError('no_packages_after_filter', {
+                    detail: `--carrier ${wantedCarrier} matched 0 of ${scanIdxs.length} source-pinned cards. Marketing-carrier flight numbers were not on the filtered list.`,
+                    checkout_url: null,
+                    scenario_dir: scenarioDir,
+                });
+            }
+            await resultsPage.dismissInterruptions();
+            const firstCardText = await resultsPage
+                .resultCard(matchIdx)
+                .innerText()
+                .catch(() => '');
+            if (
+                wantedCarrier === 'BA' &&
+                !/british airways/i.test(firstCardText)
+            ) {
+                emitError('no_packages_after_filter', {
+                    detail: `First filtered card is not British Airways. Card text starts: ${firstCardText.slice(0, 180)}`,
+                    checkout_url: null,
+                    scenario_dir: scenarioDir,
+                });
+            }
+            await resultsPage.resultCardSelectButton(matchIdx).click({
+                timeout: 15_000,
+            });
+            await resultsPage.handlePostSelectModals();
+        } else if (inputs.packageIndex !== undefined) {
+            const pick =
+                sourceMatchIdxs != null
+                    ? sourceMatchIdxs[inputs.packageIndex]
+                    : inputs.packageIndex;
+            if (pick === undefined) {
+                emitError('no_packages_after_filter', {
+                    detail: `--package-index ${inputs.packageIndex} is out of range for the pinned source subset.`,
+                    checkout_url: null,
+                    scenario_dir: scenarioDir,
+                });
+            }
+            await resultsPage.resultCardSelectButton(pick).click();
+            await resultsPage.handlePostSelectModals();
+        } else if (sourceMatchIdxs != null) {
+            await resultsPage.resultCardSelectButton(sourceMatchIdxs[0]).click();
             await resultsPage.handlePostSelectModals();
         } else {
             await resultsPage.selectFirstResult();
         }
 
         await session.page.waitForURL(/\/checkout\/billing\/flight\//, {
-            timeout: 30000,
+            timeout: 90000,
         });
         checkoutUrl = session.page.url();
         log(`checkout URL: ${checkoutUrl}`);
@@ -364,11 +652,22 @@ async function main(): Promise<void> {
         // This bypasses the React form state entirely so qa_debug_* fields
         // come from our code, not from autofill defaults.
         if (inputs.mode === 'api') {
-            if (env !== 'production') {
-                const autofillCalled = await checkoutPage.clickAutofill()
-                    .then(() => true)
-                    .catch(() => false);
-                if (autofillCalled) log('autofill clicked (is_test=1 set)');
+            const autofillCalled = await checkoutPage.clickAutofill()
+                .then(() => true)
+                .catch(() => false);
+            const afInUrl = session.page.url().includes('af=');
+            if (autofillCalled && afInUrl) {
+                log('autofill clicked (is_test=1 set)');
+            } else {
+                log('WARN: Autofill did not set ?af= on the checkout URL');
+            }
+            if (env === 'production' && !afInUrl) {
+                emitError('selector_not_found', {
+                    name: 'checkout.autofill_link',
+                    detail: 'Refusing to submit a production booking without Autofill (?af=). That param sets is_test=1.',
+                    checkout_url: checkoutUrl,
+                    scenario_dir: scenarioDir,
+                });
             }
 
             // Advance to the payment step if this is a two-step checkout so
@@ -408,6 +707,40 @@ async function main(): Promise<void> {
                 return parts.join('&');
             })()`));
             log('serialized ' + formBody.split('&').length + ' form fields from DOM');
+
+            // Autofill sets is_test=1 but also overwrites names. Re-apply
+            // passenger / cardholder overrides on the POST body so A/B name
+            // cases survive API mode.
+            const overridePassengers = generatePassengersFromBookingInputs({
+                ...inputs,
+                brand,
+                env,
+            });
+            if (inputs.passengerOverrides.length > 0 && overridePassengers[0]) {
+                formBody = setFormField(
+                    formBody,
+                    'p1_first_name',
+                    overridePassengers[0].firstName
+                );
+                formBody = setFormField(
+                    formBody,
+                    'p1_last_name',
+                    overridePassengers[0].lastName
+                );
+                log(
+                    `passenger override p1=${overridePassengers[0].firstName} ${overridePassengers[0].lastName}`
+                );
+            }
+            if (inputs.paymentOverrides.cardholderName) {
+                formBody = setFormField(
+                    formBody,
+                    'cc_name',
+                    inputs.paymentOverrides.cardholderName
+                );
+                log(
+                    `cardholder override cc_name=${inputs.paymentOverrides.cardholderName}`
+                );
+            }
 
             // Force optimizer/repricer kill-switch into the POST body when
             // --content-source is pinned. Playwright's selectOption fires the
@@ -583,13 +916,12 @@ async function main(): Promise<void> {
         // is the only remaining test hook. No-ops if the link is not present (production
         // or old checkout). Called before passenger fill so our factory data overwrites
         // the autofill pre-fill on every field.
-        if (env !== 'production') {
-            const autofillCalled = await (checkoutPage as FlighthubCheckoutPage)
-                .clickAutofill()
-                .then(() => true)
-                .catch(() => false);
-            if (autofillCalled) log('autofill clicked (is_test=1 set)');
-        }
+        const autofillCalled = await (checkoutPage as FlighthubCheckoutPage)
+            .clickAutofill()
+            .then(() => true)
+            .catch(() => false);
+        if (autofillCalled) log('autofill clicked (is_test=1 set)');
+        else log('WARN: Autofill link not clicked — is_test=1 may not be set');
 
         // Pin ConnexPay before continueToPayment() — the Debugging Options
         // section is hidden once the payment panel expands.

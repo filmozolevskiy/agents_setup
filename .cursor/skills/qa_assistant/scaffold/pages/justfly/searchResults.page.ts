@@ -348,6 +348,9 @@ export class JustflySearchResultsPage {
                 this.page.getByRole('link', {
                     name: Messages.SEARCH_RESULTS_BUNDLE_CONTINUE_FLIGHT_ONLY,
                 })
+            )
+            .or(
+                this.page.getByText(/Continue with flight only/i)
             );
     }
 
@@ -469,6 +472,22 @@ export class JustflySearchResultsPage {
                 // Promo can't be closed — fall through.
             }
         }
+        await this.page.keyboard.press('Escape').catch(() => undefined);
+        const overlayClose = this.page
+            .locator('.ReactModal__Content')
+            .getByText('\u00d7', { exact: true })
+            .first();
+        await overlayClose
+            .click({ timeout: INTERRUPTION_DISMISS_TIMEOUT_MS })
+            .catch(() => undefined);
+        await this.bundleContinueWithFlightOnly
+            .click({ timeout: INTERRUPTION_DISMISS_TIMEOUT_MS })
+            .catch(() => undefined);
+        await this.page
+            .locator('.storefront-modal-overlay')
+            .first()
+            .waitFor({ state: 'hidden', timeout: 3000 })
+            .catch(() => undefined);
     }
 
     /**
@@ -654,6 +673,11 @@ export class JustflySearchResultsPage {
             Messages.SEARCH_RESULTS_FILTER_AIRLINES,
             'open'
         );
+        await this.page
+            .getByText(Messages.SEARCH_RESULTS_AIRLINES_SHOW_ALL)
+            .first()
+            .click({ timeout: 5000 })
+            .catch(() => undefined);
         await this.airlinesFilterRow(carrierName).scrollIntoViewIfNeeded();
         await this.airlinesFilterRow(carrierName).click();
     }
