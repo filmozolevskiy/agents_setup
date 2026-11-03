@@ -48,5 +48,6 @@ ORDER BY date_added, id;
 
 **Notes:**
 - Ticket-issue form-of-payment recovery writes exactly `FOP not accepted. Switching to VCC` or `FOP not accepted. Switching to check` (`employee_id = 0`). Confirmed 2026-08-20 on Amadeus bookings `306283491` (check), `306236021` (VCC), `306563331` (check).
+- After genesis PR 55340 (2026-08-28), a `Switching to check` note is not the old PNR-update skip. Cheque still means: fares already had a virtual card, first-part availability failed, or the issued virtual card was then refused. Both notes on one booking = virtual card issued, then airline refused it. Confirmed 2026-08-31 on `307409891` (already-carded), `307406831` (credit-card-not-supported), `307248111` (VCC then 5.51). See `debugger/knowledge/payments.md`.
 - That note is the decision at reject time. The later agency fare statement FOP can still be `credit_card` after Wenrix issuance or a new customer card. Do not treat final `booking_statement_items.fop` as proof of this note.
 - Related retry log text (debug log, not this table): `FOP switched to VCC successfully. Retrying issuance.` / `FOP switched to check successfully. Retrying issuance.`
