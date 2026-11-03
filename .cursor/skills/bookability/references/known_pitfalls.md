@@ -144,6 +144,55 @@ Lesson: check `booking_tickets` and the `DocIssuance` reply before treating a We
 
 ---
 
+## Navitaire NDC — `flight not available` after `whereServiceCode` TypeError
+
+**ClickHouse signature:**
+
+- `gds = 'navitaire-ndc'`
+- `error_message LIKE '%BundleCollection::whereServiceCode()%'`
+- `booking_step = 'Mv_Ota_Air_Booker_NavitaireNdc->navitairePricePackage()'`
+- `classification_category = 'TECHNICAL_ERRORS'`, `classification_subcategory = 'Internal code error'`
+- `validating_carrier = 'PD'`; offices `NAVPDUSD` / `NAVPDCAD`
+
+**MySQL fingerprint:** `bconta.error = 'other'`, `bconta.exception = 'Exception'`, `bconta.gds_error_message` NULL. Customer-attempt status can still be `1` when Amadeus recovers.
+
+### Why it tricks the report
+
+The booker maps the TypeError to user-facing `flight not available`. MySQL then stores `other`. That looks like Porter inventory gone. ClickHouse already classifies it as an internal code error. AirShopping on the same transaction can still return matching fares (`navitaire-refresh-package-multiple-matches`).
+
+### Disambiguation step (mandatory before calling this an availability miss)
+
+Open `booker-manager-single-ticket` at `level` `critical` and read `exception`. If the message is `whereServiceCode(): Argument #1 ($serviceCodes) must be of type array|string, null given`, this is the TypeError cluster, not a supplier seat miss.
+
+```bash
+set -a && source .env && set +a
+python3 .cursor/skills/db_access/scripts/mongo_query.py find debug_logs ota \
+  --filter '{"transaction_id": "<HASH>", "context": "booker-manager-single-ticket"}' \
+  --limit 2 --json
+```
+
+```sql
+SELECT error_message, booking_step, classification_category
+FROM jupiter.jupiter_booking_errors_v2
+WHERE search_id = '<HASH>'
+  AND timestamp >= '<start>'
+  AND timestamp <  '<end>';
+```
+
+### Decision rule
+
+| Evidence | Classification |
+|----------|----------------|
+| `exception` contains `whereServiceCode` + `null given` | Internal TypeError. Not a Porter inventory miss. |
+| AirShopping returned matches, then `booker-manager-single-ticket` went critical | Same cluster. |
+| Supplier `Response` says seats / offer gone, and there is no TypeError | Real availability miss. |
+
+### Recorded misjudgement
+
+2026-09-03 session `afaee3c6d4714d8af44ccc65a527afa9`. MySQL `other` + booker `flight not available`. ClickHouse and the pinned debug log showed the TypeError. The user recovered on Amadeus booking `307711471`. Lesson: do not treat Navitaire `other` / `flight not available` as inventory until the debug-log exception is read.
+
+---
+
 ## Adding a new entry
 
 Append a new `## <supplier> — <cluster name>` section under this same shape:
