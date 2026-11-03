@@ -4,7 +4,7 @@ Everything a Content Integration card carries. **Four mandatory sections, up to 
 
 Section order (mandatory + optional interleaved):
 
-1. `### ⊙ **Short description**` *(mandatory)* — one sentence, the scannable TL;DR.
+1. `### ⊙ **Short description**` *(mandatory)* — a summary of the whole card in one or two short sentences, the scannable TL;DR.
 2. `### ⊙ **Details**` *(mandatory)* — the flow explained, with debug-log permalinks inline to verify. **What changed, not how to fix it.**
 3. `### ⊙ **Possible solution / expected behavior**` *(optional, when present sits here — right after Details)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation.
 4. `### ⊙ **Visibility**` *(mandatory)* — how we track it: the debuggable query + count/window.
@@ -82,16 +82,20 @@ Good: `RESPRO: Downtowntravel booking fails at payment`. `OPTIMIZATION: FLX NDC 
 
 ### `### ⊙ **Short description**` (mandatory)
 
-One sentence. What fails + where, plain language. The line a reader uses to triage without opening anything else.
+A summary of the whole card in one or two short sentences. The line a reader uses to triage without opening anything else. It answers two questions: what is the problem, and what does this card change?
 
+- Sentence one: the problem (what fails + where). Sentence two: the outcome the card asks for. On a card for finished work, state what was delivered.
+- Not a snapshot of the current situation. A line that only describes today's behavior does not tell the reader what the card is for.
 - Everyday verbs (`booking fails`, `we get error X`, `manual rate climbed`).
 - Name the flow / integration / content source in plain words.
 - One error code is allowed if it anchors the card. No stacked acronyms, no payload walkthroughs, no counts. Those belong elsewhere.
 
 ```markdown
 ### ⊙ **Short description**
-BookFlight on Amadeus office YYZAA38AA fails with NO FARE FOR CLASS — looks like a class-mapping mismatch on our side.
+BookFlight on Amadeus office YYZAA38AA fails with NO FARE FOR CLASS. Send the class Amadeus accepts so these bookings succeed.
 ```
+
+Wrong (current situation only): `Dida void tasks go to agents.` Right: `Dida void tasks go to agents by hand. The system should void them with Dida and close the task, and fall back to an agent only if Dida does not confirm.`
 
 ### `### ⊙ **Details**` (mandatory)
 
