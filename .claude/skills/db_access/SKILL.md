@@ -142,7 +142,7 @@ Try keyword variations (e.g. "block", "blocked", "block_reason", "status").
 
 **MongoDB** — no `information_schema`. Shortlist collections by name, then use `describe` and `find` / `aggregate` with small limits to inspect fields. For a cross-key scan, use an aggregation with `$objectToArray` on a small `$sample`.
 
-**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.claude/skills/debugger/knowledge/bookability/debug_logs_query_patterns.md`.
+**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.claude/skills/debugger/knowledge/booking-flow.md`.
 
 #### 4c. Sample candidates in parallel
 

@@ -70,5 +70,5 @@ WHERE child.id = :candidate_id;
 
 **Notes:**
 - Multi-ticket attempts emit one candidate per `Reprice[master_N]` / `Reprice[slave_N]` operand. When auditing, iterate all operands; do not collapse on `attempt_id` alone.
-- `reprice_and_drop` candidates are shadow repricings and are usually ignored in matching audits (see `.claude/skills/debugger/knowledge/optimizer/`).
+- `reprice_and_drop` candidates are shadow repricings and are usually ignored in matching audits (see `.claude/skills/debugger/knowledge/optimizer.md`).
 - `parent_id` is the only structural link between a reprice variant and its anchor — join back to the same table to recover it.

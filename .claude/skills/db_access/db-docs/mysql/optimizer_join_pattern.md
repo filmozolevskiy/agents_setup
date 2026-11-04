@@ -128,6 +128,6 @@ LEFT JOIN tags_agg tags ON tags.candidate_id = b.contestant_id;
 
 ### Related
 
-- Skills: `.claude/skills/debugger/knowledge/optimizer/_overview.md`, including `references/matching_audit_scan.md` and `references/mistake_classification.md`.
+- Skills: `.claude/skills/debugger/knowledge/optimizer.md` (behavior, mistake classes, multi-ticket rules).
 - Per-table docs: `optimizer_candidates.md`, `optimizer_attempts.md`, `optimizer_attempt_bookings.md`, `optimizer_candidate_tags.md`, `optimizer_tags.md`.
 - `bookings` (`bookings.md`) is the far side of `optimizer_attempt_bookings.booking_id`.

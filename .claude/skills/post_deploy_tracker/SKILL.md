@@ -69,10 +69,10 @@ This skill writes no SQL of its own. Per tick it drives:
 
 - [`db_access`](../db_access/SKILL.md) for the CLI scripts and
   documented schemas.
-- [`debugger` bookability playbook](../debugger/knowledge/bookability/_overview.md) for the
+- [`debugger` bookability notes](../debugger/knowledge/booking-flow.md) for the
   SQL templates (success / failure / error-signature queries) and
   for `debug_logs` evidence patterns.
-- [`debugger` optimizer playbook](../debugger/knowledge/optimizer/_overview.md) when the
+- [`debugger` optimizer notes](../debugger/knowledge/optimizer.md) when the
   card target involves matching / contestants / fare basis (look for
   optimizer keywords in the card description).
 
@@ -242,7 +242,7 @@ the post-deploy watch on <short_link>":
 - Cross-skill load list (read each before driving its templates):
   [`db_access/SKILL.md`](../db_access/SKILL.md),
   [`debugger/SKILL.md`](../debugger/SKILL.md),
-  [bookability playbook](../debugger/knowledge/bookability/_overview.md),
-  [optimizer playbook](../debugger/knowledge/optimizer/_overview.md).
+  [bookability notes](../debugger/knowledge/booking-flow.md),
+  [optimizer notes](../debugger/knowledge/optimizer.md).
 - Parent card:
   [doJTY0Eu — Post-deploy verification skill](https://trello.com/c/doJTY0Eu).

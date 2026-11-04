@@ -5,6 +5,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+# .env and bin/ are gitignored, so a git worktree has neither. Fall back to the
+# main checkout so the server starts from any worktree or session folder.
+if [[ ! -f "${REPO_ROOT}/.env" ]]; then
+  COMMON_DIR="$(git -C "${REPO_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  if [[ -n "${COMMON_DIR}" && -f "$(dirname "${COMMON_DIR}")/.env" ]]; then
+    REPO_ROOT="$(dirname "${COMMON_DIR}")"
+  fi
+fi
 ENV_FILE="${REPO_ROOT}/.env"
 
 if [[ ! -f "${ENV_FILE}" ]]; then

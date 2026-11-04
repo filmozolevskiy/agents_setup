@@ -1,19 +1,39 @@
 {
   "mcpServers": {
     "clickhouse": {
-      "command": "./.claude/skills/db_access/scripts/mcp_clickhouse.sh"
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/db_access/scripts/mcp_clickhouse.sh\""
+      ]
     },
     "looker": {
-      "command": "./.claude/skills/looker_assistant/scripts/mcp_looker.sh"
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/looker_assistant/scripts/mcp_looker.sh\""
+      ]
     },
     "GitHub": {
-      "command": "./.claude/skills/deploy_blamer/scripts/mcp_github.sh"
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/deploy_blamer/scripts/mcp_github.sh\""
+      ]
     },
     "trello": {
-      "command": "./.claude/skills/trello_assistant/scripts/mcp_trello.sh"
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/trello_assistant/scripts/mcp_trello.sh\""
+      ]
     },
     "growthbook": {
-      "command": "./.claude/skills/growthbook_assistant/scripts/mcp_growthbook.sh"
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/growthbook_assistant/scripts/mcp_growthbook.sh\""
+      ]
     },
     "Notion": {
       "type": "http",

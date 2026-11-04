@@ -363,7 +363,7 @@ When an example URL is a ResPro booking page, a Trello card, or anything Trello 
 
 ## Where to pull queries from
 
-- [`debugger` bookability playbook](../../debugger/knowledge/bookability/_overview.md) — MySQL rates / surfer / recovery + Mongo permalink harvest.
+- [`debugger` bookability notes](../../debugger/knowledge/booking-flow.md) — MySQL rates / surfer / recovery + Mongo permalink harvest.
 - [`db_access`](../../db_access/SKILL.md) — find the right table, document a newly understood one.
 - Repo scripts: `.claude/skills/db_access/scripts/mysql_query.py`, `clickhouse_query.py`, `mongo_query.py`.
 

@@ -2,7 +2,7 @@
 
 How money moves for a booking: the customer charge, the virtual card that pays the supplier, and the financial records. Payhub is the internal payment processor (not only the external card gateway).
 
-_Schemas: `../../db_access/db-docs/mysql/booking_statement_items.md`, `booking_statement_transactions.md`, `booking_virtual_card_statement_items.md`. Seeded 2026-07-30 from `debug_logs.md`; extend via the maintenance loop._
+_Schemas: `../../db_access/db-docs/mysql/booking_statement_items.md`, `booking_statement_transactions.md`, `booking_virtual_card_statement_items.md`. Seeded 2026-07-30 from `debug_logs.md`; Known traps merged from the old bookability notes 2026-11-04; extend via the maintenance loop._
 
 ## Payhub call sequence
 
@@ -25,7 +25,7 @@ Payment failures are **not** bookability failures — keep them out of the booka
 - MySQL: `contestant_error = payment_error`.
 - ClickHouse: `classification_category = 'PAYMENT_ERRORS'`.
 
-When supplier-side evidence shows a payment cause under a generic code (or the reverse), flag "SQL vs Mongo mismatch"; supplier / payment evidence wins for the root-cause narrative. Watch for clusters that *look* like payment but are not (e.g. virtual-card clusters) — see `../../bookability/references/known_pitfalls.md`.
+When supplier-side evidence shows a payment cause under a generic code (or the reverse), flag "SQL vs Mongo mismatch"; supplier / payment evidence wins for the root-cause narrative. Watch for clusters that *look* like payment but are not (e.g. virtual-card clusters) — see [Known traps](#known-traps). Lens table: [`booking-flow.md`](booking-flow.md#error-classification-lenses-mysql--clickhouse).
 
 ## Tracing a VCC decision / failure
 
@@ -41,6 +41,41 @@ A silent cheque fallback = VCC was eligible (step 1 true) but issuance crashed (
 Known regression: a `TypeError` in `PaymentManager::prepareVcc` (`Mv_Ota_Site::getNameForId()` called with an array `site_id`) crashes issuance before any Payhub call, forcing cheque. First seen 2026-07-27; 8 bookings in the first 3 days. Signature: context `booker-payment-manager-failed-to-issue-vcc` with `exception` matching `getNameForId`.
 
 **Clickable evidence:** build a permalink to the exact log entry as `https://reservations.voyagesalacarte.ca/debug-logs/log-group/<transaction_id>#<_id>` so the reader opens the row in one click.
+
+## Known traps
+
+### Downtowntravel: "Virtual card merchant fare statement items failed"
+
+Signature (ClickHouse): `gds = 'downtowntravel'`, `error_message = 'Virtual card merchant fare statement items failed'`, `booking_step` `Mv_Ota_Air_Booker->processVirtualCardMerchantFareStatementItems()`, `classification_category = 'PAYMENT_ERRORS'`. MySQL: `bconta.error = 'payment_error'`, `bookings.status = 'cancelled'`, `cancel_reason = 'aborted'`, `multiticket_part IS NULL`.
+
+Trap: the same cleanup chain runs after **two different events**.
+- **(A) The Sale failed** (decline, suspected fraud). Cleanup tears down the virtual card. Real payment failure. The ClickHouse class is right.
+- **(B) The Sale succeeded**, then a fare increase or supplier rejection reverses the charge. Real bookability failure. The ClickHouse class is wrong.
+
+`cancel_reason = 'aborted'` does not tell A from B. The app sets it for any post-Sale cleanup. Do not use it as proof.
+
+Disambiguate before any reclassification. Count successful Sales per transaction:
+
+```json
+[{"$match": {"transaction_id": {"$in": ["<HASH1>", "<HASH2>"]},
+             "context": "payhub_api_response_Momentum\\Payhub\\Request\\Sale"}},
+ {"$project": {"transaction_id": 1,
+               "is_success": {"$regexMatch": {"input": "$response", "regex": "\"success\":\\s*true"}}}},
+ {"$group": {"_id": "$transaction_id", "sales_total": {"$sum": 1},
+             "sales_succeeded": {"$sum": {"$cond": ["$is_success", 1, 0]}}}}]
+```
+
+Run it with `.claude/skills/db_access/scripts/mongo_query.py aggregate debug_logs "<pipeline>" ota --json`. For each transaction with `sales_succeeded >= 1`, list contexts `loss-limit-fare-increase` and the `Sale` response sorted by `date_added`, and check the order.
+
+| Evidence | Class | Action |
+|---|---|---|
+| `sales_succeeded = 0` for the cluster | Payment is right | Keep as payment. Exclude from the bookability rate. |
+| Some Sales succeeded, but every `loss-limit-fare-increase` comes **before** the successful Sale | Payment is right | Keep as payment. The customer booked later under another `booking_id`. That belongs in the recovery rate. |
+| Sale succeeded and `loss-limit-fare-increase` comes **after** it, right before `DeferredRefundPaidStatementItemsAction::run` | Payment is wrong | Reclassify as bookability. Anchor on the post-Sale `loss-limit-fare-increase` log `_id`. State the effect on the rate. |
+
+The same check applies to any payment-shaped wrapper, such as `Credit Card payment declined`.
+
+Recorded miss (2026-05-05): a ClickHouse-only reading projected the rate dropping from 90.1% to 86.0%. Mongo showed 11 of 45 Sales succeeded across 14 sessions, and every fare-increase event came before the Sale. Variant A for all sessions. The claim was retracted.
 
 ## Where to look (evidence map)
 

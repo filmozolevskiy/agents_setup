@@ -14,7 +14,7 @@ When the card description or user leaves a TODO (e.g. `TODO: Write a query to ve
 
 The card title prefix (`OPTIMIZER:`, `BOOKABILITY:`, `PAYHUB:` …) reflects product area, not data grain. Do not let it steer the table choice.
 
-For multi-ticket "find the combination of CARRIER_A + CARRIER_B" TODOs the grain is `ota.bookability_contestant_attempts` (master/slave self-joined on `search_hash`) even on `OPTIMIZER:`-titled cards — several low-cost carriers (e.g. Flair / F8) do not surface in `optimizer_candidates` the same way, and optimizer-side queries silently return zero. See [`debugger/knowledge/bookability/_overview.md#multi-ticket-pair-audits`](../../debugger/knowledge/bookability/_overview.md#multi-ticket-pair-audits). Treat it as the default starting point for these TODOs.
+For multi-ticket "find the combination of CARRIER_A + CARRIER_B" TODOs the grain is `ota.bookability_contestant_attempts` (master/slave self-joined on `search_hash`) even on `OPTIMIZER:`-titled cards — several low-cost carriers (e.g. Flair / F8) do not surface in `optimizer_candidates` the same way, and optimizer-side queries silently return zero. See [`debugger/knowledge/booking-flow.md`](../../debugger/knowledge/booking-flow.md). Treat it as the default starting point for these TODOs.
 
 ## Query structure still applies
 

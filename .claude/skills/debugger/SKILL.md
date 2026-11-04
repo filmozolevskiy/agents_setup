@@ -12,7 +12,8 @@ description: >-
   front door for evidence-based investigation: reads a partitioned
   system-knowledge base to orient, gathers evidence across MySQL /
   ClickHouse / MongoDB (via db_access), genesis code (via codebase_access)
-  and Datadog, and runs the built-in bookability and optimizer playbooks.
+  and Datadog. Covers bookability and optimizer investigations through its
+  knowledge base.
   Hands off to deploy_blamer (regression with a clean onset time) or
   qa_assistant (live reproduction). Maintains the knowledge base: after an
   investigation it proposes durable-fact updates.
@@ -20,12 +21,12 @@ description: >-
 
 # Debugger
 
-Single front door for investigating the FlightHub / JustFly platform. It replaces the former `bookability` and `optimizer` skills; their full content lives in [`knowledge/bookability/`](knowledge/bookability/_overview.md) and [`knowledge/optimizer/`](knowledge/optimizer/_overview.md).
+Single front door for investigating the FlightHub / JustFly platform. It replaces the former `bookability` and `optimizer` skills; what they knew now lives in [`knowledge/booking-flow.md`](knowledge/booking-flow.md), [`knowledge/optimizer.md`](knowledge/optimizer.md) and the other subsystem files.
 
 Three jobs:
 
 1. **Orient** — read the system-knowledge base (`knowledge/`) so the investigation starts from how the subsystem actually behaves.
-2. **Investigate** — form a hypothesis, gather evidence, and run the matching playbook (bookability, optimizer) or investigate directly.
+2. **Investigate** — form a hypothesis, gather evidence, and follow the matched knowledge file or investigate directly.
 3. **Maintain** — after an investigation, propose durable discoveries back into the knowledge base.
 
 ## When to use
@@ -67,28 +68,19 @@ Load the owning skill's foundations before querying. Do not invent connection st
 | Datadog (traces, APM, app-logs, error tracking, RUM) | Datadog MCP (`datadog`) | Setup: https://docs.datadoghq.com/bits_ai/mcp_server/setup/; load the matching skill with `load_datadog_skill` |
 | Feature flags / experiments | GrowthBook MCP | [`../growthbook_assistant/SKILL.md`](../growthbook_assistant/SKILL.md) |
 
-Datadog is the surface the playbooks lack. Reach for it when the symptom is a runtime error, latency, an exception with no clean DB row, or a cross-service trace — not when a `debug_logs` context or a MySQL row already answers the question.
+Datadog is the surface the DB-based knowledge files lack. Reach for it when the symptom is a runtime error, latency, an exception with no clean DB row, or a cross-service trace — not when a `debug_logs` context or a MySQL row already answers the question.
 
-### 4. Run the matching playbook
+### 4. Route when another skill owns it
 
-Once the evidence points at bookability or the optimizer, open that playbook's overview and follow it. Open its sibling files only when the overview points to them.
+| Evidence points at | Hand off to |
+|--------------------|-------------|
+| A regression with a clean onset time | [`deploy_blamer`](../deploy_blamer/SKILL.md) |
+| Need a live reproduction on staging / production | [`qa_assistant`](../qa_assistant/SKILL.md) |
+| A table you cannot identify or that has no doc | [`db_access`](../db_access/SKILL.md) |
 
-| Symptom / ask | Playbook | Workflow reference |
-|---------------|----------|--------------------|
-| "Failure rates for source / carrier / office X", "bookability for Y" | Bookability → [`_overview.md`](knowledge/bookability/_overview.md) | [`standard_bookability_report.md`](knowledge/bookability/standard_bookability_report.md) |
-| `booking_id` / `search_hash` → "understand the flow", "what went wrong" | Bookability | [`single_booking_investigation.md`](knowledge/bookability/single_booking_investigation.md) |
-| "Deep bookability analysis", "supplier truth for failures", "similar-errors report" | Bookability | [`deep_bookability_analysis.md`](knowledge/bookability/deep_bookability_analysis.md) |
-| "Where did we fail to match", "fare-basis leak", "contestant-forming leak on <gds> last 24h" | Optimizer → [`_overview.md`](knowledge/optimizer/_overview.md) | [`contestant_forming_audit.md`](knowledge/optimizer/contestant_forming_audit.md) |
-| `attempt_id` / `search_id` / `package_id` / `checkout_id` / `booking_id` → "what did we build / miss" | Optimizer | [`single_attempt_investigation.md`](knowledge/optimizer/single_attempt_investigation.md) |
-| Broad optimizer anomaly scan ("matching audit on Amadeus last 24h") | Optimizer | [`matching_audit_scan.md`](knowledge/optimizer/matching_audit_scan.md) |
-| A regression with a clean onset time | [`deploy_blamer`](../deploy_blamer/SKILL.md) | — |
-| Need a live reproduction on staging / production | [`qa_assistant`](../qa_assistant/SKILL.md) | — |
+Otherwise investigate here. For bookability rates and single-booking traces, use the "How to measure bookability" and "Tracing one booking" sections of [`knowledge/booking-flow.md`](knowledge/booking-flow.md). For matching audits, use the mistake classes and multi-ticket rules in [`knowledge/optimizer.md`](knowledge/optimizer.md).
 
-Defaults: for a "standard" bookability ask, run the standard report and offer the deep dive at the end. For optimizer matching correctness on a specific content source, use the contestant-forming leak audit; use the broad scan only when the user is surveying unknown territory. A single ID plus "is this widespread?" → single-record workflow first, then offer the wider audit.
-
-Investigate directly (no playbook) only for Datadog-level runtime issues, cross-subsystem correlation, or a novel symptom the knowledge base does not cover.
-
-### Query discipline (all playbooks)
+### Query discipline
 
 - Start every SQL / ClickHouse query with a CTE that names the slice once (filters, window, joins). End with the aggregate; keep the example-listing `SELECT` as a commented-out counterpart. In Mongo, the leading `$match` plays the same role.
 - Bound every query: `created_at` / `date_added` window or an indexed ID filter. Never run `find {}` on `debug_logs` / `optimizer_logs`; never `SELECT *` without filter + `LIMIT`.
@@ -96,11 +88,11 @@ Investigate directly (no playbook) only for Datadog-level runtime issues, cross-
 - State window and timezone on every number.
 - Supplier payload wins over SQL state for root-cause narrative. Flag the difference as "SQL vs Mongo mismatch".
 
-Playbook-specific rules (join keys, base filters, error-classification lenses, multi-ticket handling, `reprice_and_drop` exclusion) are in each `_overview.md`.
+Subsystem-specific rules (join keys, base filters, classification lenses, multi-ticket handling, `reprice_and_drop` exclusion) are in the matching knowledge file.
 
 ### 5. Report, then propose knowledge-base updates
 
-**Report:** lead with the answer. Use business-facing language; internal identifiers go only in runnable `Proof` cells. Bookability reports follow [`knowledge/bookability/report_format.md`](knowledge/bookability/report_format.md). Every claim carries an artefact. Put long dumps under `reports/` (gitignored) and cite the path.
+**Report:** lead with the answer. Use business-facing language; internal identifiers go only in runnable `Proof` cells. Every claim carries an artefact. Put long dumps under `reports/` (gitignored) and cite the path.
 
 **Maintain (mandatory close-out):** surface any *durable, reusable* fact the investigation confirmed. Propose where it lands; get approval before writing. Never write silently.
 
@@ -109,8 +101,7 @@ Playbook-specific rules (join keys, base filters, error-classification lenses, m
 | How a subsystem behaves; a new failure mode; a log context / code path / Datadog dashboard to check next time | `knowledge/<subsystem>.md` (+ bump `_index.md` scope / last-updated) |
 | A table / column meaning, per-content-source log hint, stable enum or tag value | `.claude/skills/db_access/db-docs/<store>/<table>.md` |
 | A new product surface, internal screen, or supplier term | `../../GLOSSARY.md` |
-| A bookability analyst-side trap | [`knowledge/bookability/known_pitfalls.md`](knowledge/bookability/known_pitfalls.md) |
-| An optimizer mistake-classification rule or tolerance | [`knowledge/optimizer/mistake_classification.md`](knowledge/optimizer/mistake_classification.md) |
+| An analyst-side trap (a cluster that looks like X but is Y), a mistake-classification rule, a tolerance | the "Known traps" / mistake-class section of the matching knowledge file |
 
 Durability bar: propose only facts that help a *future, different* investigation and that an artefact in this session proves. If nothing durable surfaced, say so.
 
@@ -130,16 +121,9 @@ Lives under [`knowledge/`](knowledge/). One file per subsystem plus an index. Co
 | [`knowledge/ancillaries.md`](knowledge/ancillaries.md) | Baggage and ancillary optimization behavior. |
 | [`knowledge/observability.md`](knowledge/observability.md) | Where evidence lives per subsystem — Mongo contexts, ClickHouse / MySQL tables, Datadog. |
 
-## Playbooks (inside `knowledge/`)
-
-| Playbook | Overview | Sibling files |
-|----------|----------|--------------------|
-| Bookability | [`knowledge/bookability/_overview.md`](knowledge/bookability/_overview.md) | `standard_bookability_report`, `single_booking_investigation`, `deep_bookability_analysis`, `report_format`, `known_pitfalls`, `debug_logs_query_patterns`, `harvest_permalinks` |
-| Optimizer | [`knowledge/optimizer/_overview.md`](knowledge/optimizer/_overview.md) | `contestant_forming_audit`, `single_attempt_investigation`, `matching_audit_scan`, `mistake_classification`, `optimizer_sql_templates`, `optimizer_logs_patterns` |
-
 ## What not to do
 
-- Do not preload every knowledge file or every playbook reference. Read `_index.md`, the matched subsystem file, then the one workflow reference you need.
+- Do not preload every knowledge file. Read `_index.md`, then only the matched subsystem file(s).
 - Do not restate schemas, code, or glossary terms inside knowledge files. Link out.
 - Do not write knowledge / db-docs / glossary updates silently. Propose, get approval, then write.
 - Do not skip the genesis sync before reading code, or invent DB connection strings.

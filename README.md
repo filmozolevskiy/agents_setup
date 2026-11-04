@@ -30,7 +30,7 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 .claude/
 ├── settings.json           # Enabled project MCP servers
 └── skills/                 # Per-skill folders, each with a SKILL.md
-    ├── debugger/           # Investigations: knowledge base + bookability / optimizer playbooks
+    ├── debugger/           # Investigations: knowledge base + bookability / optimizer notess
     ├── codebase_access/    # Local genesis checkout + sync script
     ├── db_access/          # Shared DB CLIs + schema docs
     │   ├── scripts/
@@ -121,6 +121,14 @@ The wrapper scripts need `npx` (Node 18+) and `uvx` (from [uv](https://docs.astr
 ### Verify
 
 Run `/mcp` in a Claude Code session and check that each server shows *connected*. For Trello, ask the agent to `set_active_board 61d5cf784c6396541499e7ce` and `get_lists`. If it returns the Content Integration lists, the server works.
+
+### Keep `.mcp.json` the only source
+
+Register these servers only in `.mcp.json`. Do not run `claude mcp add` for them. An entry with the same name in `~/.claude.json` (user or local scope) overrides `.mcp.json`. If it points at an old path, the server fails with `ENOENT`.
+
+- A `SessionStart` hook (`.claude/hooks/check_mcp_config.sh`) warns at the start of each session when such an entry exists. It prints the `claude mcp remove` command for each one.
+- `.mcp.json` starts each wrapper from `git rev-parse --show-toplevel`, so servers start from any subfolder.
+- In a git worktree, `.env` and `bin/` do not exist. The wrappers then load them from the main checkout.
 
 The database CLIs (`clickhouse_query.py` and others) stay the standard path for queries that go onto Trello cards, because cards need reproducible SQL. Use the ClickHouse MCP only for fast schema discovery.
 

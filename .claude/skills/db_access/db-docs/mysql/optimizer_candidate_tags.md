@@ -64,5 +64,5 @@ GROUP BY oct.candidate_id;
 **Notes:**
 - Tags are **many-to-many per candidate** — the same candidate can have several `Exception` rows with different values. `GROUP_CONCAT(DISTINCT … SEPARATOR ', ')` is the standard way to collapse.
 - `Blocked` (catalog id 222, added 2026-06-09) lives **only** at this level — 0 rows at the attempt level. One value per candidate. Last 2 days through 2026-08-17 (timestamps as stored): 434,977 of 1,198,293 candidates (~36%), 16 distinct values. Looker exposes it as **Blocked Values** on the `content_integration_optimizer` explore.
-- Routine `Blocked by Supplier Rules%` exception values are normal policy exceptions; optimizer audits usually exclude them (see `.claude/skills/debugger/knowledge/optimizer/`).
+- Routine `Blocked by Supplier Rules%` exception values are normal policy exceptions; optimizer audits usually exclude them (see `.claude/skills/debugger/knowledge/optimizer.md`).
 - See `optimizer_tags.md` for the full catalog of tag names and their meaning.

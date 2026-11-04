@@ -15,6 +15,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+# .env and bin/ are gitignored, so a git worktree has neither. Fall back to the
+# main checkout so the server starts from any worktree or session folder.
+if [[ ! -f "${REPO_ROOT}/.env" ]]; then
+  COMMON_DIR="$(git -C "${REPO_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  if [[ -n "${COMMON_DIR}" && -f "$(dirname "${COMMON_DIR}")/.env" ]]; then
+    REPO_ROOT="$(dirname "${COMMON_DIR}")"
+  fi
+fi
 ENV_FILE="${REPO_ROOT}/.env"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -33,13 +41,9 @@ source "${ENV_FILE}"
 set +a
 
 # mcp-clickhouse expects CLICKHOUSE_SECURE (true/false), not CLICKHOUSE_PROTOCOL.
-# Default to false on 8123/9000 (plain HTTP/Native), true on 8443/443; explicit env wins.
-if [[ -z "${CLICKHOUSE_SECURE:-}" ]]; then
-  case "${CLICKHOUSE_PORT:-8123}" in
-    8443|443) CLICKHOUSE_SECURE=true ;;
-    *) CLICKHOUSE_SECURE=false ;;
-  esac
-fi
+# phoenix-db serves HTTPS on 8123 and drops plain HTTP, so default to true on
+# every port, the same as clickhouse_query.py (secure=True). Explicit env wins.
+CLICKHOUSE_SECURE="${CLICKHOUSE_SECURE:-true}"
 export CLICKHOUSE_SECURE
 export CLICKHOUSE_VERIFY="${CLICKHOUSE_VERIFY:-true}"
 

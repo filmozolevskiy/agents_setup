@@ -9,5 +9,17 @@
     "Lucid",
     "Atlassian-MCP-Server",
     "datadog"
-  ]
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'exec \"$(git rev-parse --show-toplevel)/.claude/hooks/check_mcp_config.sh\"'"
+          }
+        ]
+      }
+    ]
+  }
 }
