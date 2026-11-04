@@ -1,6 +1,6 @@
 # Project Glossary
 
-Shared vocabulary for every deliverable produced from this repo — chat replies, QA plans, Trello cards, Notion pages, PR descriptions, commit messages. Loaded by the constitution in [`CLAUDE.md`](CLAUDE.md) and [`.cursor/rules/rules.mdc`](.cursor/rules/rules.mdc); read it before writing any text that goes to a non-developer audience.
+Shared vocabulary for every deliverable produced from this repo — chat replies, QA plans, Trello cards, Notion pages, PR descriptions, commit messages. Loaded by the constitution in [`CLAUDE.md`](CLAUDE.md); read it before writing any text that goes to a non-developer audience.
 
 The rules below are **always-on**, regardless of which skill is active.
 

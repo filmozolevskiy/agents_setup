@@ -1,33 +1,13 @@
 {
-  "enabledMcpjsonServers": ["datadog"],
-  "mcpServers": {
-    "clickhouse": {
-      "command": "./.cursor/skills/db_access/scripts/mcp_clickhouse.sh"
-    },
-    "looker": {
-      "command": "./.cursor/skills/looker/scripts/mcp_looker.sh"
-    },
-    "GitHub": {
-      "command": "./.cursor/skills/deploy_blamer/scripts/mcp_github.sh"
-    },
-    "trello": {
-      "command": "./.cursor/skills/trello_assistant/scripts/mcp_trello.sh"
-    },
-    "Lucid": {
-      "type": "http",
-      "url": "https://mcp.lucid.app/mcp"
-    },
-    "Atlassian-MCP-Server": {
-      "type": "http",
-      "url": "https://mcp.atlassian.com/v1/mcp"
-    },
-    "Notion": {
-      "type": "http",
-      "url": "https://mcp.notion.com/mcp"
-    },
-    "datadog": {
-      "type": "http",
-      "url": "https://mcp.us5.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=all"
-    }
-  }
+  "enabledMcpjsonServers": [
+    "clickhouse",
+    "looker",
+    "GitHub",
+    "trello",
+    "growthbook",
+    "Notion",
+    "Lucid",
+    "Atlassian-MCP-Server",
+    "datadog"
+  ]
 }
