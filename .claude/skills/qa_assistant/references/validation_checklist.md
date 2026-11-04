@@ -18,7 +18,7 @@ than inventing a rule.
 
 ## `mysql.bookings` (one row)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/bookings.md`](../../../../.claude/skills/db_access/db-docs/mysql/bookings.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/bookings.md`](../../db_access/db-docs/mysql/bookings.md).
 
 | Field | Expected right after `qa-book` | Notes |
 |---|---|---|
@@ -35,7 +35,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/bookings.md`](../../../../.
 
 ## `mysql.booking_contestants` (list)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/booking_contestants.md`](../../../../.claude/skills/db_access/db-docs/mysql/booking_contestants.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/booking_contestants.md`](../../db_access/db-docs/mysql/booking_contestants.md).
 
 - **PASS**: at least one row for `booking_id`, with `content_source` matching
   `bookings.content_source`.
@@ -46,7 +46,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/booking_contestants.md`](..
 
 ## `mysql.booking_passengers` (list)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/booking_passengers.md`](../../../../.claude/skills/db_access/db-docs/mysql/booking_passengers.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/booking_passengers.md`](../../db_access/db-docs/mysql/booking_passengers.md).
 
 - **PASS**: count matches `adt + chd + inf` passed to `qa-search`.
 - **FAIL**: off-by-one or missing passenger type.
@@ -55,7 +55,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/booking_passengers.md`](../
 
 ## `mysql.booking_segments` (list)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/booking_segments.md`](../../../../.claude/skills/db_access/db-docs/mysql/booking_segments.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/booking_segments.md`](../../db_access/db-docs/mysql/booking_segments.md).
 
 - **PASS**: at least one segment per leg (1 for oneway, 2+ for roundtrip), and
   origin/destination of the first segment match what `qa-search` asked for.
@@ -68,7 +68,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/booking_segments.md`](../..
 
 ## `mysql.booking_statement_items` (list)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/booking_statement_items.md`](../../../../.claude/skills/db_access/db-docs/mysql/booking_statement_items.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/booking_statement_items.md`](../../db_access/db-docs/mysql/booking_statement_items.md).
 
 - **PASS**: at least one row. Sum of signed amounts approximates the displayed
   total from `qa-book` (`total_shown_at_checkout`).
@@ -78,7 +78,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/booking_statement_items.md`
 
 ## `mysql.booking_tasks` (list)
 
-Background: [`.claude/skills/db_access/db-docs/mysql/booking_tasks.md`](../../../../.claude/skills/db_access/db-docs/mysql/booking_tasks.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/booking_tasks.md`](../../db_access/db-docs/mysql/booking_tasks.md).
 
 - Informational. Look for `task_type = 'book'` rows with `status = 'done'`.
 - `status = 'failed'` is a **FAIL** signal even if the portal said
@@ -88,7 +88,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/booking_tasks.md`](../../..
 
 ## `mysql.bookability_contestant_attempts_for_search`
 
-Background: [`.claude/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md`](../../../../.claude/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md).
+Background: [`.claude/skills/db_access/db-docs/mysql/bookability_contestant_attempts.md`](../../db_access/db-docs/mysql/bookability_contestant_attempts.md).
 
 - **PASS**: at least one row with `state` indicating a successful book
   (e.g. `completed`, `succeeded`; reconcile with db-doc wording).
@@ -99,7 +99,7 @@ Background: [`.claude/skills/db_access/db-docs/mysql/bookability_contestant_atte
 
 ## `clickhouse.jupiter_booking_errors_v2`
 
-Background: see `bookability` skill and its ClickHouse references.
+Background: see `debugger` skill and its ClickHouse references.
 
 - **PASS**: empty list.
 - **FAIL**: any rows. Every row is a booking error signature. Report the
@@ -109,7 +109,7 @@ Background: see `bookability` skill and its ClickHouse references.
 
 ## `clickhouse.search_telemetry_rows` (`search_api_stats.gds_raw`)
 
-Background: [`.claude/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md`](../../../../.claude/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md).
+Background: [`.claude/skills/db_access/db-docs/clickhouse/search_api_stats_gds_raw.md`](../../db_access/db-docs/clickhouse/search_api_stats_gds_raw.md).
 
 `qa-validate` emits the raw `gds_raw` rows for this `search_id`, clipped by
 `search_telemetry_window_hours` (default 24). The checklist is:
@@ -156,7 +156,7 @@ Common patterns inside `Response` (via `_preview`):
 
 - Informational only. Non-zero is expected for reprice scenarios.
 - If the scenario involved repricing and `optimizer_logs_count == 0`, flag
-  as suspicious and cross-reference with `/optimizer`.
+  as suspicious and cross-reference with `/debugger`.
 
 ---
 

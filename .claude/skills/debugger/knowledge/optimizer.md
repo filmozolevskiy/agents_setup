@@ -1,8 +1,8 @@
 # Optimizer
 
-How the optimizer / repricer turns a content source's raw fare payload into ranked, tagged contestants, and how it can change which supplier a booking lands on. Behavior only — full matching-correctness audits belong to the `optimizer` skill.
+How the optimizer / repricer turns a content source's raw fare payload into ranked, tagged contestants, and how it can change which supplier a booking lands on. Behavior only — full matching-correctness audits belong to the optimizer playbook.
 
-_Schemas: `../../db_access/db-docs/mysql/optimizer_*.md`, `../../db_access/db-docs/mongodb/optimizer_logs.md`. Seeded 2026-07-30 from the optimizer skill; extend via the maintenance loop._
+_Schemas: `../../db_access/db-docs/mysql/optimizer_*.md`, `../../db_access/db-docs/mongodb/optimizer_logs.md`. Seeded 2026-07-30 from the former optimizer skill; extend via the maintenance loop._
 
 ## What it does
 
@@ -31,4 +31,4 @@ _Schemas: `../../db_access/db-docs/mysql/optimizer_*.md`, `../../db_access/db-do
 
 ## Hand off
 
-Any matching-correctness audit (leak scan, per-attempt drill-down, mistagged fare) → run [`../../optimizer/SKILL.md`](../../optimizer/SKILL.md). It owns the query discipline (CTE shape, anchor-as-ground-truth), the multi-ticket per-leg classification, and the report format. This file only orients.
+Any matching-correctness audit (leak scan, per-attempt drill-down, mistagged fare) → run the optimizer playbook [`knowledge/optimizer/_overview.md`](optimizer/_overview.md). It owns the query discipline (CTE shape, anchor-as-ground-truth), the multi-ticket per-leg classification, and the report format. This file only orients.

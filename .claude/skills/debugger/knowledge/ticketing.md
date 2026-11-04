@@ -29,7 +29,7 @@ Amadeus offices on the Wenrix list (including `YKXC42100`) take the `ticket/issu
 - **Normal:** `Ticketer` fires → `AirTicketRQ` succeeds → statement items finalize → `SessionCloseRQ` closes the session. `ota.bookings.status` moves to issued.
 - **Normal (Wenrix):** reservation HTTP 201 → work order `sleeping` while Wenrix optimizes → `ticketed` notification → Amadeus `DocIssuance_IssueTicket` returns `OK ETICKET WELL ISSUED` → `bookings.status` moves to issued and the ticketing task resolves.
 - **Abnormal signals:** a confirmed booking stuck `not_issued`; `AirTicketRQ` returning a GDS error; a session that never closed; statement items not finalized. On staging / test bookings, `is_test=1` blocks real ticketing server-side — a `not_issued` test booking is expected, not a failure.
-- **Abnormal (Wenrix):** agent says “not queued to Wenrix” because `sent_to_queue = 0` / `handle_type = manual`, but a `booking_wenrix_reservations` row already exists. Or Amadeus issued tickets (`booking_tickets` populated) while `bookings.status` stayed `not_issued` and the work order stayed `sleeping` — see bookability [`known_pitfalls.md`](../../bookability/references/known_pitfalls.md) (MySQL gone-away after issue).
+- **Abnormal (Wenrix):** agent says “not queued to Wenrix” because `sent_to_queue = 0` / `handle_type = manual`, but a `booking_wenrix_reservations` row already exists. Or Amadeus issued tickets (`booking_tickets` populated) while `bookings.status` stayed `not_issued` and the work order stayed `sleeping` — see bookability [`known_pitfalls.md`](bookability/known_pitfalls.md) (MySQL gone-away after issue).
 
 ## Where to look (evidence map)
 

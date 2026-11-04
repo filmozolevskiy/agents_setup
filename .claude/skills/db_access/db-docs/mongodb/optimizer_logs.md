@@ -28,7 +28,7 @@ the top level of the document under named keys rather than inside `meta.*`
 placeholders. Common names: `Request`, `Response`, `0`, `1`, `exception`,
 `post`, `get`, `packages`, `itinerary`, `mismatchingItineraries`. See the
 per-context table below and
-`[.claude/skills/optimizer/references/optimizer_logs_patterns.md` — *Top-level content vs meta placeholders](../../.claude/skills/optimizer/references/optimizer_logs_patterns.md#top-level-content-vs-meta-placeholders)*
+`[.claude/skills/debugger/knowledge/optimizer/optimizer_logs_patterns.md` — *Top-level content vs meta placeholders](../../../debugger/knowledge/optimizer/optimizer_logs_patterns.md#top-level-content-vs-meta-placeholders)*
 for how to decide which shape a context uses and how to parse it.
 
 > A `fares` top-level field was listed in very early drafts of this doc
@@ -140,7 +140,7 @@ operand for an attempt — it silently surfaces one leg and mis-attributes
 the failure cause. For matching-correctness audits, always iterate every
 operand chronologically and pair index-wise with the supplier calls and
 wrappers. See
-`[.claude/skills/optimizer/references/contestant_forming_audit.md` — *Per-leg classification buckets](../../.claude/skills/optimizer/references/contestant_forming_audit.md#step-4--per-leg-classification-buckets)*.
+`[.claude/skills/debugger/knowledge/optimizer/contestant_forming_audit.md` — *Per-leg classification buckets](../../../debugger/knowledge/optimizer/contestant_forming_audit.md#step-4--per-leg-classification-buckets)*.
 
 ## Common queries
 
@@ -175,9 +175,9 @@ python3 .claude/skills/db_access/scripts/mongo_query.py find optimizer_logs ota 
 
 - Like `debug_logs`, likely a **capped collection** — old reprice docs may
 already have rotated out.
-- Used by the `[optimizer-analysis](../../.claude/skills/optimizer/SKILL.md)`
+- Used by the `[debugger › optimizer playbook](../../../debugger/knowledge/optimizer/_overview.md)`
 skill for per-attempt drill-downs and matching-error audits.
 - Use `optimizer_logs` only for repricing / Optimizer-specific questions.
 Full flight-booking debug traffic lives in `debug_logs`. See
-`[.claude/skills/db_access/references/mongodb_query_mechanics.md](../../.claude/skills/db_access/references/mongodb_query_mechanics.md)`.
+`[.claude/skills/db_access/references/mongodb_query_mechanics.md](../../references/mongodb_query_mechanics.md)`.
 

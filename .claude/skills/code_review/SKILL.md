@@ -369,4 +369,3 @@ commit message names the window (`refresh: standards from <since> to
 - Mining script: [`scripts/mine_jp_comments.py`](scripts/mine_jp_comments.py).
 - Sibling skill (genesis read access): [`../codebase_access/SKILL.md`](../codebase_access/SKILL.md).
 - Sibling skill (PR-to-deploy correlation): [`../deploy_blamer/SKILL.md`](../deploy_blamer/SKILL.md).
-- Skill conventions: [`../skill_creator/SKILL.md`](../skill_creator/SKILL.md).

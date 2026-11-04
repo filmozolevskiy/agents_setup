@@ -16,7 +16,7 @@ Do not call `add_card_to_list` until all of these are true:
 4. **Visibility** has a query that shows the wrong behaviour (per sibling, scoped to that supplier / outcome).
 5. **Possible solution / expected behavior** is included when we know what should happen instead.
 
-Use `db_access`, `bookability`, `debugger`, or `codebase_access` until the bar is met. Discovery dumps stay in the chat.
+Use `db_access`, `debugger`, or `codebase_access` until the bar is met. Discovery dumps stay in the chat.
 
 **Do not file** `(Investigation Pending)` cards or `* DoD1: _TO BE DONE_`. Honour one exception: the user says “skip investigation, file a pending card.”
 

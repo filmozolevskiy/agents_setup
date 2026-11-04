@@ -39,14 +39,14 @@ call once they pick the suspect.
 ## When NOT to use
 
 - The symptom has no clean onset time (gradual degradation over weeks).
-  Use `bookability` / `optimizer` to find a real
+  Use `debugger` to find a real
   break first; this skill is useless without a window.
 - The change you suspect is in a non-genesis repo. Genesis only —
   separate skills handle other surfaces.
 - Looking up the diff of one specific PR you already know about. Just
   open the PR on GitHub or call `get_pull_request` directly.
 - Re-counting failure rates by deploy. That belongs in
-  `bookability` (joining ClickHouse / MySQL slices to a deploy
+  `debugger` (joining ClickHouse / MySQL slices to a deploy
   timeline) once a candidate PR has been picked here.
 
 ## Inventory (fixed)
@@ -226,4 +226,3 @@ failures". Repo: mventures/genesis @ develop.
   (`mcp__GitHub__list_pull_requests`, `mcp__GitHub__get_pull_request_files`,
   `mcp__GitHub__list_commits`).
 - Optional local clone helper: [`codebase_access`](../codebase_access/SKILL.md) — `.claude/skills/codebase_access/scripts/sync_genesis.sh`.
-- Skill conventions: [`../skill_creator/SKILL.md`](../skill_creator/SKILL.md).

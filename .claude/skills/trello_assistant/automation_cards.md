@@ -18,7 +18,7 @@ Use the **trello** MCP. `set_active_board` with the board ID above, then `add_ca
 
 ## Card style
 
-Keep it short and human-written. No `⊙` headings, no rigid templates, no AI footer. Write like a teammate filing a quick note. Skip the dedup pass and Content Integration template in [`SKILL.md`](./SKILL.md) — those rules apply to the Content Integration board only.
+Keep it short and human-written. No `⊙` headings, no rigid templates, no AI footer. Write like a teammate filing a quick note. Skip the dedup pass and Content Integration template in [`SKILL.md`](SKILL.md) — those rules apply to the Content Integration board only.
 
 ## Required sections
 

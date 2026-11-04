@@ -8,7 +8,7 @@ description: >-
   table", "what does this table do", "explore tables", "check database",
   "search database". Carries the shared DB infrastructure — query CLIs, the
   schema / collection docs, and the Mongo query mechanics — that other skills
-  (`bookability`, `optimizer`, `qa_assistant`) load first
+  (`debugger`, `qa_assistant`) load first
   before issuing any query.
 ---
 
@@ -25,7 +25,7 @@ When exploration finds a good candidate, continue straight into documentation. D
 
 ## DB foundations
 
-These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`bookability`, `optimizer`, `qa_assistant`) inherit them and layer their own query discipline on top.
+These rules apply to every DB-touching task in this repo, not just `db_access`. Other skills (`debugger`, `qa_assistant`) inherit them and layer their own query discipline on top.
 
 - **Database CLIs only.** Query MySQL, ClickHouse, and MongoDB only via `.claude/skills/db_access/scripts/mysql_query.py`, `.claude/skills/db_access/scripts/clickhouse_query.py`, `.claude/skills/db_access/scripts/mongo_query.py`. Load `.env` once per session: `set -a && source .env && set +a`. Never invent connection strings, hostnames, or credentials — they come from `.env` via these CLIs. The `## Tooling` section below lists the env vars each CLI needs.
 - **One DB tier across staging and prod.** Staging environments (staging2, staging63, staging64, staging86, staging99, …) and production share the **same** MySQL / ClickHouse / MongoDB instances. The `.env` MySQL / ClickHouse / MongoDB hosts work for any staging environment. Do not ask the user for a separate "staging DB host"; do not assume a staging row is missing because it lives in a different database. A staging-only test booking shows up in the same `ota.bookings` / `ancillaries_optimization_baggage` / `debug_logs` rows as prod — distinguish them by `is_test`, `office_id`, or the booking's own search hash, not by which host you connect to.
@@ -142,7 +142,7 @@ Try keyword variations (e.g. "block", "blocked", "block_reason", "status").
 
 **MongoDB** — no `information_schema`. Shortlist collections by name, then use `describe` and `find` / `aggregate` with small limits to inspect fields. For a cross-key scan, use an aggregation with `$objectToArray` on a small `$sample`.
 
-**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.claude/skills/bookability/references/debug_logs_query_patterns.md`.
+**Efficiency (esp. logs like `debug_logs`):** constrain `date_added` (or the recency field) on large collections. Prefer equality on stable dimensions (`context`, `transaction_id`) over `$regex` on `context` when the exact string is known. After sampling one doc, query the field that actually holds the text (e.g. supplier `Response`) instead of searching stringified `meta` or stitching fields. See `.claude/skills/debugger/knowledge/bookability/debug_logs_query_patterns.md`.
 
 #### 4c. Sample candidates in parallel
 
@@ -192,7 +192,7 @@ For every selected table, continue into § Document a table. When you are done, 
 - Recommended query patterns.
 - Joins needed with other tables.
 
-The summary lets the calling skill (e.g. `bookability`) or the user continue the analysis.
+The summary lets the calling skill (e.g. `debugger`) or the user continue the analysis.
 
 ### Exploration rules
 

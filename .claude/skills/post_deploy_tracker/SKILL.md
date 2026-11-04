@@ -11,8 +11,8 @@ description: >-
   approval, then queries MySQL / ClickHouse / MongoDB on a per-watch
   cadence and reports findings inline in the chat session when
   something the agent thinks is related to the deploy fires. Owns no
-  SQL of its own — drives the `bookability` and `optimizer` skills'
-  query templates. Single-machine, single-user — state lives in
+  SQL of its own — drives the `debugger` skill's
+  bookability and optimizer query templates. Single-machine, single-user — state lives in
   `reports/` (gitignored).
 ---
 
@@ -44,8 +44,7 @@ the watch" next session resumes where the loop left off.
 - **Pre-deploy QA.** Use `qa_automation` to drive a real test booking
   before shipping; this skill watches *after* the fact.
 - **One-off bookability or optimizer audit** with no temporal /
-  watching component. Use `bookability` or
-  `optimizer` directly — those skills already cover the
+  watching component. Use `debugger` directly — it already covers the
   query side.
 - **Custom monitoring not tied to a specific deploy / card.** This
   skill anchors on a parent Trello card; if there's no card, it has
@@ -70,10 +69,10 @@ This skill writes no SQL of its own. Per tick it drives:
 
 - [`db_access`](../db_access/SKILL.md) for the CLI scripts and
   documented schemas.
-- [`bookability`](../bookability/SKILL.md) for the
+- [`debugger` bookability playbook](../debugger/knowledge/bookability/_overview.md) for the
   SQL templates (success / failure / error-signature queries) and
   for `debug_logs` evidence patterns.
-- [`optimizer`](../optimizer/SKILL.md) when the
+- [`debugger` optimizer playbook](../debugger/knowledge/optimizer/_overview.md) when the
   card target involves matching / contestants / fare basis (look for
   optimizer keywords in the card description).
 
@@ -98,7 +97,7 @@ design.
    3. The user's stated time, asked once if neither of the above is
       present.
 3. Build the **3-slot proposal** following
-   [`references/proposal_template.md`](./references/proposal_template.md).
+   [`references/proposal_template.md`](references/proposal_template.md).
    Each slot has: title, the dimension it watches, the SQL the agent
    would run (parameterised on the spec), the `debug_logs` /
    `optimizer_logs` verification step, and the dedup rule.
@@ -113,7 +112,7 @@ Create `reports/post_deploy/<short_link>/` (or
 - `state.json` — the approved spec, perimeter, `cadence_minutes`,
   `last_tick_at: null`, `already_reported: { slot1: [], slot2: [],
   slot3: [] }`. Schema in
-  [`references/state_schema.md`](./references/state_schema.md).
+  [`references/state_schema.md`](references/state_schema.md).
 - `report.md` — append-only human log. Header line with the spec, a
   blank `## Tick log` section.
 
@@ -215,9 +214,9 @@ the post-deploy watch on <short_link>":
   the queries the user actually wanted, not what the agent guessed
   from a half-read card.
 - **Do not write SQL inline in `SKILL.md` or `state.json`.** Drive
-  `bookability` / `optimizer` templates per tick.
+  `debugger` templates per tick.
   Owning SQL here would duplicate query patterns and drift from
-  those skills.
+  that skill.
 - **Do not fire a chat report on every tick.** Chat-log noise kills
   trust. Slots #1 / #2 are one-shot per confirmed hit; Slot #3 is
   per-signature with a 6h cooldown.
@@ -235,14 +234,15 @@ the post-deploy watch on <short_link>":
 
 ## References
 
-- [`references/proposal_template.md`](./references/proposal_template.md)
+- [`references/proposal_template.md`](references/proposal_template.md)
   — the 3-slot proposal template + a worked example for the
   Intelisys / F8 / debit card target ([Cuwwjgmr](https://trello.com/c/Cuwwjgmr)).
-- [`references/state_schema.md`](./references/state_schema.md) — the
+- [`references/state_schema.md`](references/state_schema.md) — the
   shapes of `state.json` and `report.md`, plus the dedup rules.
 - Cross-skill load list (read each before driving its templates):
   [`db_access/SKILL.md`](../db_access/SKILL.md),
-  [`bookability/SKILL.md`](../bookability/SKILL.md),
-  [`optimizer/SKILL.md`](../optimizer/SKILL.md).
+  [`debugger/SKILL.md`](../debugger/SKILL.md),
+  [bookability playbook](../debugger/knowledge/bookability/_overview.md),
+  [optimizer playbook](../debugger/knowledge/optimizer/_overview.md).
 - Parent card:
   [doJTY0Eu — Post-deploy verification skill](https://trello.com/c/doJTY0Eu).

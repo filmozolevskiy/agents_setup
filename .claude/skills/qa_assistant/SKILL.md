@@ -87,7 +87,7 @@ Exact inputs, output schemas, and error bodies live in
   X stopped working" — run `qa-diag` first.
 
 Do not invoke this skill for data-only investigations (bookability rates,
-optimizer audits) — those use `/bookability` or `/optimizer`.
+optimizer audits) — those use `/debugger`.
 
 ## When the user names a content source, pin to it — period
 
@@ -488,7 +488,7 @@ stage-by-stage phrase bank covers the cases the two examples do not.
 If a runner returns `{"error": "selector_not_found", "name": "..."}`,
 invoke `qa-diag --url <url> --page <page>` to list every probed selector.
 Update the selector constants in the relevant page-object files under
-[`scaffold/pages/`](scaffold/pages/), bump the `VERIFIED_ON` comment, and
+[`scaffold/pages/`](scaffold/pages), bump the `VERIFIED_ON` comment, and
 refresh [`page_inventory.md`](page_inventory.md).
 Do not edit selectors elsewhere — the page-object files are the single source of truth.
 

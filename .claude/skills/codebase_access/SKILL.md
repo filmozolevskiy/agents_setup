@@ -42,7 +42,7 @@ fast-forwarded to production before any read.
   repo for a Trello card, PR review, debugging note, or chat reply.
 - Cross-referencing a DB column / table to the code that writes or reads
   it.
-- Any other skill (`bookability`, `optimizer`,
+- Any other skill (`debugger`,
   `qa_assistant`) is about to grep either tree — load this skill first
   so the sync runs and the paths are canonical.
 
@@ -131,4 +131,3 @@ Two steps, in this order, every time the skill is invoked:
 - Sync script: `.claude/skills/codebase_access/scripts/sync_genesis.sh`
 - `.env.example` for sample `GENESIS_PATH` / `GENESIS_BRANCH` /
   `STOREFRONT_PATH` / `STOREFRONT_BRANCH` values.
-- Skill scaffolding rules: `.claude/skills/skill_creator/SKILL.md`.

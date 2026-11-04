@@ -15,7 +15,7 @@ docs/
 # Skill eval workspaces (per-iteration run outputs / benchmarks / viewer logs — kept locally, not in git)
 .claude/skills/*-workspace/
 
-# MCP Toolbox binary (downloaded via .claude/skills/looker/scripts/install_mcp_toolbox.sh)
+# MCP Toolbox binary (downloaded via .claude/skills/looker_assistant/scripts/install_mcp_toolbox.sh)
 bin/
 
 # macOS

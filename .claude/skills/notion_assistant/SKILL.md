@@ -39,7 +39,7 @@ MCP tools for readability; verify against the tool schema on first call.
 - "Save these QA notes / this report / this checklist to notion."
 - "Update the <name> page in notion."
 - "Search notion for <keyword>" / "find <thing> in notion".
-- Another skill (`qa_assistant`, `qa_strategy`, `bookability`) wants the
+- Another skill (`qa_assistant`, `qa_strategy`, `debugger`) wants the
   finished artefact archived in the Flighthub QA tree.
 
 ## When NOT to use
@@ -48,7 +48,7 @@ MCP tools for readability; verify against the tool schema on first call.
   and ask the user to confirm a new root. Do not silently move scope.
 - Drafting the content. The caller hands over the body; this skill
   delivers it. If the body needs more research, return to the topic
-  skill (`bookability`, `optimizer`, `qa_*`) first.
+  skill (`debugger`, `qa_*`) first.
 - Bulk migration of legacy docs, mailing-list-style fan-out, or anything
   that touches more than a handful of pages in one call. Out of scope.
 
@@ -142,4 +142,3 @@ proof-of-write.
 - Notion enhanced-markdown spec (MCP resource):
   `notion://docs/enhanced-markdown-spec`.
 - MCP tool schemas: load with ToolSearch (`mcp__Notion__*`).
-- Skill conventions: [`../skill_creator/SKILL.md`](../skill_creator/SKILL.md).

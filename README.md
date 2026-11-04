@@ -14,14 +14,12 @@ Invoke a slash command. The agent reads the matching `SKILL.md`, runs its steps,
 
 ## Skills
 
-- **`/bookability`** — why a fare or booking is not bookable; failure rates per content source / carrier / office; full flow trace for a `booking_id` / `search_hash`.
-- **`/optimizer`** — audit Optimizer matching: why a fare was missed or mistagged, per-attempt / per-search / per-booking drill-downs, content-source-wide leak scans.
+- **`/debugger`** — single front door for investigations: bookability (failure rates, `booking_id` / `search_hash` flow trace, similar-errors reports), optimizer matching audits (missed / mistagged fares, leak scans), and cross-system debugging with Datadog. Keeps a knowledge base of how each subsystem behaves.
 - **`/qa_assistant`** — drive a real test booking on FlightHub / JustFly staging and validate it across MySQL / ClickHouse / MongoDB (`qa-search` → `qa-search-telemetry` → `qa-book` → `qa-validate` → `qa-cleanup`).
 - **`/db_access`** — find which table or collection holds the data you need (when `.claude/skills/db_access/db-docs/` does not cover it) and / or save its purpose, schema, and gotchas under `.claude/skills/db_access/db-docs/`.
 - **`/deploy_blamer`** — correlate a production regression to the genesis PR(s) most likely to have caused it; returns a ranked table of merges in the window.
-- **`/post_deploy_tracker`** — autonomous watcher that verifies a shipped fix landed in production; loops on bookability / optimizer queries and reports confirmed hits inline in the chat session.
+- **`/post_deploy_tracker`** — autonomous watcher that verifies a shipped fix landed in production; loops on `debugger` bookability / optimizer queries and reports confirmed hits inline in the chat session.
 - **`/trello_assistant`** — create or update cards on the Content Integration Trello board.
-- **`/skill_creator`** — scaffold a new project-local skill (SKILL.md + a Skills Index row in `CLAUDE.md`).
 
 Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 
@@ -32,7 +30,7 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
 .claude/
 ├── settings.json           # Enabled project MCP servers
 └── skills/                 # Per-skill folders, each with a SKILL.md
-    ├── bookability/        # Bookability failure analysis
+    ├── debugger/           # Investigations: knowledge base + bookability / optimizer playbooks
     ├── codebase_access/    # Local genesis checkout + sync script
     ├── db_access/          # Shared DB CLIs + schema docs
     │   ├── scripts/
@@ -41,12 +39,10 @@ Full agent contract: `CLAUDE.md`. Detailed workflow: each skill's `SKILL.md`.
     │   │   └── mongo_query.py
     │   └── db-docs/        # Documented CH / MySQL / Mongo tables
     ├── deploy_blamer/      # Regression → genesis PR correlation
-    ├── looker/             # Looker MCP + LookML scaffolding
-    ├── optimizer/          # Optimizer matching audits
+    ├── looker_assistant/   # Looker MCP + LookML scaffolding
     ├── post_deploy_tracker/# Autonomous post-deploy verification watcher
     ├── qa_assistant/       # Test-booking runner (Playwright TS scaffold)
     │   └── scaffold/       # npm project — qa-search, qa-book, qa-validate, …
-    ├── skill_creator/      # Scaffold new skills
     └── trello_assistant/   # Trello card management
 reports/                    # Ephemeral output from skills (gitignored)
 CLAUDE.md                   # Agent constitution + skill routing
@@ -93,9 +89,9 @@ Two kinds of server exist:
 | --- | --- | --- | --- |
 | **trello** (`@delorenj/mcp-server-trello`) | Local, `.claude/skills/trello_assistant/scripts/mcp_trello.sh` | `TRELLO_API_KEY`, `TRELLO_TOKEN` | `/trello_assistant`, `/qa_strategy` |
 | **GitHub** (`@modelcontextprotocol/server-github`) | Local, `.claude/skills/deploy_blamer/scripts/mcp_github.sh` | `GITHUB_PERSONAL_ACCESS_TOKEN` | `/deploy_blamer`, `/code_review` |
-| **growthbook** (`@growthbook/mcp`) | Local, `.claude/skills/growthbook/scripts/mcp_growthbook.sh` | `GB_API_KEY`, `GB_EMAIL`, `GB_API_URL` | `/growthbook` |
+| **growthbook** (`@growthbook/mcp`) | Local, `.claude/skills/growthbook_assistant/scripts/mcp_growthbook.sh` | `GB_API_KEY`, `GB_EMAIL`, `GB_API_URL` | `/growthbook_assistant` |
 | **clickhouse** (`mcp-clickhouse`) | Local, `.claude/skills/db_access/scripts/mcp_clickhouse.sh` | `CLICKHOUSE_*` | `/db_access` (schema discovery) |
-| **looker** (`genai-toolbox --prebuilt looker`) | Local, `.claude/skills/looker/scripts/mcp_looker.sh` | `LOOKER_*` | `/looker` |
+| **looker** (`genai-toolbox --prebuilt looker`) | Local, `.claude/skills/looker_assistant/scripts/mcp_looker.sh` | `LOOKER_*` | `/looker_assistant` |
 | **Notion** | Hosted (`https://mcp.notion.com/mcp`) | OAuth | `/notion_assistant` |
 | **datadog** | Hosted (`https://mcp.us5.datadoghq.com/v1/mcp`) | OAuth | `/debugger` |
 | **Atlassian** | Hosted (`https://mcp.atlassian.com/v1/mcp`) | OAuth | Ad-hoc (Jira / Confluence) |
@@ -117,7 +113,7 @@ Put all values in `.env`. Use `.env.example` as the template.
 The Looker server needs the toolbox binary. The script downloads it into `bin/` (gitignored):
 
 ```bash
-./.claude/skills/looker/scripts/install_mcp_toolbox.sh
+./.claude/skills/looker_assistant/scripts/install_mcp_toolbox.sh
 ```
 
 The wrapper scripts need `npx` (Node 18+) and `uvx` (from [uv](https://docs.astral.sh/uv/)) on your `PATH`.

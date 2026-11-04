@@ -12,8 +12,8 @@ Match on what the user observed. When several match, read the earliest stage fir
 |----------------------------|------|
 | No results, empty search, wrong / missing content source on results page, "which supplier responded" | [`search.md`](search.md) |
 | Fare changed / disappeared between search and checkout, availability check failed, price drift, loss-limit stop | [`booking-flow.md`](booking-flow.md) |
-| Booking failed / not bookable, "trace this booking", `booking_id` / `search_hash` "what went wrong", supplier rejected the fare | [`booking-flow.md`](booking-flow.md) → hand off to `bookability` |
-| Wrong supplier booked, optimizer rerouted, contestant missing / mistagged, reprice, fare-basis mismatch | [`optimizer.md`](optimizer.md) → hand off to `optimizer` |
+| Booking failed / not bookable, "trace this booking", `booking_id` / `search_hash` "what went wrong", supplier rejected the fare | [`booking-flow.md`](booking-flow.md) → run the bookability playbook ([`bookability/_overview.md`](bookability/_overview.md)) |
+| Wrong supplier booked, optimizer rerouted, contestant missing / mistagged, reprice, fare-basis mismatch | [`optimizer.md`](optimizer.md) → run the optimizer playbook ([`optimizer/_overview.md`](optimizer/_overview.md)) |
 | Card declined, 3DS, charge failed, virtual card, refund, statement, chargeback, "Payhub" | [`payments.md`](payments.md) |
 | Supplier-specific error / behavior, GDS office, marketing vs operating carrier, per-source quirk | [`content-sources.md`](content-sources.md) |
 | Ticket not issued, ticketing failed, `AirTicketRQ`, PNR, session close, statement finalization, “not queued to Wenrix”, pending ticketing | [`ticketing.md`](ticketing.md) |
@@ -26,13 +26,22 @@ Match on what the user observed. When several match, read the earliest stage fir
 | File | Scope | Last updated |
 |------|-------|--------------|
 | [`booking-flow.md`](booking-flow.md) | End-to-end flow: checkout → check availability → pre-air-booker (optimization, loss limit) → book → post-air-booker → cancel-on-failure. The spine most investigations touch. | 2026-07-30 (seeded) |
-| [`optimizer.md`](optimizer.md) | How the optimizer/repricer forms and ranks contestants and can reroute a booking mid-checkout. Behavior only — audits belong to the `optimizer` skill. | 2026-08-20 (PD Upgrade one-office) |
+| [`optimizer.md`](optimizer.md) | How the optimizer/repricer forms and ranks contestants and can reroute a booking mid-checkout. Behavior only — audits belong to the optimizer playbook. | 2026-08-20 (PD Upgrade one-office) |
 | [`payments.md`](payments.md) | Payhub flow (Verify → 3DS → IssueCard → Sale → CancelCard), virtual cards paying suppliers, statement items / transactions. | 2026-07-30 (vcc tracing) |
 | [`content-sources.md`](content-sources.md) | Per-supplier / GDS behavior: offices / accounts, marketing vs operating carrier, LCC quirks, per-source `debug_logs` context hints. | 2026-08-21 (Dida caret) |
 | [`search.md`](search.md) | Search submission → results page; content-source fan-out; search telemetry (which sources responded). | 2026-07-30 (seeded) |
 | [`ticketing.md`](ticketing.md) | Ticketer: `AirTicketRQ` to the GDS, Wenrix `ticket/issue-wenrix` path vs agent-queue flags, statement finalization, session close, and where issuance stalls. | 2026-08-13 (Wenrix queue) |
 | [`ancillaries.md`](ancillaries.md) | Baggage / ancillary optimization behavior and its data. | 2026-08-21 (Gordian fare-basis) |
 | [`observability.md`](observability.md) | Cross-cutting evidence map: for each subsystem, the Mongo log contexts, ClickHouse tables, MySQL tables, and Datadog surfaces to reach for. | 2026-07-30 (seeded) |
+
+## Playbooks
+
+Step-by-step workflows (query templates, report format, pitfalls). Open the overview first.
+
+| Folder | Scope |
+|--------|-------|
+| [`bookability/`](bookability/_overview.md) | Failure rates, single-booking flow trace, deep similar-errors analysis, report format, known pitfalls. |
+| [`optimizer/`](optimizer/_overview.md) | Contestant-forming leak audit, single-attempt investigation, matching anomaly scan, mistake classification, SQL / log templates. |
 
 ## Maintenance
 

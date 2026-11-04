@@ -49,6 +49,6 @@ The end-to-end journey for one transaction, keyed by `debug_logs.context` / `_sc
 
 ## Hand off
 
-- Single-booking "what went wrong" trace or any bookability-rate question → run [`../../bookability/SKILL.md`](../../bookability/SKILL.md) (it owns the single-booking flow workflow and the report format).
-- Symptom is the optimizer swapping / dropping a candidate → [`optimizer.md`](optimizer.md) then [`../../optimizer/SKILL.md`](../../optimizer/SKILL.md).
+- Single-booking "what went wrong" trace or any bookability-rate question → run the bookability playbook [`knowledge/bookability/_overview.md`](bookability/_overview.md) (it owns the single-booking flow workflow and the report format).
+- Symptom is the optimizer swapping / dropping a candidate → [`optimizer.md`](optimizer.md) then the optimizer playbook [`knowledge/optimizer/_overview.md`](optimizer/_overview.md).
 - Need a live reproduction → [`../../qa_assistant/SKILL.md`](../../qa_assistant/SKILL.md).
