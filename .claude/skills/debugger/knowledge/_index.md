@@ -15,9 +15,10 @@ Match on what the user observed. When several match, read the earliest stage fir
 | Booking failed / not bookable, "trace this booking", `booking_id` / `search_hash` "what went wrong", supplier rejected the fare | [`booking-flow.md`](booking-flow.md) → also read the "Tracing one booking" and "How to measure bookability" sections |
 | Wrong supplier booked, optimizer rerouted, contestant missing / mistagged, reprice, fare-basis mismatch | [`optimizer.md`](optimizer.md) (mistake classes and multi-ticket rules are inside) |
 | Card declined, 3DS, charge failed, virtual card, refund, statement, chargeback, "Payhub" | [`payments.md`](payments.md) |
+| Travelfusion virtual card missing / TfPay / TF card surcharge | [`payments.md`](payments.md) |
 | Supplier-specific error / behavior, GDS office, marketing vs operating carrier, per-source quirk | [`content-sources.md`](content-sources.md) |
 | Ticket not issued, ticketing failed, `AirTicketRQ`, PNR, session close, statement finalization, “not queued to Wenrix”, pending ticketing | [`ticketing.md`](ticketing.md) |
-| Baggage / seat / ancillary wrong, missing, or mispriced; Gordian create-trip `failed_to_parse_fare_basis` | [`ancillaries.md`](ancillaries.md) |
+| Baggage / seat / ancillary wrong, missing, or mispriced; Gordian create-trip `failed_to_parse_fare_basis`; unconfirmed seat not refunded / seat refund cron; multiticket baggage fee or bag on the "wrong" leg | [`ancillaries.md`](ancillaries.md) |
 | "Where are the logs / traces for X", Datadog error spike, latency, exception with no clean DB row, which dashboard | [`observability.md`](observability.md) |
 | Regression with a clean onset time — "started failing at T", "what changed" | (no file) → hand off to `deploy_blamer` |
 
@@ -27,11 +28,11 @@ Match on what the user observed. When several match, read the earliest stage fir
 |------|-------|--------------|
 | [`booking-flow.md`](booking-flow.md) | End-to-end flow: checkout → check availability → pre-air-booker (optimization, loss limit) → book → post-air-booker → cancel-on-failure. The spine most investigations touch. | 2026-07-30 (seeded) |
 | [`optimizer.md`](optimizer.md) | How the optimizer/repricer forms and ranks contestants and can reroute a booking mid-checkout. Includes mistake classes, multi-ticket per-leg rules, and how to read `optimizer_logs`. | 2026-08-20 (PD Upgrade one-office) |
-| [`payments.md`](payments.md) | Payhub flow (Verify → 3DS → IssueCard → Sale → CancelCard), virtual cards paying suppliers, statement items / transactions. | 2026-07-30 (vcc tracing) |
-| [`content-sources.md`](content-sources.md) | Per-supplier / GDS behavior: offices / accounts, marketing vs operating carrier, LCC quirks, per-source `debug_logs` context hints. | 2026-11-04 (Aerohub fare rules) |
+| [`payments.md`](payments.md) | Payhub flow (Verify → 3DS → IssueCard → Sale → CancelCard), virtual cards paying suppliers, statement items / transactions. | 2026-11-04 (known traps; TF VCC fallback) |
+| [`content-sources.md`](content-sources.md) | Per-supplier / GDS behavior: offices / accounts, marketing vs operating carrier, LCC quirks, per-source `debug_logs` context hints. | 2026-11-04 (Aerohub fare rules; Navitaire check availability) |
 | [`search.md`](search.md) | Search submission → results page; content-source fan-out; search telemetry (which sources responded). | 2026-07-30 (seeded) |
 | [`ticketing.md`](ticketing.md) | Ticketer: `AirTicketRQ` to the GDS, Wenrix `ticket/issue-wenrix` path vs agent-queue flags, statement finalization, session close, and where issuance stalls. | 2026-08-13 (Wenrix queue) |
-| [`ancillaries.md`](ancillaries.md) | Baggage / ancillary optimization behavior and its data. | 2026-08-21 (Gordian fare-basis) |
+| [`ancillaries.md`](ancillaries.md) | Baggage / ancillary optimization behavior and its data. | 2026-10-21 (multiticket baggage layout) |
 | [`observability.md`](observability.md) | Cross-cutting evidence map: for each subsystem, the Mongo log contexts, ClickHouse tables, MySQL tables, and Datadog surfaces to reach for. | 2026-07-30 (seeded) |
 
 ## Maintenance

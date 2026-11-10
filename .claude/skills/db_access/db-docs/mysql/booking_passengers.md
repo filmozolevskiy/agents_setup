@@ -8,7 +8,7 @@
 |--------|------|-------------|
 | `id` | int PK | Auto-increment row ID |
 | `booking_id` | int FK | → `bookings.id` |
-| `type` | varchar(20) | Passenger type: `ADT` adult, `CHD` child, `INF` lap infant, `INL` seated infant |
+| `type` | varchar(20) | Passenger type (PTC): `ADT` adult, `CHD` child, `INL` infant on lap, `INS` infant on seat. Free varchar, not an enum. |
 | `gender` | varchar(1) | `M` / `F` |
 | `date_of_birth` | datetime | Date of birth (time portion is 00:00:00) |
 | `first_name` | varchar(50) | Given name (indexed) |
@@ -58,7 +58,8 @@ GROUP BY type;
 - **Typical date range:** not applicable — join through `booking_id`; constrain time via `bookings.date_added` if doing bulk analysis
 
 **Notes:**
-- `type` values seen in production: `ADT`, `CHD`, `INF`, `INL` (seated infant). The `INL` type is rare.
+- `type` values seen in production: `ADT`, `CHD`, `INL` (infant on lap), `INS` (infant on seat). Confirmed 2026-09-21 over a 30-day window, all content sources: ADT 326,457 / CHD 20,443 / INL 3,483 / INS 270. `INF` does not occur — an earlier version of this doc listed it and swapped the INL / INS meanings. The lap / seat reading matches `jupiter.jupiter_consolidated.number_of_infants_on_lap` and `number_of_infants_on_seat`.
+- No non-adult PTC (`IIT`, `JCB`, `PFA`, or their child / infant codes) has ever been stored here. Carrying those codes through the flow is the `PTC support` program on the Content Integration board.
 - `primary_contact = 1` marks the lead passenger whose contact details are on the booking; there should be exactly one per booking.
 - `sum_insured` is non-null only when Xcover or similar insurance was purchased for that passenger.
 - `gds_reference` is populated after GDS booking confirmation and can be NULL before ticketing.

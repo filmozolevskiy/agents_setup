@@ -65,7 +65,7 @@ Apply to every draft: new card, sibling set, body rewrite, comment.
 
 Check each item:
 
-1. **Short description** — one sentence. A person who opens only this line knows what fails and where.
+1. **Short description** — a summary of the whole card in one or two short sentences: the problem and the outcome the card asks for. A person who opens only this line knows what the card is about and what will change. It is not a snapshot of the current situation.
 2. **Plain words** — no heavy word, idiom, or stacked acronym. Spell out each acronym on first use. Short sentences, one idea each. Swap hard words per the plain-language table in [`references/card_anatomy.md`](references/card_anatomy.md#plain-language-mandatory).
 3. **Order of ideas** — Details follows the flow in the order it happens. Each permalink sits at the step it proves. No sentence needs a later sentence to make sense.
 4. **One job per section** — no counts outside Visibility. No fix steps in Details. No narrative in Visibility or Definition of Done.
@@ -97,7 +97,7 @@ Headings are **H3 with the `⊙` marker** (`### ⊙ **Short description**`). Con
 
 **Section order (mandatory + optional interleaved):**
 
-1. **`### ⊙ Short description`** *(mandatory)* — one sentence: what fails + where, plain language. The triage TL;DR. No stacked acronyms, no counts.
+1. **`### ⊙ Short description`** *(mandatory)* — a summary of the whole card in one or two short sentences: the problem (what fails + where) and the outcome the card asks for. Plain language. The triage TL;DR. Never only the current situation. No stacked acronyms, no counts.
 2. **`### ⊙ Details`** *(mandatory)* — the flow explained end to end, why it breaks, the hypothesis. Debug-log permalinks embedded **inline at the step they prove** (one URL per line). All narrative lives here. **What changed, not how to fix it.** No code paths, no line ranges, no class / method / DTO names of *our* code in the prose; **supplier API operation names (`OfferPrice`, `PriceUpsellWithoutPNR`, `VerifyPrice`, `BookFlight`, `OrderCreate`, …) are allowed inline** when they anchor the specific call site. No "things we still need to figure out" sub-lists — open questions either fold into Possible solution as one line, or stay out of the card.
 3. **`### ⊙ Possible solution / expected behavior`** *(optional, when known)* — what should happen instead, in one or two short sentences. State the outcome, not the implementation. **No numbered developer to-do lists** ("1. verify X, 2. add handling for Y, 3. keep error branch"); leave the implementation to the dev. If the upstream change is already live on a staging / sandbox / test environment, name that environment in one line so the dev knows where to test, and attach any supplier confirmation (Slack screenshot, email) as a card attachment.
 4. **`### ⊙ Visibility`** *(mandatory)* — how we track it: one debuggable query (Mongo leading `$match` / MySQL CTE) + the measured count + window when known (omit the count line if not measured — never fabricate). *OR* a fenced breakdown table — never both. Scale lives here only.
