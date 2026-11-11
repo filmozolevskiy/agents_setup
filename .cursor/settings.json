@@ -1,7 +1,0 @@
-{
-  "plugins": {
-    "datadog": {
-      "enabled": true
-    }
-  }
-}

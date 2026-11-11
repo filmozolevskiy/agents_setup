@@ -9,13 +9,13 @@ __pycache__/
 # Ephemeral output
 reports/
 docs/
-!.cursor/skills/*/docs/
+!.claude/skills/*/docs/
 .cache_workspace/
 
 # Skill eval workspaces (per-iteration run outputs / benchmarks / viewer logs — kept locally, not in git)
-.cursor/skills/*-workspace/
+.claude/skills/*-workspace/
 
-# MCP Toolbox binary (downloaded via .cursor/skills/looker/scripts/install_mcp_toolbox.sh)
+# MCP Toolbox binary (downloaded via .claude/skills/looker_assistant/scripts/install_mcp_toolbox.sh)
 bin/
 
 # macOS
@@ -23,6 +23,6 @@ bin/
 
 
 # the genesis repo (local checkout owned by the codebase_access skill)
-.cursor/skills/codebase_access/codebase/
+.claude/skills/codebase_access/codebase/
 # the genesis-storefront repo (front-end checkout/search/home; same skill)
-.cursor/skills/codebase_access/codebase-storefront/
+.claude/skills/codebase_access/codebase-storefront/

@@ -1,8 +1,55 @@
 {
   "mcpServers": {
+    "clickhouse": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/db_access/scripts/mcp_clickhouse.sh\""
+      ]
+    },
+    "looker": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/looker_assistant/scripts/mcp_looker.sh\""
+      ]
+    },
+    "GitHub": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/deploy_blamer/scripts/mcp_github.sh\""
+      ]
+    },
+    "trello": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/trello_assistant/scripts/mcp_trello.sh\""
+      ]
+    },
+    "growthbook": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec \"$(git rev-parse --show-toplevel)/.claude/skills/growthbook_assistant/scripts/mcp_growthbook.sh\""
+      ]
+    },
+    "Notion": {
+      "type": "http",
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "Lucid": {
+      "type": "http",
+      "url": "https://mcp.lucid.app/mcp"
+    },
+    "Atlassian-MCP-Server": {
+      "type": "http",
+      "url": "https://mcp.atlassian.com/v1/mcp"
+    },
     "datadog": {
       "type": "http",
-      "url": "https://mcp.us5.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=all"
+      "url": "https://mcp.us5.datadoghq.com/v1/mcp?toolsets=all"
     }
   }
 }
