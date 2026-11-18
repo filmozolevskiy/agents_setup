@@ -32,6 +32,9 @@ The rules below are **always-on**, regardless of which skill is active.
 | **Price & Drop** | Optimizer flow that prices a fare through a supplier and drops the booking after pricing. No ticket is issued. Used to review a supplier's content and prices before a full booking integration. |
 | **Automated Unused Tickets** | Wenrix program that claims leftover value on unused issued Amadeus tickets after the last flight has flown more than 90 days. Wenrix files the airline refund and reports each refunded passenger name record. Money returns to the booking form of payment, not the customer card. Distinct from customer-initiated cancel, Optivoid, Optifare, and Flex Booster. |
 | **PTC** | Passenger type code — the code a fare is priced under. `ADT` adult, `CHD` child, `INF` lap infant, `INS` seated infant. Non-adult codes we are integrating: `IIT` inclusive tour, `JCB`, `PFA`, each with its own child and infant codes. Spell it out as "passenger type code (PTC)" on first use in a card or report. |
+| **underfunded item** | A Payhub charge on a test-card booking that is not fully reversed: a capture with money left after its refunds / voids, an auth hold never captured or released, or an operation still pending. Reported by the `test_card_audit` skill. |
+| **unvoided item** | A supplier-side payment on a test-card booking that was never voided or refunded: the ticket fare we paid the supplier (`agency`), or an ancillary charge (seats, insurance). Reported by the `test_card_audit` skill. |
+| **test card** | A credit card we use for real test bookings. The numbers live in `.env` (`CC_NUMBER`, optional `TEST_CC_NUMBERS`) and are never written in full in any artefact. |
 | **Fare Fetch rules page** | Internal page at `https://summit.flighthub.com/rules-fare-fetch` where search targets are configured per office and carrier. |
 
 ### Banned terms — do not use in any user-facing artefact

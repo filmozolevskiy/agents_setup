@@ -56,6 +56,7 @@ Detailed rules, query templates, and runners live under `.claude/skills/<name>/`
 | [`pr_status`](.claude/skills/pr_status/SKILL.md) | User gives a PR link or a Trello card and asks where the PR stands — "PR status for <link>", "who is reviewing", "are the comments resolved", "is it ready to merge", "who are we waiting on"; another skill needs a card's PR merge / review state |
 | [`qa_assistant`](.claude/skills/qa_assistant/SKILL.md) | Driving a real test booking on FlightHub / JustFly staging or production and validating it across MySQL / ClickHouse / MongoDB |
 | [`qa_strategy`](.claude/skills/qa_strategy/SKILL.md) | User wants a QA strategy, test plan, or staging/post-deploy checklist derived from a Trello card and its linked PR — "QA strategy for this card", "staging checklist for <card>", "what should we test for this PR", "post-deploy checks for <card>" |
+| [`test_card_audit`](.claude/skills/test_card_audit/SKILL.md) | User asks for pending, underfunded, unvoided, or not-closed items on our test credit cards — "pending items on the test card", "underfunded items", "unvoided items", "did we forget to void anything", "did we refund all test bookings"; also after a batch of real test bookings to confirm every customer charge was refunded and every supplier payment was voided |
 | [`trello_assistant`](.claude/skills/trello_assistant/SKILL.md) | Creating or updating cards on the Content Integration or Content Integration - AI Automation boards; splitting a fat request into sibling cards; working a card the user pointed at |
 
 ## Agent skills
